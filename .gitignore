@@ -1,0 +1,14 @@
+# Credentials — NEVER commit these
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+*.ovpn
+venv/
+__pycache__/
+*.pyc
+reports/videos/
+knowledge_base/vector_store/
+venv/
