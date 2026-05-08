@@ -1,0 +1,33 @@
+# Model tier → OpenRouter free model mapping
+# Swap these out as better free models become available on OpenRouter
+# Paid upgrade path: change :free suffix to remove rate limits
+
+models:
+  fast:
+    # Classification, triage, simple tasks
+    model: "meta-llama/llama-3.1-8b-instruct:free"
+    max_tokens: 1000
+    temperature: 0.1
+
+  standard:
+    # Test case generation, code generation, AC extraction
+    model: "meta-llama/llama-3.3-70b-instruct:free"
+    max_tokens: 3000
+    temperature: 0.2
+
+  complex:
+    # Deep analysis, multi-step reasoning, debug agent
+    model: "deepseek/deepseek-r1:free"
+    max_tokens: 4000
+    temperature: 0.1
+
+# Per-agent tier assignment
+agents:
+  test_case_agent:    standard
+  test_plan_agent:    standard
+  locator_agent:      fast
+  code_gen_agent:     standard
+  debug_agent:        complex
+  flaky_agent:        fast
+  requirements_agent: standard
+  skill_gap_agent:    fast

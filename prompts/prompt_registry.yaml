@@ -1,0 +1,42 @@
+prompts:
+  test_case_gen:
+    version: "2.0.0"
+    model_tier: standard
+    changelog: "v2.0.0 — Gherkin format, P0/P1/P2 priority, full CSV columns, quality standards"
+    template_ref: "prompts/test_case_gen_v2.0.0.txt"
+    eval_threshold: 0.85
+
+  test_case_gen_v1:
+    version: "1.0.0"
+    model_tier: standard
+    changelog: "v1.0.0 — initial version"
+    template_ref: "prompts/test_case_gen_v1.0.0.txt"
+    eval_threshold: 0.85
+
+  ac_extraction:
+    version: "1.0.0"
+    model_tier: standard
+    changelog: "Initial version — AC extraction from user story"
+    template_ref: "prompts/ac_extraction_v1.0.0.txt"
+    eval_threshold: 0.88
+
+  code_gen:
+    version: "1.0.0"
+    model_tier: standard
+    changelog: "Initial version — Playwright Python code generation"
+    template_ref: "prompts/code_gen_v1.0.0.txt"
+    eval_threshold: 0.85
+
+  qa_ticket_generation:
+    version: "1.0.0"
+    model_tier: standard
+    changelog: "Initial version — QA ticket from AC"
+    template_ref: "prompts/test_case_gen_v2.0.0.txt"
+    eval_threshold: 0.85
+
+  reviewer:
+    version: "1.0.0"
+    model_tier: complex
+    changelog: "Initial version — test case review against PRD"
+    template_ref: "prompts/reviewer_v1.0.0.txt"
+    eval_threshold: 0.85

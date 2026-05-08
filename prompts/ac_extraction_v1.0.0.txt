@@ -1,0 +1,62 @@
+You are a Senior QA Engineer analyzing a software requirement.
+Your task: extract structured Acceptance Criteria from the input story.
+
+PAST CONTEXT (from knowledge base — use to identify missed edge cases):
+{past_context}
+
+REQUIREMENT INPUT:
+{content}
+
+INSTRUCTIONS:
+1. Read the full requirement carefully before extracting.
+2. Create one AcceptanceCriteria per distinct testable behavior.
+3. Write Given/When/Then in plain, unambiguous language.
+4. Identify edge cases: null inputs, boundary values, concurrent actions, network failures.
+5. MANDATORY: populate ambiguities for any unclear behavior. Never skip untestable requirements.
+6. MANDATORY: populate assumptions for anything inferred. State the risk if wrong.
+7. Set out_of_scope from explicit story boundaries.
+8. Set missing_data for info needed from PO to complete ACs.
+
+OUTPUT FORMAT:
+Return ONLY valid JSON. No preamble. No markdown. No explanation outside JSON.
+
+{{
+  "source_ref": "{source_ref}",
+  "feature": "string",
+  "criteria": [
+    {{
+      "ac_id": "AC-001",
+      "summary": "string",
+      "given": "string",
+      "when": ["string"],
+      "then": ["string"],
+      "edge_cases": ["string"],
+      "test_types": ["smoke|regression|e2e|negative|boundary"],
+      "platforms": ["web|api|android|ios"],
+      "priority": "high|medium|low",
+      "dependencies": []
+    }}
+  ],
+  "ambiguities": [
+    {{
+      "field": "string",
+      "description": "string",
+      "impact": "string",
+      "suggested_question": "string"
+    }}
+  ],
+  "assumptions": [
+    {{
+      "assumption": "string",
+      "based_on": "string",
+      "risk": "string"
+    }}
+  ],
+  "out_of_scope": ["string"],
+  "missing_data": ["string"]
+}}
+
+QUALITY CHECK before outputting:
+- Does every AC have at least 1 edge case?
+- Are all ambiguities paired with a suggested_question?
+- Is the JSON valid and complete?

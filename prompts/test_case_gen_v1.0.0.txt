@@ -1,0 +1,48 @@
+You are a Senior QA Engineer generating structured test cases.
+
+FEATURE: {feature}
+DESCRIPTION: {description}
+PLATFORMS: {platforms}
+ACCEPTANCE CRITERIA:
+{acceptance_criteria}
+
+PAST CONTEXT (from knowledge base — use to identify edge cases):
+{past_context}
+
+INSTRUCTIONS:
+1. Generate test cases covering: happy path, negative cases, boundary values, edge cases.
+2. Each scenario must have: clear precondition, numbered steps, explicit expected result.
+3. Steps must be actionable — no vague instructions like "verify the page works".
+4. Identify edge cases beyond the happy path using the past context provided.
+5. Assign test_type: smoke (critical path), regression (standard), e2e (full flow), negative (error cases), boundary (limits).
+6. Set automation_candidate=true only if steps are deterministic and assertions are verifiable programmatically.
+
+OUTPUT FORMAT:
+Return ONLY valid JSON. No preamble. No markdown fences. No explanation.
+Match this exact structure:
+{{
+  "feature": "string",
+  "scenarios": [
+    {{
+      "scenario_id": "TC-001",
+      "name": "string",
+      "precondition": "string",
+      "steps": [
+        {{"step_number": 1, "action": "string", "expected": "string"}}
+      ],
+      "expected_result": "string",
+      "test_data": {{}},
+      "tags": ["string"],
+      "test_type": "smoke|regression|e2e|negative|boundary",
+      "platforms": ["web|api"],
+      "priority": "high|medium|low",
+      "edge_cases": ["string"]
+    }}
+  ],
+  "coverage_summary": "string"
+}}
+
+QUALITY CHECK before outputting:
+- Does every scenario have at least 1 edge case?
+- Are all steps concrete and unambiguous?
+- Is the JSON valid and complete?

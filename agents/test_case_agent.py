@@ -1,0 +1,227 @@
+"""
+Test Case Agent — Phase 2 core agent.
+Input:  TestCaseAgentInput (feature + description + platforms + AC)
+Output: TestCaseAgentOutput (typed, validated, provenance-tagged)
+Flow:
+  1. Sanitize input
+  2. Retrieve RAG context
+  3. Format prompt
+  4. Call LLM via circuit breaker
+  5. Parse + validate typed output
+  6. Send to Telegram for Human-in-the-Loop approval
+  7. Wait for decision
+  8. Return approved output or raise on reject
+"""
+import json
+import structlog
+from datetime import datetime
+from core.llm_client import llm_client, ModelTier
+from core.agent_contracts import (
+    TestCaseAgentInput, TestCaseAgentOutput,
+    ScenarioSchema, TestStep,
+    TestType, Platform, Priority,
+    AgentFeedback, Decision,
+)
+from core.circuit_breaker import get_breaker
+from core import input_sanitizer
+from core.prompt_manager import prompt_manager
+from knowledge_base.rag_engine import rag_engine
+from approval_workflow.feedback_schema import review_queue
+from config.settings import settings
+import asyncio
+
+logger = structlog.get_logger(__name__)
+
+AGENT_NAME    = "test_case_agent"
+PROMPT_NAME   = "test_case_gen"
+PROMPT_VERSION = "1.0.0"
+
+
+class TestCaseAgent:
+    def __init__(self):
+        self.breaker = get_breaker(AGENT_NAME)
+        self._telegram = None  # Injected lazily to avoid circular import
+
+    @property
+    def telegram(self):
+        if self._telegram is None:
+            from core.telegram_bot import telegram_bot
+            self._telegram = telegram_bot
+            self._telegram.set_review_queue(review_queue)
+        return self._telegram
+
+    async def run(self, input_data: TestCaseAgentInput) -> TestCaseAgentOutput:
+        """Main entry point — full agent pipeline with Human-in-the-Loop."""
+        logger.info(
+            "test_case_agent_start",
+            feature=input_data.feature,
+            platforms=[p.value for p in input_data.platforms],
+        )
+
+        # ── Step 1: Sanitize ──────────────────────────────────
+        clean_desc = input_sanitizer.sanitize(
+            input_data.description,
+            source=f"feature/{input_data.feature}"
+        )
+        clean_ac = [
+            input_sanitizer.sanitize(ac, source="acceptance_criteria").content
+            for ac in input_data.acceptance_criteria
+        ]
+
+        # ── Step 2: RAG retrieval ─────────────────────────────
+        past_context = rag_engine.retrieve(
+            query=f"{input_data.feature} {input_data.description}",
+            top_k=5,
+        )
+
+        # ── Step 3: Format prompt ─────────────────────────────
+        template = prompt_manager.get(PROMPT_NAME)
+        ac_text   = "\n".join(f"- {ac}" for ac in clean_ac) or "Not provided"
+        platforms = ", ".join(p.value for p in input_data.platforms)
+
+        system_prompt = template.format(
+            feature=input_data.feature,
+            description=clean_desc.content,
+            platforms=platforms,
+            acceptance_criteria=ac_text,
+            past_context=past_context,
+            date=__import__('datetime').datetime.now().strftime('%Y%m%d'),
+        )
+
+        # ── Step 4: LLM call via circuit breaker ─────────────
+        def _call_llm():
+            return llm_client.complete_text(
+                system=system_prompt,
+                user=f"Generate comprehensive test cases for: {input_data.feature}",
+                tier=ModelTier.STANDARD,
+                agent_name=AGENT_NAME,
+                json_mode=True,
+            )
+
+        response = self.breaker.call(_call_llm)
+
+        # ── Step 5: Parse + validate ──────────────────────────
+        output = self._parse_output(response.content, input_data, response.model)
+
+        # ── Step 6: Human-in-the-Loop (if required) ───────────
+        if settings.approval_required:
+            output = await self._request_approval(output)
+
+        return output
+
+    def _parse_output(
+        self,
+        raw_json:   str,
+        input_data: TestCaseAgentInput,
+        model_used: str,
+    ) -> TestCaseAgentOutput:
+        """Parse LLM JSON response into typed TestCaseAgentOutput."""
+        # Clean common LLM artifacts
+        raw = raw_json.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            # Try to salvage truncated JSON
+            last_bracket = raw.rfind("}]")
+            if last_bracket != -1:
+                raw = raw[:last_bracket + 2] + "}"
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    data = {"feature": input_data.feature, "scenarios": [], "coverage_summary": "JSON truncated — retry"}
+            else:
+                data = {"feature": input_data.feature, "scenarios": [], "coverage_summary": "JSON truncated — retry"}
+
+        scenarios = []
+        for i, s in enumerate(data.get("scenarios", []), 1):
+            raw_steps = s.get("steps", [])
+            steps = []
+            for idx, st in enumerate(raw_steps):
+                if isinstance(st, dict):
+                    steps.append(TestStep(
+                        step_number=st.get("step_number", idx+1),
+                        action=st.get("action",""),
+                        expected=st.get("expected",""),
+                    ))
+                elif isinstance(st, str):
+                    steps.append(TestStep(step_number=idx+1, action=st, expected=""))
+            scenarios.append(ScenarioSchema(
+                scenario_id=s.get("scenario_id", f"TC-{i:03d}"),
+                name=s.get("name", f"Scenario {i}"),
+                precondition=s.get("precondition", ""),
+                steps=steps,
+                expected_result=s.get("expected_result", ""),
+                test_data=s.get("test_data", {}),
+                tags=s.get("tags", []),
+                test_type=TestType(s.get("test_type", "regression")),
+                platforms=[Platform(p) for p in s.get("platforms", ["web"])
+                           if p in Platform._value2member_map_],
+                priority=Priority({
+                        "P0":"high","P1":"medium","P2":"low",
+                        "high":"high","medium":"medium","low":"low"
+                    }.get(s.get("priority","medium"),"medium")),
+                edge_cases=s.get("edge_cases", []),
+            ))
+
+        return TestCaseAgentOutput(
+            feature=input_data.feature,
+            scenarios=scenarios,
+            coverage_summary=data.get("coverage_summary", ""),
+            total_scenarios=len(scenarios),
+            prompt_version=PROMPT_VERSION,
+            model_used=model_used,
+            generated_at=datetime.now(),
+        )
+
+    async def _request_approval(self, output: TestCaseAgentOutput) -> TestCaseAgentOutput:
+        """Send to Telegram, wait for QA Lead decision."""
+        item = review_queue.enqueue(
+            agent_name=AGENT_NAME,
+            payload=output.model_dump(),
+        )
+
+        # Non-blocking send to Telegram
+        await self.telegram.send_test_cases_for_review(
+            output_id=item.output_id,
+            feature=output.feature,
+            scenarios=output.scenarios,
+            model_used=output.model_used,
+        )
+
+        logger.info(
+            "waiting_for_approval",
+            output_id=item.output_id,
+            feature=output.feature,
+        )
+
+        feedback: AgentFeedback = await item.wait(timeout=300.0)
+
+        if feedback.decision == Decision.APPROVE:
+            logger.info("test_cases_approved", output_id=item.output_id)
+            return output
+
+        elif feedback.decision == Decision.REJECT:
+            logger.warning(
+                "test_cases_rejected",
+                output_id=item.output_id,
+                reason=feedback.rejection_reason,
+            )
+            raise ValueError(
+                f"Test cases rejected by reviewer. "
+                f"Reason: {feedback.rejection_reason}. "
+                f"Feedback: {feedback.corrected_output or 'None provided'}"
+            )
+
+        else:  # EDIT
+            logger.info("test_cases_edit_requested", output_id=item.output_id)
+            # For now return original — full edit flow is Phase 3
+            return output
+
+
+test_case_agent = TestCaseAgent()
