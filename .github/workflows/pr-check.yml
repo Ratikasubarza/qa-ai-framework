@@ -1,0 +1,53 @@
+name: PR Check — Fast Feedback
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.11'
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+  HONO_API_URL: ${{ secrets.HONO_API_URL }}
+  HONO_API_KEY: ${{ secrets.HONO_API_KEY }}
+  STAGING_EMAIL: ${{ secrets.STAGING_EMAIL }}
+  STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+  APPROVAL_REQUIRED: 'false'
+
+jobs:
+  fast-check:
+    name: Fast PR Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Smoke test
+        run: PYTHONPATH=. python cli.py smoke
+
+      - name: API tests (no VPN needed)
+        run: PYTHONPATH=. pytest features/login/steps/login_api_test.py -v --tb=short -x
+
+      - name: Debug agent tests
+        run: PYTHONPATH=. pytest tests/test_debug_agent.py -v --tb=short
+
+      - name: Comment PR with results
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const { context } = require('@actions/github');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ QA fast check complete. API + Debug Agent tests passed.'
+            });

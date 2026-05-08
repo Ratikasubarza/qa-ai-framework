@@ -1,0 +1,272 @@
+name: QA AI Framework — Automated Test Pipeline
+
+on:
+  push:
+    branches: [main, develop, staging]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run every day at 08:00 WIB (01:00 UTC)
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - web
+          - api
+          - self-healing
+          - debug-agent
+
+env:
+  PYTHON_VERSION: '3.11'
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+  HONO_API_URL: ${{ secrets.HONO_API_URL }}
+  HONO_API_KEY: ${{ secrets.HONO_API_KEY }}
+  STAGING_EMAIL: ${{ secrets.STAGING_EMAIL }}
+  STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+  JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+  JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+  JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+  JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  TELEGRAM_QA_LEADS_CHAT_ID: ${{ secrets.TELEGRAM_QA_LEADS_CHAT_ID }}
+  TELEGRAM_QA_TEAM_CHAT_ID: ${{ secrets.TELEGRAM_QA_TEAM_CHAT_ID }}
+  TELEGRAM_QA_OPS_CHAT_ID: ${{ secrets.TELEGRAM_QA_OPS_CHAT_ID }}
+  TELEGRAM_QA_BUGS_CHAT_ID: ${{ secrets.TELEGRAM_QA_BUGS_CHAT_ID }}
+  APPROVAL_REQUIRED: 'false'
+  AUTO_CREATE_BUGS: 'false'
+
+
+jobs:
+  # ── Job 1: Smoke Test ──────────────────────────────────────────────
+  smoke:
+    name: Smoke Test — LLM Connection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run smoke test
+        run: PYTHONPATH=. python cli.py smoke
+
+  # ── Job 2: API Tests ───────────────────────────────────────────────
+  api-tests:
+    name: API Tests — api-dev.thehono.com
+    runs-on: ubuntu-latest
+    needs: smoke
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'api' || github.event.inputs.test_suite == ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run API tests
+        run: PYTHONPATH=. pytest features/login/steps/login_api_test.py -v --tb=short --junit-xml=reports/junit/api-results.xml
+
+      - name: Upload API test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-results
+          path: reports/junit/api-results.xml
+
+  # ── Job 3: Web Tests ───────────────────────────────────────────────
+  web-tests:
+    name: Web Tests — app-dev.thehono.com
+    runs-on: ubuntu-latest
+    needs: smoke
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'web' || github.event.inputs.test_suite == ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Setup OpenVPN
+        run: |
+          sudo apt-get install -y openvpn
+          echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
+          sudo openvpn --config /tmp/hono-vpn.ovpn \
+            --mute-replay-warnings \
+            --replay-window 128 30 \
+            --pull-filter ignore redirect-gateway \
+            --daemon
+          sleep 10
+          curl -I https://app-dev.thehono.com --max-time 10
+
+      - name: Run web tests
+        run: PYTHONPATH=. pytest features/login/steps/login_web_test.py -v --tb=short --junit-xml=reports/junit/web-results.xml
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: web-failure-screenshots
+          path: reports/debug_logs/
+
+      - name: Upload web test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-test-results
+          path: reports/junit/web-results.xml
+
+  # ── Job 4: Self-Healing Tests ──────────────────────────────────────
+  self-healing-tests:
+    name: Self-Healing Tests
+    runs-on: ubuntu-latest
+    needs: web-tests
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'self-healing' || github.event.inputs.test_suite == ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Setup OpenVPN
+        run: |
+          sudo apt-get install -y openvpn
+          echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
+          sudo openvpn --config /tmp/hono-vpn.ovpn \
+            --mute-replay-warnings --replay-window 128 30 \
+            --pull-filter ignore redirect-gateway --daemon
+          sleep 10
+
+      - name: Run self-healing tests
+        run: PYTHONPATH=. pytest features/login/steps/login_web_test.py::test_TC_WEB_005_self_healing_demo -v --tb=short
+
+      - name: Upload self-healing results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: self-healing-results
+          path: reports/
+
+  # ── Job 5: Debug Agent Tests ───────────────────────────────────────
+  debug-agent-tests:
+    name: Debug Agent Tests
+    runs-on: ubuntu-latest
+    needs: smoke
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'debug-agent' || github.event.inputs.test_suite == ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run debug agent tests
+        run: PYTHONPATH=. pytest tests/test_debug_agent.py -v --tb=short --junit-xml=reports/junit/debug-results.xml
+
+      - name: Upload debug agent results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debug-agent-results
+          path: reports/junit/debug-results.xml
+
+  # ── Job 6: Report & Notify ─────────────────────────────────────────
+  report:
+    name: Generate Report & Notify
+    runs-on: ubuntu-latest
+    needs: [api-tests, web-tests, debug-agent-tests]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/junit/
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send Telegram notification
+        run: |
+          python3 << 'PYEOF'
+          import httpx, os, glob
+
+          token   = os.getenv("TELEGRAM_BOT_TOKEN")
+          chat_id = os.getenv("TELEGRAM_QA_OPS_CHAT_ID")
+
+          # Count results
+          passed = failed = 0
+          for f in glob.glob("reports/junit/**/*.xml", recursive=True):
+              import xml.etree.ElementTree as ET
+              try:
+                  tree = ET.parse(f)
+                  root = tree.getroot()
+                  passed += int(root.get("tests", 0)) - int(root.get("failures", 0)) - int(root.get("errors", 0))
+                  failed += int(root.get("failures", 0)) + int(root.get("errors", 0))
+              except Exception:
+                  pass
+
+          status = "✅ PASSED" if failed == 0 else "❌ FAILED"
+          branch = os.getenv("GITHUB_REF_NAME", "unknown")
+          run_url = f"https://github.com/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
+
+          msg = (
+              f"{status} *QA Pipeline*\n\n"
+              f"*Branch:* `{branch}`\n"
+              f"*Results:* {passed} passed / {failed} failed\n"
+              f"*Run:* [View Details]({run_url})"
+          )
+
+          if token and chat_id:
+              httpx.post(
+                  f"https://api.telegram.org/bot{token}/sendMessage",
+                  json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
+              )
+              print(f"✓ Telegram notified: {status}")
+          PYEOF
