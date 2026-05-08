@@ -81,17 +81,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Setup OpenVPN
-        run: |
-          sudo apt-get install -y openvpn openvpn-systemd-resolved
-          echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
-          sudo openvpn --config /tmp/hono-vpn.ovpn \
-            --mute-replay-warnings --replay-window 128 30 \
-            --pull-filter ignore redirect-gateway \
-            --daemon --log /tmp/vpn.log
-          sleep 15
-          curl -I https://api-dev.thehono.com --max-time 15 || echo "VPN issue"
-
       - name: Run API tests
         run: PYTHONPATH=. pytest features/login/steps/login_api_test.py -v --tb=short --junit-xml=reports/junit/api-results.xml
 
@@ -110,12 +99,6 @@ jobs:
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'web' || github.event.inputs.test_suite == ''
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
 
       - name: Install dependencies
         run: pip install -r requirements.txt
