@@ -32,21 +32,24 @@ class LocatorStore:
             f"Platform: {platform}\n"
             f"Success: {success}"
         )
-        rag_engine.index(
-            documents=[content],
-            ids=[doc_id],
-            metadatas=[{
-                "feature":  feature,
-                "element":  element,
-                "locator":  locator,
-                "platform": platform,
-                "success":  str(success),
-                "saved_at": datetime.now().isoformat(),
-                "source":   "locator_history",
-            }],
-            collection=COLLECTION,
-        )
-        logger.info("locator_saved", feature=feature, element=element, success=success)
+        try:
+            rag_engine.index(
+                documents=[content],
+                ids=[doc_id],
+                metadatas=[{
+                    "feature":  feature,
+                    "element":  element,
+                    "locator":  locator,
+                    "platform": platform,
+                    "success":  str(success),
+                    "saved_at": datetime.now().isoformat(),
+                    "source":   "locator_history",
+                }],
+                collection=COLLECTION,
+            )
+            logger.info("locator_saved", feature=feature, element=element, success=success)
+        except Exception as e:
+            logger.warning("locator_save_failed", error=str(e), feature=feature, element=element)
 
     def get_history(self, feature: str, element: str, top_k: int = 5) -> list[dict]:
         """Get past locators for a given feature+element combination."""
