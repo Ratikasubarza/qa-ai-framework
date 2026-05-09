@@ -142,14 +142,13 @@ jobs:
           sudo openvpn --config /tmp/hono-vpn.ovpn \
             --mute-replay-warnings \
             --replay-window 128 30 \
-            --pull-filter ignore redirect-gateway \
             --daemon --log /tmp/vpn.log
           sleep 15
           cat /tmp/vpn.log | tail -5
           curl -I https://app-dev.thehono.com --max-time 15 || echo "VPN connection issue"
 
       - name: Run web tests
-        run: PYTHONPATH=. pytest features/login/steps/login_web_test.py -v --tb=short --junit-xml=reports/junit/web-results.xml
+        run: PYTHONPATH=. python -m pytest features/login/steps/login_web_test.py -v --tb=short --junit-xml=reports/junit/web-results.xml
 
       - name: Upload screenshots on failure
         uses: actions/upload-artifact@v4
@@ -199,11 +198,10 @@ jobs:
           echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
           sudo openvpn --config /tmp/hono-vpn.ovpn \
             --mute-replay-warnings --replay-window 128 30 \
-            --pull-filter ignore redirect-gateway --daemon
           sleep 10
 
       - name: Run self-healing tests
-        run: PYTHONPATH=. pytest features/login/steps/login_web_test.py::test_TC_WEB_005_self_healing_demo -v --tb=short
+        run: PYTHONPATH=. python -m pytest features/login/steps/login_web_test.py::test_TC_WEB_005_self_healing_demo -v --tb=short
 
       - name: Upload self-healing results
         uses: actions/upload-artifact@v4
