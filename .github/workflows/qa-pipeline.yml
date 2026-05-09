@@ -81,6 +81,28 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Setup OpenVPN
+        run: |
+          sudo apt-get install -y openvpn openvpn-systemd-resolved
+          PRE_GW=$(ip route | grep '^default' | awk '{print $3}')
+          PRE_IF=$(ip route | grep '^default' | awk '{print $5}')
+          echo "Pre-VPN gateway: $PRE_GW via $PRE_IF"
+          echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
+          sudo openvpn --config /tmp/hono-vpn.ovpn \
+            --mute-replay-warnings \
+            --replay-window 128 30 \
+            --daemon --log /tmp/vpn.log
+          sleep 20
+          echo "=== Routes after VPN ==="
+          ip route
+          for host in api.github.com github.com; do
+            IP=$(dig +short $host | grep -E '^[0-9]+\.' | head -1)
+            [ -n "$IP" ] && sudo ip route add $IP/32 via $PRE_GW dev $PRE_IF 2>/dev/null && echo "Restored: $host" || true
+          done
+          curl -sf https://api.github.com/zen --max-time 10 && echo "Internet OK" || echo "Internet broken"
+          curl -sf https://api-dev.thehono.com --max-time 15 -o /dev/null && echo "VPN API OK" || echo "VPN API unreachable"
+          cat /tmp/vpn.log | tail -10 
+
       - name: Run API tests
         run: PYTHONPATH=. pytest features/login/steps/login_api_test.py -v --tb=short --junit-xml=reports/junit/api-results.xml
 
