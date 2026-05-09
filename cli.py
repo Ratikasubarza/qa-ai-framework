@@ -324,6 +324,34 @@ async def cmd_bot_start(args):
         await telegram_bot.start_webhook(webhook_url=args.ngrok_url, port=8000)
 
 
+
+async def cmd_pipeline(args):
+    from orchestrator.pipeline import run_pipeline
+    import json
+
+    console.print(Panel(
+        f"[bold cyan]Feature:[/] {args.feature}\n"
+        f"[bold cyan]Platforms:[/] {args.platform}\n"
+        f"[bold cyan]Ticket:[/] {args.ticket or 'N/A'}",
+        title="[bold]QA Pipeline — Phase 9", border_style="cyan",
+    ))
+
+    platforms = [p.strip() for p in args.platform.split(",")]
+    final = await run_pipeline(
+        feature=args.feature,
+        platforms=platforms,
+        ticket_id=args.ticket or None,
+        story_text=args.story or args.feature,
+    )
+
+    console.print(f"\n[bold]Pipeline Complete[/]")
+    console.print(f"  Coverage:   [cyan]{final.get('coverage_percentage', 0):.0f}%[/]")
+    console.print(f"  Test cases: {len(final.get('test_cases') or [])}")
+    console.print(f"  Bugs found: {len(final.get('bug_reports') or [])}")
+    console.print(f"  Gaps:       {len(final.get('coverage_gaps') or [])}")
+    if final.get('gap_report_path'):
+        console.print(f"  Gap report: [dim]{final['gap_report_path']}[/]")
+
 def build_parser():
     parser  = argparse.ArgumentParser(prog="cli.py", description="QA AI Framework CLI")
     sub     = parser.add_subparsers(dest="command")
@@ -383,6 +411,12 @@ def build_parser():
 
     sub.add_parser("smoke", help="Verify LLM connection")
 
+    pip = sub.add_parser("pipeline", help="Run full Phase 9 orchestrated pipeline")
+    pip.add_argument("--feature",  required=True)
+    pip.add_argument("--platform", default="web")
+    pip.add_argument("--ticket",   default=None, help="Jira ticket ID")
+    pip.add_argument("--story",    default=None, help="Raw story text")
+
     return parser
 
 
@@ -412,6 +446,8 @@ def main():
             asyncio.run(cmd_bot_start(args))
         else:
             parser.print_help()
+    elif args.command == "pipeline":
+        asyncio.run(cmd_pipeline(args))
     elif args.command == "smoke":
         asyncio.run(cmd_smoke(args))
     else:

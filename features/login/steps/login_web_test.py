@@ -19,8 +19,9 @@ from features.login.locators.login_locators import (
 
 load_dotenv(dotenv_path=".env")
 
-EMAIL    = os.getenv("STAGING_EMAIL",    "testingHonoA@mailinator.com")
-PASSWORD = os.getenv("STAGING_PASSWORD", "")
+from features.login.test_data.login_test_data import LoginTestData
+EMAIL    = LoginTestData.VALID_EMAIL
+PASSWORD = LoginTestData.VALID_PASSWORD
 BASE_URL = "https://app-dev.thehono.com"
 LOCATORS_FILE = "features/login/locators/login_locators.py"
 
