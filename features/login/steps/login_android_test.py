@@ -2,6 +2,7 @@ import pytest
 import time
 import os
 from dotenv import load_dotenv
+from features.login.test_data.login_test_data import LoginTestData
 from appium.webdriver.common.appiumby import AppiumBy
 
 from platforms.mobile.appium_driver import AppiumDriver
@@ -15,8 +16,8 @@ APP_ACTIVITY      = os.getenv("ANDROID_APP_ACTIVITY",     "com.example.hono_app.
 DEVICE_NAME       = os.getenv("ANDROID_DEVICE_NAME",      "3331858607000IX")
 PLATFORM_VERSION  = os.getenv("ANDROID_PLATFORM_VERSION", "12.0")
 APK_PATH          = os.getenv("ANDROID_APK_PATH",         None)
-EMAIL             = os.getenv("STAGING_EMAIL",             "testingHonoB@mailinator.com")
-PASSWORD          = os.getenv("STAGING_PASSWORD",          "9E@AyFmy*S!uUW")
+EMAIL             = LoginTestData.VALID_EMAIL
+PASSWORD          = LoginTestData.VALID_PASSWORD
 
 ONBOARDING_LOGIN  = "Already have an account? Log in"
 EMAIL_FIELD       = "Enter your email address"
