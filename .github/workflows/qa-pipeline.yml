@@ -272,7 +272,7 @@ jobs:
 
           # Count results
           passed = failed = 0
-          for f in glob.glob("reports/junit/**/*.xml", recursive=True):
+          for f in glob.glob("reports/junit/*.xml") + glob.glob("reports/junit/**/*.xml", recursive=True):
               import xml.etree.ElementTree as ET
               try:
                   tree = ET.parse(f)
