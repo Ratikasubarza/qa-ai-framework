@@ -262,6 +262,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Debug downloaded artifacts
+        run: |
+          echo "=== Files in reports/ ==="
+          find reports/ -type f 2>/dev/null || echo "reports/ empty or missing"
+
       - name: Send Telegram notification
         run: |
           python3 << 'PYEOF'
