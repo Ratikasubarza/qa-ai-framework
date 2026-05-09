@@ -90,7 +90,6 @@ jobs:
           echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
           sudo openvpn --config /tmp/hono-vpn.ovpn \
             --mute-replay-warnings \
-            --replay-window 128 30 \
             --daemon --log /tmp/vpn.log
           sleep 20
           echo "=== Routes after VPN ==="
@@ -141,7 +140,6 @@ jobs:
           echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
           sudo openvpn --config /tmp/hono-vpn.ovpn \
             --mute-replay-warnings \
-            --replay-window 128 30 \
             --daemon --log /tmp/vpn.log
           sleep 15
           cat /tmp/vpn.log | tail -5
@@ -197,7 +195,6 @@ jobs:
           sudo apt-get install -y openvpn
           echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
           sudo openvpn --config /tmp/hono-vpn.ovpn \
-            --mute-replay-warnings --replay-window 128 30 \
           sleep 10
 
       - name: Run self-healing tests

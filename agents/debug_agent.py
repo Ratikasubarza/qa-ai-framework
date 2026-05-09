@@ -162,7 +162,10 @@ class DebugAgent:
             severity=_sev,
             title=data.get("title", failure.test_name)[:100],
             description=data.get("description", ""),
-            steps_to_reproduce=data.get("steps_to_reproduce", []),
+            steps_to_reproduce=data.get("steps_to_reproduce", []) or [
+                f"Run test: {failure.test_name}",
+                f"Error: {(failure.error_message or '')[:150]}",
+            ],
             expected_behavior=data.get("expected_behavior", ""),
             actual_behavior=data.get("actual_behavior", ""),
             affected_component=data.get("affected_component", ""),
