@@ -266,14 +266,20 @@ class DebugAgent:
         return self.analyze(failure)
 
     def _parse_response(self, raw: str | None) -> dict:
+        import re
         if not raw:
             return {}
         raw = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
         try:
             return json.loads(raw)
-        except json.JSONDecodeError as e:
-            logger.error("debug_parse_failed", error=str(e))
-            return {}
+        except json.JSONDecodeError:
+            try:
+                # Fix invalid escape sequences from LLM response
+                fixed = re.sub(r'\\([^"\\/bfnrtu0-9])', r'\\\\\1', raw)
+                return json.loads(fixed)
+            except json.JSONDecodeError as e:
+                logger.error("debug_parse_failed", error=str(e))
+                return {}
 
     def _notify_telegram(self, report: BugReport, failure: FailureContext):
         """Send bug notification to Telegram #qa-bugs channel."""
