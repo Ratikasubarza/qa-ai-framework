@@ -51,3 +51,16 @@ Feature: Login API — api-dev.thehono.com
   Scenario: Login response time within threshold
     When I login with valid credentials
     Then the response time should be under 3000 milliseconds
+
+  @smoke @P0 @TC-API-010
+  Scenario: Authenticated user can get their profile
+    Given I am logged in with valid credentials
+    When I GET "/v1/users/me"
+    Then the response status should be 200
+    And the response body should contain profile data
+
+  @security @P1 @TC-API-011
+  Scenario: Unauthenticated user cannot get profile
+    Given I am not authenticated
+    When I GET "/v1/users/me"
+    Then the response status should be 401
