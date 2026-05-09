@@ -4,7 +4,7 @@ langgraph==0.1.14
 langchain==0.2.5
 langchain-community==0.2.5
 llama-index==0.10.52
-chromadb==0.5.5
+chromadb==0.5.11
 pydantic==2.7.4
 pydantic-settings==2.3.4
 
