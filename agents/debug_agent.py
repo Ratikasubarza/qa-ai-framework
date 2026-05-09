@@ -146,10 +146,20 @@ class DebugAgent:
         response = self.breaker.call(_call)
         data     = self._parse_response(response.content)
 
+        # Deterministic severity override when LLM fails or returns default
+        _sev = data.get("severity", "P2")
+        if not data.get("severity"):
+            _err = (failure.error_message or "").lower()
+            _name = (failure.test_name or "").lower()
+            if any(k in _err for k in ["all users", "blocks all", "crash", "data loss"]):
+                _sev = "P0"
+            elif any(k in _name for k in ["smoke", "login", "auth"]):
+                _sev = "P1"
+
         report = BugReport(
             root_cause=data.get("root_cause", "Unknown"),
             bug_type=data.get("bug_type", "ui_bug"),
-            severity=data.get("severity", "P2"),
+            severity=_sev,
             title=data.get("title", failure.test_name)[:100],
             description=data.get("description", ""),
             steps_to_reproduce=data.get("steps_to_reproduce", []),

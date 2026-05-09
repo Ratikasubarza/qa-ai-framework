@@ -77,8 +77,15 @@ class LocatorAgent:
             )
 
         try:
+            import re
             response = self.breaker.call(_call)
-            data     = json.loads(response.content)
+            raw = response.content or ""
+            raw = raw.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                fixed = re.sub(r'\([^"\\/bfnrtu0-9])', r'\\\1', raw)
+                data = json.loads(fixed)
             candidates = data.get("candidates", [])
             logger.info(
                 "locator_candidates_generated",
