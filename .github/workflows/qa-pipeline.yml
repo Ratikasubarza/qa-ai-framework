@@ -192,10 +192,13 @@ jobs:
 
       - name: Setup OpenVPN
         run: |
-          sudo apt-get install -y openvpn
+          sudo apt-get install -y openvpn openvpn-systemd-resolved
           echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
           sudo openvpn --config /tmp/hono-vpn.ovpn \
-          sleep 10
+            --mute-replay-warnings \
+            --daemon --log /tmp/vpn.log
+          sleep 15
+          curl -sf https://app-dev.thehono.com --max-time 15 -o /dev/null && echo "VPN OK" || echo "VPN issue" 
 
       - name: Run self-healing tests
         run: PYTHONPATH=. python -m pytest features/login/steps/login_web_test.py::test_TC_WEB_005_self_healing_demo -v --tb=short
