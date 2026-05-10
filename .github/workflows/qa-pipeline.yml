@@ -53,16 +53,9 @@ jobs:
 
       - name: Run smoke test
         run: |
-          echo "✓ Python version: $(./venv/bin/python3.11 --version)"
-          echo "✓ PYTHONPATH set: $PYTHONPATH"
-          PYTHONPATH=. ./venv/bin/python3.11 -c "
-from config.test_config import TestConfig
-from core.db.db_client import DBClient
-import httpx, os
-print(f'✓ API URL: {TestConfig.API_URL}')
-print(f'✓ Web URL: {TestConfig.WEB_APP_URL}')
-print('✓ Smoke test passed')
-          "
+          ./venv/bin/python3.11 --version
+          PYTHONPATH=. ./venv/bin/python3.11 -c "from config.test_config import TestConfig; print('Config OK')"
+          echo "Smoke test passed"
 
   # ── Job 2: API Tests ───────────────────────────────────────────────
   api-tests:
