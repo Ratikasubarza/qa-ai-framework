@@ -47,7 +47,7 @@ jobs:
   # ── Job 1: Smoke Test ──────────────────────────────────────────────
   smoke:
     name: Smoke Test — LLM Connection
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
@@ -66,7 +66,7 @@ jobs:
   # ── Job 2: API Tests ───────────────────────────────────────────────
   api-tests:
     name: API Tests — api-dev.thehono.com
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: smoke
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'api' || github.event.inputs.test_suite == ''
     steps:
@@ -115,7 +115,7 @@ jobs:
   # ── Job 3: Web Tests ───────────────────────────────────────────────
   web-tests:
     name: Web Tests — app-dev.thehono.com
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: smoke
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'web' || github.event.inputs.test_suite == ''
     steps:
@@ -165,7 +165,7 @@ jobs:
   # ── Job 4: Self-Healing Tests ──────────────────────────────────────
   self-healing-tests:
     name: Self-Healing Tests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: web-tests
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'self-healing' || github.event.inputs.test_suite == ''
     steps:
@@ -213,7 +213,7 @@ jobs:
   # ── Job 5: Debug Agent Tests ───────────────────────────────────────
   debug-agent-tests:
     name: Debug Agent Tests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: smoke
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'debug-agent' || github.event.inputs.test_suite == ''
     steps:
@@ -241,7 +241,7 @@ jobs:
   # ── Job 6: Report & Notify ─────────────────────────────────────────
   report:
     name: Generate Report & Notify
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: [api-tests, web-tests, debug-agent-tests]
     if: always()
     steps:
