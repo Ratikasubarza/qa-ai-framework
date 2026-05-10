@@ -271,30 +271,65 @@ jobs:
         run: |
           python3 << 'PYEOF'
           import httpx, os, glob
+          import xml.etree.ElementTree as ET
 
           token   = os.getenv("TELEGRAM_BOT_TOKEN")
           chat_id = os.getenv("TELEGRAM_QA_OPS_CHAT_ID")
 
-          # Count results
-          passed = failed = 0
-          for f in glob.glob("reports/junit/*.xml") + glob.glob("reports/junit/**/*.xml", recursive=True):
-              import xml.etree.ElementTree as ET
+          def format_suite_name(filename):
+              """Auto-format suite name from filename — no manual mapping needed.
+              Examples:
+                login_api_test.py      → Login API
+                cms_approve_user_test  → CMS Approve User
+                onboarding_android_test → Onboarding Android
+              """
+              name = filename.replace("_test", "").replace("test_", "")
+              name = name.replace("_", " ").title()
+              return name
+
+          total_passed = total_failed = 0
+          suite_results = []
+
+          xml_files = (
+              glob.glob("reports/junit/*.xml") +
+              glob.glob("reports/junit/**/*.xml", recursive=True)
+          )
+
+          for f in sorted(xml_files):
               try:
                   tree = ET.parse(f)
                   root = tree.getroot()
-                  passed += int(root.get("tests", 0)) - int(root.get("failures", 0)) - int(root.get("errors", 0))
-                  failed += int(root.get("failures", 0)) + int(root.get("errors", 0))
-              except Exception:
-                  pass
+                  tests   = int(root.get("tests", 0))
+                  failures = int(root.get("failures", 0))
+                  errors   = int(root.get("errors", 0))
+                  p = tests - failures - errors
+                  fa = failures + errors
 
-          status = "✅ PASSED" if failed == 0 else "❌ FAILED"
-          branch = os.getenv("GITHUB_REF_NAME", "unknown")
+                  total_passed += p
+                  total_failed += fa
+
+                  # Auto-format suite name from filename
+                  fname = os.path.splitext(os.path.basename(f))[0]
+                  suite = format_suite_name(fname)
+                  icon = "✅" if fa == 0 else "❌"
+                  suite_results.append(f"{icon} {suite}: {p}/{tests}")
+              except Exception as e:
+                  suite_results.append(f"⚠️ {os.path.basename(f)}: parse error")
+
+          overall = "✅ ALL PASSED" if total_failed == 0 else f"❌ {total_failed} FAILED"
+          branch  = os.getenv("GITHUB_REF_NAME", "unknown")
           run_url = f"https://github.com/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
+          actor   = os.getenv("GITHUB_ACTOR", "unknown")
+
+          suite_lines = "\n".join(suite_results) if suite_results else "No test results found"
 
           msg = (
-              f"{status} *QA Pipeline*\n\n"
+              f"{overall} *QA Pipeline*\n\n"
               f"*Branch:* `{branch}`\n"
-              f"*Results:* {passed} passed / {failed} failed\n"
+              f"*Triggered by:* {actor}\n\n"
+              f"*Suite Results:*\n"
+              f"{suite_lines}\n\n"
+              f"*Total:* {total_passed} passed / {total_failed} failed\n"
               f"*Run:* [View Details]({run_url})"
           )
 
