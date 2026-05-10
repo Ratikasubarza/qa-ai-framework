@@ -51,17 +51,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
       - name: Run smoke test
-        run: PYTHONPATH=. python cli.py smoke
+        run: PYTHONPATH=. ./venv/bin/python3.11 cli.py smoke
 
   # ── Job 2: API Tests ───────────────────────────────────────────────
   api-tests:
@@ -71,15 +62,6 @@ jobs:
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'api' || github.event.inputs.test_suite == ''
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
 
       - name: Setup OpenVPN
         run: |
@@ -130,10 +112,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-
       - name: Fix libasound2 Ubuntu 24.04
         run: |
           sudo apt-get install -y libasound2t64
@@ -183,16 +161,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-
       - name: Fix libasound2 Ubuntu 24.04
         run: |
           sudo apt-get install -y libasound2t64
@@ -231,15 +199,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
       - name: Run debug agent tests
         run: |
           PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
@@ -267,15 +226,6 @@ jobs:
         with:
           path: reports/junit/
           merge-multiple: true
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
 
       - name: Debug downloaded artifacts
         run: |
