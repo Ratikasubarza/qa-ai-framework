@@ -66,27 +66,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup OpenVPN
-        run: |
-          sudo apt-get install -y openvpn openvpn-systemd-resolved
-          PRE_GW=$(ip route | grep '^default' | awk '{print $3}')
-          PRE_IF=$(ip route | grep '^default' | awk '{print $5}')
-          echo "Pre-VPN gateway: $PRE_GW via $PRE_IF"
-          echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
-          sudo openvpn --config /tmp/hono-vpn.ovpn \
-            --mute-replay-warnings \
-            --daemon --log /tmp/vpn.log
-          sleep 20
-          echo "=== Routes after VPN ==="
-          ip route
-          for host in api.github.com github.com; do
-            IP=$(dig +short $host | grep -E '^[0-9]+\.' | head -1)
-            [ -n "$IP" ] && sudo ip route add $IP/32 via $PRE_GW dev $PRE_IF 2>/dev/null && echo "Restored: $host" || true
-          done
-          curl -sf https://api.github.com/zen --max-time 10 && echo "Internet OK" || echo "Internet broken"
-          curl -sf https://api-dev.thehono.com --max-time 15 -o /dev/null && echo "VPN API OK" || echo "VPN API unreachable"
-          cat /tmp/vpn.log | tail -10 
-
       - name: Run API tests
         run: |
           PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
@@ -114,26 +93,6 @@ jobs:
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'web' || github.event.inputs.test_suite == ''
     steps:
       - uses: actions/checkout@v4
-
-      - name: Fix libasound2 Ubuntu 24.04
-        run: |
-          sudo apt-get install -y libasound2t64
-          sudo ln -sf /usr/lib/x86_64-linux-gnu/libasound.so.2 \
-            /usr/lib/x86_64-linux-gnu/libasound.so 2>/dev/null || true
-
-      - name: Install Playwright browsers
-        run: playwright install chromium --with-deps
-
-      - name: Setup OpenVPN
-        run: |
-          sudo apt-get install -y openvpn openvpn-systemd-resolved
-          echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
-          sudo openvpn --config /tmp/hono-vpn.ovpn \
-            --mute-replay-warnings \
-            --daemon --log /tmp/vpn.log
-          sleep 15
-          cat /tmp/vpn.log | tail -5
-          curl -I https://app-dev.thehono.com --max-time 15 || echo "VPN connection issue"
 
       - name: Run web tests
         run: |
@@ -163,25 +122,6 @@ jobs:
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'self-healing' || github.event.inputs.test_suite == ''
     steps:
       - uses: actions/checkout@v4
-
-      - name: Fix libasound2 Ubuntu 24.04
-        run: |
-          sudo apt-get install -y libasound2t64
-          sudo ln -sf /usr/lib/x86_64-linux-gnu/libasound.so.2 \
-            /usr/lib/x86_64-linux-gnu/libasound.so 2>/dev/null || true
-
-      - name: Install Playwright browsers
-        run: playwright install chromium --with-deps
-
-      - name: Setup OpenVPN
-        run: |
-          sudo apt-get install -y openvpn openvpn-systemd-resolved
-          echo "${{ secrets.VPN_CONFIG }}" > /tmp/hono-vpn.ovpn
-          sudo openvpn --config /tmp/hono-vpn.ovpn \
-            --mute-replay-warnings \
-            --daemon --log /tmp/vpn.log
-          sleep 15
-          curl -sf https://app-dev.thehono.com --max-time 15 -o /dev/null && echo "VPN OK" || echo "VPN issue" 
 
       - name: Run self-healing tests
         run: PYTHONPATH=. ./venv/bin/python3.11 -m pytest features/login/steps/web/login_web_app_test.py::test_TC_WEB_005_self_healing_demo -v --tb=short
