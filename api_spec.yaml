@@ -1,0 +1,259 @@
+openapi: 3.0.3
+info:
+  title: Hono API
+  version: 1.0.0
+  description: API spec for Hono platform — staging environment
+servers:
+  - url: https://api-dev.thehono.com
+    description: Staging
+
+security:
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        code: { type: string, example: OK }
+        message: { type: string }
+        data: { type: object, nullable: true }
+
+    ErrorResponse:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        data: { type: object, nullable: true }
+
+paths:
+  /v1/users/register:
+    post:
+      summary: Register new user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullname, email, phone_number, phone_country_code, linkedin]
+              properties:
+                fullname: { type: string, maxLength: 500 }
+                email: { type: string, format: email }
+                phone_number: { type: string }
+                phone_country_code: { type: string, example: ID }
+                linkedin: { type: string, format: uri }
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessResponse' }
+        '400': { description: Validation error }
+        '422': { description: Duplicate email or phone }
+
+  /v1/users/login:
+    post:
+      summary: Login user or admin
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                resource:
+                  type: string
+                  enum: [admin]
+                  description: Required for CMS admin login
+      responses:
+        '200':
+          description: Login successful — returns accessToken
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      accessToken: { type: string }
+        '401': { description: Invalid credentials }
+
+  /v1/users/me:
+    get:
+      summary: Get current user profile
+      tags: [User]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      email: { type: string }
+                      role: { type: string }
+                      phone: { type: string }
+                      onboarding_completed_at: { type: string, nullable: true }
+        '401': { description: Unauthorized }
+
+  /v1/users:
+    get:
+      summary: CMS — List users
+      tags: [CMS]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: size
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: orderBy
+          in: query
+          schema: { type: string, enum: [name, created_at], default: name }
+        - name: order
+          in: query
+          schema: { type: string, enum: [ASC, DESC], default: ASC }
+        - name: status
+          in: query
+          schema: { type: integer, enum: [1, 2, 3], description: "1=PENDING 2=APPROVED 3=REJECTED" }
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        email: { type: string }
+                        status: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+        '401': { description: Unauthorized }
+
+  /v1/users/{id}/approve:
+    post:
+      summary: CMS — Approve user
+      tags: [CMS]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: User approved }
+        '401': { description: Unauthorized }
+        '404': { description: User not found }
+
+  /v1/users/{id}/reject:
+    post:
+      summary: CMS — Reject user
+      tags: [CMS]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: User rejected }
+        '401': { description: Unauthorized }
+        '404': { description: User not found }
+
+  /v1/users/onboarding:
+    put:
+      summary: Complete user onboarding
+      tags: [User]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name: { type: string }
+                current_role: { type: string }
+                company_organisation: { type: string }
+                nationality_id: { type: integer }
+                city_id: { type: integer }
+                industry_ids:
+                  type: array
+                  items: { type: integer }
+                  minItems: 1
+                  maxItems: 2
+                business_area_ids:
+                  type: array
+                  items: { type: integer }
+                  minItems: 2
+                  maxItems: 5
+                personal_interest_ids:
+                  type: array
+                  items: { type: integer }
+                  minItems: 2
+                  maxItems: 5
+                social_cause_ids:
+                  type: array
+                  items: { type: integer }
+                  minItems: 2
+                  maxItems: 5
+      responses:
+        '200':
+          description: Onboarding complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      onboarding_completed_at: { type: string }
+        '401': { description: Unauthorized }
+        '422': { description: Already onboarded }
