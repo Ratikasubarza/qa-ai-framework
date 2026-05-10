@@ -8,7 +8,16 @@ from core.secret_manager import secret_manager
 
 logger = structlog.get_logger(__name__)
 
+# ── Model Configuration ───────────────────────────────────────────────
+# Development phase: all free models via OpenRouter
+# Production phase: switch ACTIVE_TIER to "production" + set ANTHROPIC_API_KEY
+# Usage: set env var MODEL_TIER=production to enable Claude
+
+import os
+ACTIVE_TIER = os.getenv("MODEL_TIER", "development")  # development | production
+
 FALLBACK_MODELS = {
+    # ── Development — free models ──────────────────────────────────────
     "fast": [
         "nvidia/nemotron-nano-9b-v2:free",
         "meta-llama/llama-3.2-3b-instruct:free",
@@ -27,6 +36,21 @@ FALLBACK_MODELS = {
         "openai/gpt-oss-20b:free",
         "nousresearch/hermes-3-llama-3.1-405b:free",
         "meta-llama/llama-3.3-70b-instruct:free",
+    ],
+
+    # ── Production — Claude models (switch when framework is mature) ───
+    # To activate: MODEL_TIER=production in .env
+    "production_fast": [
+        "anthropic/claude-haiku-4-5",           # Fast + cheap
+        "anthropic/claude-haiku-4-5-20251001",
+    ],
+    "production_standard": [
+        "anthropic/claude-sonnet-4-5",           # Balanced
+        "anthropic/claude-sonnet-4-5-20250514",
+    ],
+    "production_complex": [
+        "anthropic/claude-opus-4-5",             # Most capable
+        "anthropic/claude-sonnet-4-5-20250514",  # Fallback
     ],
 }
 
