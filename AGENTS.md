@@ -125,3 +125,113 @@ time.sleep(3)
 get_elements("After tap industries area")
 
 driver.stop()
+---
+
+## TDD Flow — Mandatory
+
+Setiap kali menambah atau mengubah test:
+
+1. **Write test spec dulu** (Gherkin di `gherkin/` folder)
+2. **Run test** — pastikan FAIL dulu (red)
+3. **Implement** code/fix
+4. **Run test lagi** — harus PASS (green)
+5. **Refactor** jika perlu
+6. **Commit**
+
+```bash
+# Verify setelah setiap perubahan
+PYTHONPATH=. ./venv/bin/python3.11 -m pytest [test_file] -v
+```
+
+---
+
+## Feedback Loop — Mandatory
+
+Setelah setiap file modification:
+
+```bash
+# 1. Run affected test suite
+PYTHONPATH=. ./venv/bin/python3.11 -m pytest [affected_test] -v --tb=short
+
+# 2. Run static analysis
+./venv/bin/python3.11 -m ruff check . --select E,W,F --ignore E501
+
+# 3. Verify imports tidak broken
+PYTHONPATH=. ./venv/bin/python3.11 -c "from [modified_module] import *; print('OK')"
+```
+
+---
+
+## Static Analysis
+
+```bash
+# Install (sudah ada di venv)
+./venv/bin/pip install ruff
+
+# Run before commit
+./venv/bin/python3.11 -m ruff check . --select E,W,F --ignore E501,E402
+
+# Auto-fix
+./venv/bin/python3.11 -m ruff check . --fix
+```
+
+---
+
+## API Spec
+
+API spec tersimpan di `api_spec.yaml` — update setiap ada endpoint baru.
+
+Endpoints yang sudah ter-cover:
+- `POST /v1/users/login` — user + admin (resource=admin)
+- `POST /v1/users/register`
+- `GET /v1/users/me`
+- `GET /v1/users` — CMS list users
+- `POST /v1/users/:id/approve`
+- `POST /v1/users/:id/reject`
+- `PUT /v1/users/onboarding`
+
+---
+
+## Reusable Code — Where to Find
+
+| Need | Location |
+|------|----------|
+| API client | `platforms/api/httpx_client.py` → `HonoAPIClient` |
+| DB operations | `core/db/db_client.py` → `DBClient` |
+| Create test user | `core/db/test_user_helper.py` → `create_approved_user_sync()` |
+| Test config/URLs | `config/test_config.py` → `TestConfig` |
+| Login test data | `features/login/test_data/login_test_data.py` |
+| Schema validation | `skills/api/schema_validator.py` → `SchemaValidator` |
+| Mobile interaction | `skills/mobile/mobile_interaction.py` |
+| CMS token | Call `get_cms_token()` in any CMS test file |
+
+---
+
+## Coding Conventions
+
+- **URLs**: always `TestConfig.API_URL` — never hardcode
+- **Credentials**: always from `LoginTestData`, `CmsLoginTestData` — never hardcode  
+- **Python**: always `./venv/bin/python3.11` — never system python
+- **Async tests**: always `@pytest.mark.asyncio` + `async def test_`
+- **DB queries**: always `BIN_TO_UUID(id)` for user IDs
+- **Naming**: `test_TC_[SUITE]_[NUM]_[description]`
+
+---
+
+## Security Checklist
+
+Before commit:
+- [ ] No hardcoded credentials
+- [ ] No hardcoded URLs  
+- [ ] `.env` not committed (in .gitignore)
+- [ ] No raw DB errors exposed in assertions
+- [ ] `[DEV-BUG]` tagged for API issues found
+
+---
+
+## Model Configuration
+
+Current: `MODEL_TIER=development` — free models via OpenRouter
+Production-ready: set `MODEL_TIER=production` + `ANTHROPIC_API_KEY` to switch to Claude
+
+See `core/llm_client.py` for full model list.
