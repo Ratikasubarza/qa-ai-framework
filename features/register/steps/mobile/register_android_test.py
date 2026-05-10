@@ -78,7 +78,30 @@ def register_driver():
 def test_TC_MOB_REG_001_register_valid_data(register_driver):
     """
     TC-MOB-REG-001 | Smoke | Register with valid data → verify email screen
+    Note: May skip if Resend daily email quota is reached
     """
+    import httpx, os
+    # Pre-check email quota
+    import asyncio
+    async def check_quota():
+        async with httpx.AsyncClient(
+            base_url=os.getenv("HONO_API_URL"),
+            headers={"x-api-key": os.getenv("HONO_API_KEY")},
+            timeout=10
+        ) as c:
+            r = await c.post("/v1/users/register", json={
+                "fullname": "quota check",
+                "email": f"quotacheck+{int(__import__('time').time())}@mailinator.com",
+                "phone_number": "811111111",
+                "phone_country_code": "ID",
+                "linkedin": "https://linkedin.com/in/quotacheck"
+            })
+            return r.status_code, r.json().get("message", "")
+    status, msg = asyncio.get_event_loop().run_until_complete(check_quota())
+    if status == 500 and "email sending quota" in msg:
+        import pytest
+        pytest.skip(f"Resend daily email quota reached — run tomorrow")
+
     payload = RegisterAndroidTestData.valid_payload()
     fill_register_form(
         register_driver,
