@@ -91,3 +91,20 @@ class MobileInteraction:
         label = description or resource_id
         assert self.is_visible_by_id(resource_id), f"Element not visible: '{label}'"
         logger.debug("assert_visible", element=label)
+    def fill_by_edittext_index(self, index: int, text: str):
+        """
+        Fill input field by EditText index.
+        Used for Flutter apps that don't expose resource-id.
+        index 0 = email, index 1 = password
+        """
+        from appium.webdriver.common.appiumby import AppiumBy
+        els = self.driver.driver.find_elements(AppiumBy.CLASS_NAME, "android.widget.EditText")
+        if index >= len(els):
+            raise AssertionError(f"EditText index {index} not found, only {len(els)} found")
+        el = els[index]
+        el.click()
+        import time
+        time.sleep(0.5)
+        el.clear()
+        el.send_keys(text)
+        logger.debug("fill_edittext", index=index, text=text[:20])

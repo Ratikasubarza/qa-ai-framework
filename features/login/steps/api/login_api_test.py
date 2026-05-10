@@ -117,4 +117,4 @@ async def test_TC_API_011_get_profile_unauthenticated(unauth_client):
     """
     response = await unauth_client.get("/v1/users/me")
     validator = SchemaValidator(response)
-    validator.status_code(401)
+    assert response.status_code == 401, f'Expected 401, got: {response.status_code}'

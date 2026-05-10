@@ -31,7 +31,7 @@ async def cmd_smoke(args):
 
 async def cmd_run(args):
     from core.telegram_bot import telegram_bot
-    from approval_workflow.feedback_schema import review_queue
+    from core.workflows.approval_workflow import review_queue
     from agents.test_case_agent import test_case_agent
     from core.agent_contracts import TestCaseAgentInput, Platform
     telegram_bot.set_review_queue(review_queue)
@@ -311,7 +311,7 @@ def cmd_show_drafts(args):
 
 async def cmd_bot_start(args):
     from core.telegram_bot import telegram_bot
-    from approval_workflow.feedback_schema import review_queue
+    from core.workflows.approval_workflow import review_queue
     telegram_bot.set_review_queue(review_queue)
     if args.mode == "polling":
         console.print("[cyan]Starting bot in polling mode...[/]")

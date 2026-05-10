@@ -113,7 +113,7 @@ async def node_approval(state: AgentState) -> AgentState:
 
     try:
         from core.telegram_bot import telegram_bot
-        from approval_workflow.feedback_schema import review_queue
+        from core.workflows.approval_workflow import review_queue
 
         tc_summary = "\n".join(
             f"• [{tc['scenario_id']}] {tc['name']}"

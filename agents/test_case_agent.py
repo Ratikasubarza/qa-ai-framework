@@ -26,7 +26,7 @@ from core.circuit_breaker import get_breaker
 from core import input_sanitizer
 from core.prompt_manager import prompt_manager
 from knowledge_base.rag_engine import rag_engine
-from approval_workflow.feedback_schema import review_queue
+from core.workflows.approval_workflow import review_queue
 from config.settings import settings
 import asyncio
 

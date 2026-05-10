@@ -12,3 +12,19 @@ __pycache__/
 reports/videos/
 knowledge_base/vector_store/
 venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Reports & debug logs (generated files)
+reports/debug_logs/
+reports/locator_snapshots/
+reports/gap_reports/
+
+# Vector store (generated)
+knowledge_base/vector_store/
+
+# Environment
+.env
