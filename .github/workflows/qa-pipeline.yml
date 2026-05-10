@@ -237,7 +237,7 @@ jobs:
 
       - name: Send Telegram notification
         run: |
-          python3 << 'PYEOF'
+          ./venv/bin/python3.11 << 'PYEOF'
           import httpx, os, glob
           import xml.etree.ElementTree as ET
 
