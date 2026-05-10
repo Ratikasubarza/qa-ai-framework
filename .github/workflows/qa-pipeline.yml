@@ -103,7 +103,16 @@ jobs:
           cat /tmp/vpn.log | tail -10 
 
       - name: Run API tests
-        run: PYTHONPATH=. pytest features/login/steps/login_api_test.py -v --tb=short --junit-xml=reports/junit/api-results.xml
+        run: |
+          PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
+            features/login/steps/api/login_api_test.py \
+            features/register/steps/api/register_api_test.py \
+            features/cms_login/steps/api/cms_login_api_test.py \
+            features/cms_users/steps/api/cms_users_api_test.py \
+            features/cms_users/steps/api/cms_approve_user_test.py \
+            features/cms_users/steps/api/cms_reject_user_test.py \
+            features/onboarding/steps/api/onboarding_api_test.py \
+            --junit-xml=reports/junit/api-results.xml -v --tb=short
 
       - name: Upload API test results
         uses: actions/upload-artifact@v4
@@ -146,7 +155,10 @@ jobs:
           curl -I https://app-dev.thehono.com --max-time 15 || echo "VPN connection issue"
 
       - name: Run web tests
-        run: PYTHONPATH=. python -m pytest features/login/steps/login_web_test.py -v --tb=short --junit-xml=reports/junit/web-results.xml
+        run: |
+          PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
+            features/login/steps/web/login_web_app_test.py \
+            --junit-xml=reports/junit/web-results.xml -v --tb=short
 
       - name: Upload screenshots on failure
         uses: actions/upload-artifact@v4
@@ -201,7 +213,7 @@ jobs:
           curl -sf https://app-dev.thehono.com --max-time 15 -o /dev/null && echo "VPN OK" || echo "VPN issue" 
 
       - name: Run self-healing tests
-        run: PYTHONPATH=. python -m pytest features/login/steps/login_web_test.py::test_TC_WEB_005_self_healing_demo -v --tb=short
+        run: PYTHONPATH=. ./venv/bin/python3.11 -m pytest features/login/steps/web/login_web_app_test.py::test_TC_WEB_005_self_healing_demo -v --tb=short
 
       - name: Upload self-healing results
         uses: actions/upload-artifact@v4
@@ -229,7 +241,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run debug agent tests
-        run: PYTHONPATH=. pytest tests/test_debug_agent.py -v --tb=short --junit-xml=reports/junit/debug-results.xml
+        run: |
+          PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
+            tests/test_debug_agent.py \
+            --junit-xml=reports/junit/debug-results.xml -v --tb=short
 
       - name: Upload debug agent results
         uses: actions/upload-artifact@v4
