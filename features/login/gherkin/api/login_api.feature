@@ -64,3 +64,95 @@ Feature: Login API — api-dev.thehono.com
     Given I am not authenticated
     When I GET "/v1/users/me"
     Then the response status should be 401
+
+  # ── Register Scenarios ────────────────────────────────────────────────
+
+  @smoke @P0 @TC-API-012
+  Scenario: Register with valid data returns OK
+    When I POST to "/v1/users/register" with valid registration data
+    Then the response status should be 200
+    And the response body code should be "OK"
+
+  @negative @P1 @TC-API-013
+  Scenario: Register with duplicate email returns error
+    When I POST to "/v1/users/register" with already registered email
+    Then the response status should be 4xx
+
+  @boundary @P1 @TC-API-014
+  Scenario: Register with missing required fields returns 400
+    When I POST to "/v1/users/register" with only email field
+    Then the response status should be 400
+
+  @negative @P1 @TC-API-015
+  Scenario: Register with invalid email format returns 400
+    When I POST to "/v1/users/register" with invalid email "not-an-email"
+    Then the response status should be 400
+
+  @smoke @P0 @TC-API-010
+  Scenario: Authenticated user can get their profile
+    Given I am logged in with valid credentials
+    When I GET "/v1/users/me"
+    Then the response status should be 200
+    And the response body should contain profile data
+
+  @security @P1 @TC-API-011
+  Scenario: Unauthenticated user cannot get profile
+    Given I am not authenticated
+    When I GET "/v1/users/me"
+    Then the response status should be 401
+
+  @security @P1 @TC-API-012
+  Scenario: Login without x-api-key header returns 401
+    Given the API key header is not set
+    When I POST to "/v1/users/login" with valid credentials
+    Then the response status should be 401
+
+  @negative @P1 @TC-API-013
+  Scenario: Login with empty email returns 400
+    When I POST to "/v1/users/login" with empty email
+    Then the response status should be 400
+
+  @negative @P1 @TC-API-014
+  Scenario: Login with empty password returns 400
+    When I POST to "/v1/users/login" with empty password
+    Then the response status should be 400
+
+  @negative @P1 @TC-API-015
+  Scenario: Login with invalid email format returns 400
+    When I POST to "/v1/users/login" with email "notanemail"
+    Then the response status should be 400
+
+  @performance @P2 @TC-API-016
+  Scenario: Login response time within threshold
+    When I POST to "/v1/users/login" with valid credentials
+    Then the response time should be under 3000 milliseconds
+
+  @security @P2 @TC-API-017
+  Scenario: SQL injection in email is blocked
+    When I POST to "/v1/users/login" with email "' OR 1=1 --"
+    Then the response status should be 400 or 401
+
+  @security @P2 @TC-API-018
+  Scenario: Very long email is handled gracefully
+    When I POST to "/v1/users/login" with email of 500 characters
+    Then the response status should be 400 or 401
+
+  @boundary @P2 @TC-API-019
+  Scenario: Login with correct email wrong case
+    When I POST to "/v1/users/login" with email in uppercase
+    Then the response should indicate case sensitivity behavior
+
+  @security @P2 @TC-API-020
+  Scenario: Multiple failed logins
+    When I POST to "/v1/users/login" with wrong password 3 times
+    Then each response should be 401
+
+  @negative @P1 @TC-API-021
+  Scenario: Login with empty body returns 400
+    When I POST to "/v1/users/login" with empty body
+    Then the response status should be 400
+
+  @negative @P1 @TC-API-022
+  Scenario: Login with missing password field returns 400
+    When I POST to "/v1/users/login" with only email field
+    Then the response status should be 400

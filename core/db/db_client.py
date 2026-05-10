@@ -50,6 +50,7 @@ class DBClient:
                     status,
                     verified_at,
                     approved_at,
+                    onboarding_completed_at,
                     created_at
                 FROM users
                 WHERE email = %s

@@ -3,6 +3,7 @@ Test User Helper — full lifecycle untuk E2E testing.
 Register → Verify → Approve → Set password → Ready to login
 """
 import asyncio
+import pytest
 import time
 import os
 import httpx
@@ -52,7 +53,9 @@ async def create_approved_user(
             "phone_country_code": "ID",
             "linkedin": f"https://linkedin.com/in/testuser{ts}"
         })
-    assert resp.status_code == 200, f"Register failed: {resp.status_code}"
+    if resp.status_code == 500 and "email sending quota" in resp.text:
+        raise pytest.skip.Exception("Resend daily email quota reached — skip test")
+    assert resp.status_code == 200, f"Register failed: {resp.status_code} {resp.json()}"
     logger.info("test_user_registered", email=email)
 
     # Step 2: Set verified in DB
