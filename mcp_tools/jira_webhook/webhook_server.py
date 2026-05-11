@@ -54,11 +54,7 @@ async def trigger_github_pipeline(suite: str = "all", issue_key: str = ""):
                 "Accept": "application/vnd.github+json"
             },
             json={
-                "ref": "main",
-                "inputs": {
-                    "suite": suite,
-                    "jira_issue": issue_key
-                }
+                "ref": "main"
             }
         )
     logger.info("pipeline_triggered", resp_status=resp.status_code, suite=suite, issue=issue_key)

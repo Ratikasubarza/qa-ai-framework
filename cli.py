@@ -196,40 +196,29 @@ def cmd_review(args):
 
 def cmd_requirements(args):
     from agents.requirements_agent import requirements_agent
-    # Auto-fetch dari Jira jika ada jira_story
+    # Auto-fetch dari Jira menggunakan jira_client
     if args.jira_story and not getattr(args, "description", None):
         try:
-            import httpx, base64, os
-            jira_url   = os.getenv("JIRA_BASE_URL")
-            jira_email = os.getenv("JIRA_EMAIL")
-            jira_token = os.getenv("JIRA_TOKEN")
-            auth = base64.b64encode(f"{jira_email}:{jira_token}".encode()).decode()
-            headers = {"Authorization": f"Basic {auth}", "Content-Type": "application/json"}
-            r = httpx.get(f"{jira_url}/rest/api/3/issue/{args.jira_story}", headers=headers)
-            if r.status_code == 200:
-                fields = r.json().get("fields", {})
-                summary = fields.get("summary", "")
-                desc = fields.get("description", {})
-                # Extract text from ADF format
-                desc_text = ""
-                if isinstance(desc, dict):
-                    for block in desc.get("content", []):
-                        for inline in block.get("content", []):
-                            if inline.get("type") == "text":
-                                desc_text += inline.get("text", "") + " "
-                # Extract AC from description
-                ac_list = []
-                for line in desc_text.split("."):
-                    line = line.strip()
-                    if line and len(line) > 10:
-                        ac_list.append(line)
-                # Update args
-                if not getattr(args, "feature", None) or args.feature == args.jira_story:
-                    args.feature = f"{args.jira_story}: {summary}"
-                args.description = desc_text[:1000]
-                if not getattr(args, "ac", None):
-                    args.ac = ac_list[:5]
-                console.print(f"[green]✓ Fetched from Jira:[/] {summary[:60]}")
+            from mcp_tools.jira_client.jira_client import jira_client
+            issue = jira_client.get_issue(args.jira_story)
+
+            if not getattr(args, "feature", None) or args.feature == args.jira_story:
+                args.feature = f"{issue['key']}: {issue['summary']}"
+
+            context = issue["description"][:800]
+            if issue["subtasks"]:
+                context += "\n\nSUBTASKS:"
+                for st in issue["subtasks"]:
+                    context += f"\n  - [{st['key']}] {st['summary']} ({st['status']})"
+                    if st["description"]:
+                        context += f"\n    {st['description'][:150]}"
+            args.description = context[:1500]
+
+            if not getattr(args, "ac", None):
+                args.ac = issue["acceptance_criteria"][:15]
+
+            console.print(f"[green]✓ Jira fetched:[/] {issue['summary'][:60]}")
+            console.print(f"[green]✓ Subtasks:[/] {len(issue['subtasks'])} | AC: {len(issue['acceptance_criteria'])}")
         except Exception as e:
             console.print(f"[yellow]⚠ Jira fetch failed:[/] {e}")
 
@@ -498,3 +487,18 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def _extract_adf_text(node) -> str:
+    """Extract plain text from Atlassian Document Format (ADF) recursively."""
+    text = ""
+    if isinstance(node, dict):
+        if node.get("type") == "text":
+            text += node.get("text", "")
+        for child in node.get("content", []):
+            text += _extract_adf_text(child)
+        if node.get("type") in ["paragraph", "listItem", "bulletList", "heading"]:
+            text += "\n"
+    return text
+
+
