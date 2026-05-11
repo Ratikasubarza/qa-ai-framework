@@ -23,16 +23,85 @@ class JiraClient:
             "Content-Type": "application/json"
         }
 
-    def _extract_adf_text(self, node) -> str:
+    def _extract_adf_text(self, node, depth=0) -> str:
+        """Extract plain text from ADF — handles paragraphs, lists, tables, headings."""
         text = ""
-        if isinstance(node, dict):
-            if node.get("type") == "text":
-                text += node.get("text", "")
-            for child in node.get("content", []):
-                text += self._extract_adf_text(child)
-            if node.get("type") in ["paragraph", "listItem", "heading", "bulletList"]:
-                text += "\n"
-        return text
+        if not isinstance(node, dict):
+            return text
+
+        node_type = node.get("type", "")
+
+        # Text node — just get the text
+        if node_type == "text":
+            marks = node.get("marks", [])
+            t = node.get("text", "")
+            # Bold/strong text — keep as is
+            return t
+
+        # Heading — add newline + text
+        if node_type == "heading":
+            level = node.get("attrs", {}).get("level", 1)
+            children = "".join(self._extract_adf_text(c, depth) for c in node.get("content", []))
+            return f"\n{'#' * level} {children}\n"
+
+        # Paragraph
+        if node_type == "paragraph":
+            children = "".join(self._extract_adf_text(c, depth) for c in node.get("content", []))
+            return children.strip() + "\n" if children.strip() else ""
+
+        # Bullet list item
+        if node_type == "listItem":
+            children = "".join(self._extract_adf_text(c, depth) for c in node.get("content", []))
+            indent = "  " * depth
+            return f"{indent}- {children.strip()}\n"
+
+        # Bullet/ordered list
+        if node_type in ["bulletList", "orderedList"]:
+            children = "".join(self._extract_adf_text(c, depth + 1) for c in node.get("content", []))
+            return children + "\n"
+
+        # Table
+        if node_type == "table":
+            rows = []
+            for row in node.get("content", []):
+                cells = []
+                for cell in row.get("content", []):
+                    cell_text = "".join(self._extract_adf_text(c, depth) for c in cell.get("content", []))
+                    cells.append(cell_text.strip())
+                rows.append(" | ".join(cells))
+            return "\n".join(rows) + "\n"
+
+        # Code block
+        if node_type == "codeBlock":
+            children = "".join(self._extract_adf_text(c, depth) for c in node.get("content", []))
+            return f"```\n{children}\n```\n"
+
+        # Panel (info/warning boxes)
+        if node_type == "panel":
+            children = "".join(self._extract_adf_text(c, depth) for c in node.get("content", []))
+            panel_type = node.get("attrs", {}).get("panelType", "info")
+            return f"[{panel_type.upper()}] {children}\n"
+
+        # Media/image — note it exists but can't extract pixel content
+        if node_type in ["media", "mediaSingle", "mediaGroup"]:
+            media_id = node.get("attrs", {}).get("id", "")
+            return f"[IMAGE: {media_id}]\n" if media_id else "[IMAGE]\n"
+
+        # Inline card / mention / emoji
+        if node_type == "inlineCard":
+            url = node.get("attrs", {}).get("url", "")
+            return f"[LINK: {url}] "
+        if node_type == "mention":
+            return f"@{node.get('attrs', {}).get('text', 'user')} "
+        if node_type == "emoji":
+            return node.get("attrs", {}).get("text", "") + " "
+
+        # Hard break
+        if node_type == "hardBreak":
+            return "\n"
+
+        # Default — recurse into children
+        return "".join(self._extract_adf_text(c, depth) for c in node.get("content", []))
 
     def get_issue(self, issue_key: str) -> dict:
         with httpx.Client() as client:
@@ -91,6 +160,109 @@ class JiraClient:
                  if s.get("state") == "active"), None
             )
         }
+
+    def get_attachments(self, issue_key: str) -> list:
+        """Fetch all attachments from a Jira issue."""
+        with httpx.Client() as client:
+            r = client.get(
+                f"{self.base_url}/rest/api/3/issue/{issue_key}",
+                headers=self.headers,
+                params={"fields": "attachment"}
+            )
+        attachments = r.json().get("fields", {}).get("attachment", [])
+        return [{
+            "id":       a.get("id"),
+            "filename": a.get("filename"),
+            "mimeType": a.get("mimeType"),
+            "url":      a.get("content"),  # download URL
+            "size":     a.get("size"),
+        } for a in attachments]
+
+    def extract_images_from_description(self, issue_key: str) -> list:
+        """
+        Fetch embedded images from Jira issue.
+        Returns list of {filename, base64_data, mime_type}
+        for use with vision LLM.
+        """
+        import base64
+        results = []
+
+        # Method 1: Attachments
+        attachments = self.get_attachments(issue_key)
+        image_attachments = [
+            a for a in attachments
+            if a["mimeType"].startswith("image/")
+        ]
+
+        for att in image_attachments[:5]:  # max 5 images
+            try:
+                with httpx.Client() as client:
+                    r = client.get(
+                        att["url"],
+                        headers=self.headers,
+                        follow_redirects=True,
+                        timeout=30
+                    )
+                if r.status_code == 200:
+                    b64 = base64.b64encode(r.content).decode()
+                    results.append({
+                        "filename":  att["filename"],
+                        "mime_type": att["mimeType"],
+                        "base64":    b64,
+                        "size":      att["size"],
+                    })
+                    logger.info("image_fetched", filename=att["filename"])
+            except Exception as e:
+                logger.warning("image_fetch_failed", filename=att["filename"], error=str(e))
+
+        return results
+
+    async def describe_images_with_llm(self, issue_key: str) -> str:
+        """
+        Fetch images from Jira issue and describe them using vision LLM.
+        Returns text description of all images for use as agent context.
+        """
+        images = self.extract_images_from_description(issue_key)
+        if not images:
+            return ""
+
+        try:
+            import anthropic
+            import os
+            client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+
+            descriptions = []
+            for img in images:
+                response = client.messages.create(
+                    model="claude-sonnet-4-5-20250514",
+                    max_tokens=500,
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": img["mime_type"],
+                                    "data": img["base64"],
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": "Describe this UI screenshot for QA test case generation. Focus on: UI elements visible, user flows shown, error states, empty states, or design specs."
+                            }
+                        ]
+                    }]
+                )
+                desc = response.content[0].text
+                descriptions.append(f"[Image: {img['filename']}]\n{desc}")
+                logger.info("image_described", filename=img["filename"])
+
+            return "\n\n".join(descriptions)
+
+        except Exception as e:
+            logger.warning("vision_llm_failed", error=str(e))
+            return f"[{len(images)} images found but vision LLM unavailable — set ANTHROPIC_API_KEY]"
 
     def get_transitions(self, issue_key: str) -> list:
         with httpx.Client() as client:

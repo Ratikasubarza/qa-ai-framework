@@ -219,6 +219,27 @@ def cmd_requirements(args):
 
             console.print(f"[green]✓ Jira fetched:[/] {issue['summary'][:60]}")
             console.print(f"[green]✓ Subtasks:[/] {len(issue['subtasks'])} | AC: {len(issue['acceptance_criteria'])}")
+
+            # Extract images if available
+            import os
+            if os.getenv("ANTHROPIC_API_KEY"):
+                try:
+                    import asyncio as _asyncio
+                    img_desc = _asyncio.get_event_loop().run_until_complete(
+                        jira_client.describe_images_with_llm(args.jira_story)
+                    )
+                    if img_desc:
+                        args.description += f"\n\nUI SCREENSHOTS:\n{img_desc}"
+                        console.print(f"[green]✓ Images:[/] extracted and described via vision LLM")
+                except Exception as e:
+                    console.print(f"[yellow]⚠ Image extraction failed:[/] {e}")
+            else:
+                # Check attachments without vision
+                attachments = jira_client.get_attachments(args.jira_story)
+                images = [a for a in attachments if a["mimeType"].startswith("image/")]
+                if images:
+                    img_names = ", ".join(a["filename"] for a in images[:3])
+                    console.print(f"[yellow]⚠ {len(images)} images found:[/] {img_names} — set ANTHROPIC_API_KEY for vision extraction")
         except Exception as e:
             console.print(f"[yellow]⚠ Jira fetch failed:[/] {e}")
 
@@ -405,6 +426,11 @@ def build_parser():
     tc.add_argument("--export",      action="store_true")
 
     code = gen_sub.add_parser("code")
+
+    batch = gen_sub.add_parser("batch")
+    batch.add_argument("--jira-story", required=True)
+    batch.add_argument("--platform", action="append", default=["web"])
+    batch.add_argument("--export", action="store_true")
     code.add_argument("--feature",     required=True)
     code.add_argument("--description", default="")
     code.add_argument("--platform",    default="web")
@@ -451,6 +477,183 @@ def build_parser():
     return parser
 
 
+
+async def cmd_generate_testcase_batch_by_scenario(args):
+    """Generate 150+ test cases per scenario from Jira — no duplication."""
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=".env")
+    from core.llm_client import llm_client, ModelTier
+    from core.prompt_manager import prompt_manager
+    from datetime import datetime
+    from mcp_tools.jira_client.jira_client import jira_client as jc
+    import json, os
+
+    # Fetch Jira issue
+    console.print(f"[cyan]Fetching {args.jira_story} from Jira...[/]")
+    issue = jc.get_issue(args.jira_story)
+    desc = issue["description"]
+
+    # Split description into scenarios
+    import re
+    scenario_blocks = re.split(r"(?=Scenario \d+:)", desc)
+    scenario_blocks = [s.strip() for s in scenario_blocks if s.strip() and "Scenario" in s]
+
+    if not scenario_blocks:
+        scenario_blocks = [desc]  # fallback — treat as one block
+
+    console.print(f"[green]✓ Found {len(scenario_blocks)} scenarios to process[/]")
+
+    all_scenarios = []
+    existing_ids = []
+    template = prompt_manager.get("test_case_gen")
+
+    for idx, scenario_block in enumerate(scenario_blocks, 1):
+        scenario_title = scenario_block.split("\n")[0][:60]
+        console.print(f"  [yellow]→[/] [{idx}/{len(scenario_blocks)}] {scenario_title}")
+
+        start_id = len(all_scenarios) + 1
+        prompt = template.format(
+            feature=f"{args.jira_story}: {issue['summary']}",
+            description=scenario_block[:1000],
+            platforms=", ".join(getattr(args, "platform", ["web"])),
+            acceptance_criteria="\n".join(f"- {ac}" for ac in issue["acceptance_criteria"][:8]) or "Not provided",
+            past_context=f"Already generated IDs: {', '.join(existing_ids[-10:]) if existing_ids else 'None'}",
+            date=datetime.now().strftime("%Y-%m-%d")
+        )
+
+        try:
+            response = llm_client.complete(
+                messages=[{"role": "user", "content": prompt}],
+                agent_name="batch_scenario",
+                tier=ModelTier.STANDARD
+            )
+
+            if not response.content:
+                console.print(f"  [red]✗[/] Empty response")
+                continue
+
+            raw = response.content.strip()
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+            raw = raw.strip()
+
+            data = json.loads(raw)
+            scenarios = data.get("scenarios", [])
+
+            added = 0
+            for s in scenarios:
+                case_id = s.get("case_id", f"TC-{len(all_scenarios)+1:03d}")
+                if case_id not in existing_ids:
+                    # Prefix with scenario number for clarity
+                    s["case_id"] = f"S{idx}-{case_id}"
+                    all_scenarios.append(s)
+                    existing_ids.append(s["case_id"])
+                    added += 1
+
+            console.print(f"  [green]✓[/] +{added} cases (total: {len(all_scenarios)})")
+
+        except Exception as e:
+            console.print(f"  [red]✗[/] Error: {e}")
+            continue
+
+    # Display summary
+    console.print(f"\n[bold green]✓ Total: {len(all_scenarios)} unique test cases across {len(scenario_blocks)} scenarios[/]")
+
+    # Show table
+    table = Table(title=f"Batch Test Cases — {args.jira_story}", border_style="cyan", show_lines=True)
+    table.add_column("ID", style="dim", width=10)
+    table.add_column("Scenario", style="white", width=30)
+    table.add_column("Steps", style="cyan", width=45)
+    table.add_column("Priority", style="red", width=8)
+
+    for s in all_scenarios[:50]:  # show first 50 in table
+        table.add_row(
+            s.get("case_id", ""),
+            s.get("title", "")[:30],
+            s.get("steps", "")[:80],
+            s.get("priority", ""),
+        )
+
+    console.print(table)
+    if len(all_scenarios) > 50:
+        console.print(f"[dim]... and {len(all_scenarios)-50} more (see export)[/]")
+
+    # Export
+    os.makedirs("reports/test_cases", exist_ok=True)
+    output_file = f"reports/test_cases/{args.jira_story}_full_{datetime.now().strftime('%Y%m%d')}.json"
+    with open(output_file, "w") as f:
+        json.dump({
+            "jira_story": args.jira_story,
+            "summary": issue["summary"],
+            "total": len(all_scenarios),
+            "scenarios_processed": len(scenario_blocks),
+            "generated_at": datetime.now().isoformat(),
+            "test_cases": all_scenarios
+        }, f, indent=2)
+    console.print(f"\n[green]✓ JSON exported:[/] {output_file}")
+
+    # Also export CSV/Excel via excel_writer
+    if getattr(args, "export", False):
+        try:
+            from skills.reporting.excel_writer import excel_writer
+            from core.agent_contracts import (
+                TestCaseAgentOutput, ScenarioSchema, TestStep,
+                TestType, Platform, Priority
+            )
+            priority_map = {"P0": "high", "P1": "medium", "P2": "low"}
+            platform_map = {"WEB": "web", "API": "api", "MOBILE": "mobile", "ANDROID": "mobile"}
+
+            schemas = []
+            for s in all_scenarios:
+                try:
+                    steps_raw = s.get("steps", "")
+                    steps = [TestStep(step_number=i+1, action=line, expected="")
+                             for i, line in enumerate(steps_raw.split("\n")) if line.strip()]
+                    if not steps:
+                        steps = [TestStep(step_number=1, action=steps_raw, expected="")]
+
+                    p_raw = s.get("priority", "P1").upper()
+                    p_val = priority_map.get(p_raw, "medium")
+                    pl_raw = s.get("platform", "WEB").upper()
+                    pl_val = platform_map.get(pl_raw, "web")
+                    tt = s.get("test_type", "regression").lower()
+                    valid_types = ["smoke", "regression", "e2e", "negative", "boundary"]
+                    if tt not in valid_types:
+                        tt = "regression"
+
+                    schemas.append(ScenarioSchema(
+                        scenario_id=s.get("case_id", "TC-001"),
+                        name=s.get("title", ""),
+                        precondition=s.get("preconditions", ""),
+                        steps=steps,
+                        expected_result=s.get("expected_result", ""),
+                        test_data={},
+                        tags=s.get("tags", []),
+                        test_type=TestType(tt),
+                        platforms=[Platform(pl_val)],
+                        priority=Priority(p_val),
+                    ))
+                except Exception:
+                    continue
+
+            output = TestCaseAgentOutput(
+                feature=f"{args.jira_story}: {issue['summary']}",
+                model_used="batch-generation",
+                scenarios=schemas,
+                coverage_summary=f"{len(schemas)} cases across {len(scenario_blocks)} Jira scenarios",
+                total_scenarios=len(schemas),
+                prompt_version="2.0.0",
+            )
+            paths = excel_writer.write_both(output)
+            console.print(f"[green]✓ CSV:[/] {paths['csv']}")
+            console.print(f"[green]✓ Excel:[/] {paths['excel']}")
+        except Exception as e:
+            console.print(f"[yellow]⚠ Excel export failed:[/] {e}")
+
+
+
 def main():
     parser = build_parser()
     args   = parser.parse_args()
@@ -462,6 +665,8 @@ def main():
             cmd_generate_code(args)
         elif args.artifact == "testcase":
             asyncio.run(cmd_generate_testcase(args))
+        elif args.artifact == "batch":
+            asyncio.run(cmd_generate_testcase_batch_by_scenario(args))
         else:
             parser.print_help()
     elif args.command == "export":
@@ -500,5 +705,6 @@ def _extract_adf_text(node) -> str:
         if node.get("type") in ["paragraph", "listItem", "bulletList", "heading"]:
             text += "\n"
     return text
+
 
 
