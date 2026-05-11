@@ -16,7 +16,7 @@ Add these secrets to your GitHub repository:
 |--------|-------|
 | `HONO_API_URL` | `https://api-dev.thehono.com` |
 | `HONO_API_KEY` | Your x-api-key value |
-| `STAGING_EMAIL` | `testingHonoA@mailinator.com` |
+| `STAGING_EMAIL` | `testingHonoB@mailinator.com` |
 | `STAGING_PASSWORD` | Your staging password |
 
 ### Jira
