@@ -68,6 +68,7 @@ jobs:
 
       - name: Run API tests
         run: |
+          mkdir -p reports/junit
           PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
             features/login/steps/api/login_api_test.py \
             features/register/steps/api/register_api_test.py \
@@ -96,6 +97,7 @@ jobs:
 
       - name: Run web tests
         run: |
+          mkdir -p reports/junit
           PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
             features/login/steps/web/login_web_app_test.py \
             --junit-xml=reports/junit/web-results.xml -v --tb=short
@@ -144,6 +146,7 @@ jobs:
 
       - name: Run debug agent tests
         run: |
+          mkdir -p reports/junit
           PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
             tests/test_debug_agent.py \
             --junit-xml=reports/junit/debug-results.xml -v --tb=short
