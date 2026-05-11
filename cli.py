@@ -83,14 +83,19 @@ async def cmd_generate_testcase(args):
 
 
 def _print_testcase_output(output):
-    table = Table(title=f"Test Cases — {output.feature}", border_style="cyan")
+    table = Table(title=f"Test Cases — {output.feature}", border_style="cyan", show_lines=True)
     table.add_column("ID",       style="dim",    width=8)
-    table.add_column("Scenario", style="white")
-    table.add_column("Type",     style="yellow", width=12)
-    table.add_column("Platform", style="green",  width=10)
+    table.add_column("Scenario", style="white",  width=25)
+    table.add_column("Steps (Gherkin)", style="cyan", width=50)
+    table.add_column("Type",     style="yellow", width=10)
+    table.add_column("Platform", style="green",  width=8)
     table.add_column("Priority", style="red",    width=8)
     for s in output.scenarios:
-        table.add_row(s.scenario_id, s.name, s.test_type.value,
+        # Format steps as Gherkin string
+        steps_text = "\n".join(
+            st.action for st in s.steps
+        ) if s.steps else s.expected_result or ""
+        table.add_row(s.scenario_id, s.name, steps_text, s.test_type.value,
                       ", ".join(p.value for p in s.platforms), s.priority.value)
     console.print(table)
     console.print(f"\n[green]✓[/] {output.total_scenarios} scenarios | Model: {output.model_used}")
@@ -191,6 +196,43 @@ def cmd_review(args):
 
 def cmd_requirements(args):
     from agents.requirements_agent import requirements_agent
+    # Auto-fetch dari Jira jika ada jira_story
+    if args.jira_story and not getattr(args, "description", None):
+        try:
+            import httpx, base64, os
+            jira_url   = os.getenv("JIRA_BASE_URL")
+            jira_email = os.getenv("JIRA_EMAIL")
+            jira_token = os.getenv("JIRA_TOKEN")
+            auth = base64.b64encode(f"{jira_email}:{jira_token}".encode()).decode()
+            headers = {"Authorization": f"Basic {auth}", "Content-Type": "application/json"}
+            r = httpx.get(f"{jira_url}/rest/api/3/issue/{args.jira_story}", headers=headers)
+            if r.status_code == 200:
+                fields = r.json().get("fields", {})
+                summary = fields.get("summary", "")
+                desc = fields.get("description", {})
+                # Extract text from ADF format
+                desc_text = ""
+                if isinstance(desc, dict):
+                    for block in desc.get("content", []):
+                        for inline in block.get("content", []):
+                            if inline.get("type") == "text":
+                                desc_text += inline.get("text", "") + " "
+                # Extract AC from description
+                ac_list = []
+                for line in desc_text.split("."):
+                    line = line.strip()
+                    if line and len(line) > 10:
+                        ac_list.append(line)
+                # Update args
+                if not getattr(args, "feature", None) or args.feature == args.jira_story:
+                    args.feature = f"{args.jira_story}: {summary}"
+                args.description = desc_text[:1000]
+                if not getattr(args, "ac", None):
+                    args.ac = ac_list[:5]
+                console.print(f"[green]✓ Fetched from Jira:[/] {summary[:60]}")
+        except Exception as e:
+            console.print(f"[yellow]⚠ Jira fetch failed:[/] {e}")
+
     if args.jira_story:
         console.print(Panel(
             f"[bold cyan]Story:[/] {args.jira_story}\n"

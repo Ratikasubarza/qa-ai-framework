@@ -34,7 +34,7 @@ logger = structlog.get_logger(__name__)
 
 AGENT_NAME    = "test_case_agent"
 PROMPT_NAME   = "test_case_gen"
-PROMPT_VERSION = "1.0.0"
+PROMPT_VERSION = "2.0.0"
 
 
 class TestCaseAgent:
@@ -142,6 +142,12 @@ class TestCaseAgent:
         for i, s in enumerate(data.get("scenarios", []), 1):
             raw_steps = s.get("steps", [])
             steps = []
+            if isinstance(raw_steps, str):
+                for idx, line in enumerate(raw_steps.strip().split("\n")):
+                    line = line.strip()
+                    if line:
+                        steps.append(TestStep(step_number=idx+1, action=line, expected=""))
+                raw_steps = []
             for idx, st in enumerate(raw_steps):
                 if isinstance(st, dict):
                     steps.append(TestStep(
@@ -151,15 +157,37 @@ class TestCaseAgent:
                     ))
                 elif isinstance(st, str):
                     steps.append(TestStep(step_number=idx+1, action=st, expected=""))
+            try:
+                # Map P0/P1/P2 → high/medium/low
+                priority_raw = s.get("priority", "medium").upper()
+                priority_map = {"P0": "high", "P1": "medium", "P2": "low",
+                               "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
+                priority_val = priority_map.get(priority_raw, "medium")
+
+                # Map platform WEB/API/MOBILE
+                platform_raw = s.get("platform", "WEB").upper()
+                platform_map = {"WEB": "web", "API": "api", "MOBILE": "mobile", "ANDROID": "mobile"}
+                platform_str = platform_map.get(platform_raw, "web")
+
+                # Map test_type
+                tt = s.get("test_type", "regression").lower()
+                valid_types = ["smoke", "regression", "e2e", "negative", "boundary"]
+                if tt not in valid_types:
+                    tt = "regression"
+            except Exception as map_err:
+                import structlog as _sl
+                _sl.get_logger(__name__).warning("scenario_field_mapping_error", error=str(map_err), scenario=s)
+                continue
+
             scenarios.append(ScenarioSchema(
-                scenario_id=s.get("scenario_id", f"TC-{i:03d}"),
-                name=s.get("name", f"Scenario {i}"),
-                precondition=s.get("precondition", ""),
+                scenario_id=s.get("scenario_id", s.get("case_id", f"TC-{i:03d}")),
+                name=s.get("name", s.get("title", f"Scenario {i}")),
+                precondition=s.get("precondition", s.get("preconditions", "")),
                 steps=steps,
                 expected_result=s.get("expected_result", ""),
                 test_data=s.get("test_data", {}),
                 tags=s.get("tags", []),
-                test_type=TestType(s.get("test_type", "regression")),
+                test_type=TestType(tt),
                 platforms=[Platform(p) for p in s.get("platforms", ["web"])
                            if p in Platform._value2member_map_],
                 priority=Priority({

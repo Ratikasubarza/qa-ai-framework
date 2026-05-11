@@ -25,6 +25,8 @@ FALLBACK_MODELS = {
         "openai/gpt-oss-20b:free",
     ],
     "standard": [
+        "deepseek/deepseek-r1-0528:free",
+        "mistralai/mistral-small-3.1-24b-instruct:free",
         "qwen/qwen3-next-80b-a3b-instruct:free",
         "meta-llama/llama-3.3-70b-instruct:free",
         "nousresearch/hermes-3-llama-3.1-405b:free",
@@ -85,6 +87,7 @@ class LLMClient:
         models     = FALLBACK_MODELS.get(tier.value, FALLBACK_MODELS["standard"])
         last_error = None
 
+        import time
         for model in models:
             try:
                 kwargs = dict(
@@ -93,7 +96,14 @@ class LLMClient:
                     max_tokens=16000,
                     temperature=0.2,
                 )
-                if json_mode:
+                # json_mode only for models that support it
+                # Free models often return None with response_format set
+                SUPPORTS_JSON_MODE = [
+                    "openai/gpt-4",
+                    "openai/gpt-3.5",
+                    "anthropic/claude",
+                ]
+                if json_mode and any(m in model for m in SUPPORTS_JSON_MODE):
                     kwargs["response_format"] = {"type": "json_object"}
 
                 logger.info("llm_request", agent=agent_name, tier=tier.value, model=model)
