@@ -561,6 +561,21 @@ async def cmd_generate_testcase_batch_by_scenario(args):
     # Display summary
     console.print(f"\n[bold green]✓ Total: {len(all_scenarios)} unique test cases across {len(scenario_blocks)} scenarios[/]")
 
+    # Auto-create Jira QA subtask
+    try:
+        subtask_key = jc.create_qa_subtask(
+            parent_key=args.jira_story,
+            test_cases=all_scenarios,
+            feature=issue["summary"]
+        )
+        if subtask_key:
+            console.print(f"[green]✓ Jira QA subtask created:[/] {subtask_key} → linked to {args.jira_story}")
+            console.print(f"  [dim]https://thehono.atlassian.net/browse/{subtask_key}[/]")
+        else:
+            console.print(f"[yellow]⚠ Jira subtask creation failed[/]")
+    except Exception as e:
+        console.print(f"[yellow]⚠ Jira subtask error:[/] {e}")
+
     # Show table
     table = Table(title=f"Batch Test Cases — {args.jira_story}", border_style="cyan", show_lines=True)
     table.add_column("ID", style="dim", width=10)
