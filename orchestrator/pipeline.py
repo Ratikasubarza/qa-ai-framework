@@ -78,26 +78,70 @@ def node_source_intake(state: AgentState) -> AgentState:
     story_text = state.get("story_text") or state.get("feature", "")
     ticket_id = state.get("ticket_id") or ""
     feature_url = state.get("feature_url") or ""
+    prd_url = state.get("prd_url") or ""
+    prd_source: dict[str, Any] = {}
+    intake_error: dict[str, Any] | None = None
 
     source_refs = []
     if ticket_id:
         source_refs.append({"type": "jira", "ref": ticket_id})
+    if prd_url:
+        source_refs.append({"type": "confluence", "ref": prd_url})
     if story_text:
         source_refs.append({"type": "manual_story", "ref": "story_text"})
     if feature_url:
         source_refs.append({"type": "feature_url", "ref": feature_url})
 
+    if prd_url:
+        try:
+            from mcp_tools.confluence_client.confluence_client import confluence_client
+
+            page = confluence_client.fetch_page(prd_url)
+            story_text = (
+                f"Source: {page['source_url']}\n"
+                f"Title: {page['title']}\n"
+                f"Space: {page['space_key']}\n\n"
+                f"{page['body_text']}"
+            ).strip()
+            prd_source = {
+                "type": "confluence",
+                "url": prd_url,
+                "page_id": page["id"],
+                "title": page["title"],
+                "space_key": page["space_key"],
+                "version": page.get("version"),
+                "fetched": True,
+            }
+        except Exception as e:
+            logger.error("confluence_fetch_failed", prd_url=prd_url, error=str(e))
+            has_manual_fallback = bool(story_text.strip()) and story_text.strip() != state.get("feature", "")
+            prd_source = {
+                "type": "confluence",
+                "url": prd_url,
+                "fetched": False,
+                "error": str(e),
+            }
+            if not has_manual_fallback:
+                intake_error = {
+                    "phase": "source_intake",
+                    "message": f"Could not fetch Confluence PRD: {e}",
+                }
+
     source_bundle = {
         "feature": state.get("feature", ""),
         "platforms": state.get("platforms") or ["web"],
         "ticket_id": ticket_id,
+        "prd_url": prd_url,
         "prd_content": story_text,
+        "prd_source": prd_source,
         "feature_url": feature_url,
         "existing_test_cases": state.get("existing_test_cases") or [],
         "source_refs": source_refs,
         "intake_quality": {
             "has_ticket": bool(ticket_id),
             "has_prd_content": bool(story_text.strip()),
+            "has_prd_url": bool(prd_url),
+            "prd_fetched": bool(prd_source.get("fetched")),
             "has_feature_url": bool(feature_url),
         },
     }
@@ -107,7 +151,7 @@ def node_source_intake(state: AgentState) -> AgentState:
         "current_phase": "source_intake",
         "source_bundle": source_bundle,
         "story_text": story_text,
-        "error": None,
+        "error": intake_error,
     }
 
 
@@ -623,6 +667,13 @@ def node_report(state: AgentState) -> AgentState:
 
 
 # ── Routing functions ───────────────────────────────────────────────────────
+def route_after_source_intake(state: AgentState) -> Literal["requirements", "report"]:
+    error = state.get("error") or {}
+    if error.get("phase") == "source_intake":
+        return "report"
+    return "requirements"
+
+
 def route_after_case_review(state: AgentState) -> Literal["approval_gate", "report"]:
     review = state.get("case_review") or {}
     if review.get("status") == "passed" and not state.get("error"):
@@ -675,7 +726,7 @@ def build_pipeline():
     graph.add_node("report", node_report)
 
     graph.set_entry_point("source_intake")
-    graph.add_edge("source_intake", "requirements")
+    graph.add_conditional_edges("source_intake", route_after_source_intake)
     graph.add_edge("requirements", "testcase")
     graph.add_edge("testcase", "case_review_gate")
     graph.add_conditional_edges("case_review_gate", route_after_case_review)
@@ -697,6 +748,7 @@ async def run_pipeline(
     ticket_id: str | None = None,
     story_text: str | None = None,
     feature_url: str | None = None,
+    prd_url: str | None = None,
     existing_test_cases: list[dict] | None = None,
 ) -> AgentState:
     pipeline = build_pipeline()
@@ -706,6 +758,7 @@ async def run_pipeline(
         "ticket_id": ticket_id or "",
         "story_text": story_text or feature,
         "feature_url": feature_url or "",
+        "prd_url": prd_url or "",
         "existing_test_cases": existing_test_cases or [],
         "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "approved": False,

@@ -13,6 +13,7 @@ Flow:
   8. Return approved output or raise on reject
 """
 import json
+import re
 import structlog
 from datetime import datetime
 from core.llm_client import llm_client, ModelTier
@@ -125,10 +126,12 @@ class TestCaseAgent:
         """Parse LLM JSON response into typed TestCaseAgentOutput."""
         # Clean common LLM artifacts
         raw = raw_json.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
+        raw = re.sub(r"^```(?:json)?", "", raw).strip()
+        raw = re.sub(r"```$", "", raw).strip()
+        json_start = raw.find("{")
+        json_end = raw.rfind("}")
+        if json_start != -1 and json_end != -1 and json_end > json_start:
+            raw = raw[json_start:json_end + 1]
         raw = raw.strip()
 
         try:
@@ -145,8 +148,16 @@ class TestCaseAgent:
             else:
                 data = {"feature": input_data.feature, "scenarios": [], "coverage_summary": "JSON truncated — retry"}
 
+        scenario_items = (
+            data.get("scenarios")
+            or data.get("test_cases")
+            or data.get("cases")
+            or data.get("testcases")
+            or []
+        )
+
         scenarios = []
-        for i, s in enumerate(data.get("scenarios", []), 1):
+        for i, s in enumerate(scenario_items, 1):
             raw_steps = s.get("steps", [])
             steps = []
             if isinstance(raw_steps, str):
@@ -171,11 +182,6 @@ class TestCaseAgent:
                                "HIGH": "high", "MEDIUM": "medium", "LOW": "low"}
                 priority_val = priority_map.get(priority_raw, "medium")
 
-                # Map platform WEB/API/MOBILE
-                platform_raw = s.get("platform", "WEB").upper()
-                platform_map = {"WEB": "web", "API": "api", "MOBILE": "mobile", "ANDROID": "mobile"}
-                platform_str = platform_map.get(platform_raw, "web")
-
                 # Map test_type
                 tt = s.get("test_type", "regression").lower()
                 valid_types = ["smoke", "regression", "e2e", "negative", "boundary"]
@@ -186,6 +192,27 @@ class TestCaseAgent:
                 _sl.get_logger(__name__).warning("scenario_field_mapping_error", error=str(map_err), scenario=s)
                 continue
 
+            raw_platforms = s.get("platforms") or s.get("platform") or [
+                p.value for p in input_data.platforms
+            ]
+            if isinstance(raw_platforms, str):
+                raw_platforms = [raw_platforms]
+
+            normalized_platforms = []
+            for raw_platform in raw_platforms:
+                value = str(raw_platform).strip().lower()
+                platform_map = {
+                    "mobile": input_data.platforms[0].value if input_data.platforms else "android",
+                    "flutter_android": "flutter-android",
+                    "flutter-ios": "flutter-ios",
+                    "flutter_ios": "flutter-ios",
+                }
+                value = platform_map.get(value, value)
+                if value in Platform._value2member_map_:
+                    normalized_platforms.append(Platform(value))
+            if not normalized_platforms:
+                normalized_platforms = input_data.platforms or [Platform.WEB]
+
             scenarios.append(ScenarioSchema(
                 scenario_id=s.get("scenario_id", s.get("case_id", f"TC-{i:03d}")),
                 name=s.get("name", s.get("title", f"Scenario {i}")),
@@ -195,8 +222,7 @@ class TestCaseAgent:
                 test_data=s.get("test_data", {}),
                 tags=s.get("tags", []),
                 test_type=TestType(tt),
-                platforms=[Platform(p) for p in s.get("platforms", ["web"])
-                           if p in Platform._value2member_map_],
+                platforms=normalized_platforms,
                 priority=Priority({
                         "P0":"high","P1":"medium","P2":"low",
                         "high":"high","medium":"medium","low":"low"

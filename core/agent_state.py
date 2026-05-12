@@ -13,6 +13,7 @@ class AgentState(TypedDict, total=False):
     platforms:            list[str]     # ["web", "api", "mobile"]
     story_text:           str           # Raw requirements text
     feature_url:          str           # Optional implemented feature URL
+    prd_url:              str           # Optional Confluence/PRD URL
 
     # ── Source intake phase ─────────────────────────────────────────
     source_bundle:        dict          # Normalized Jira/PRD/URL/context bundle

@@ -167,6 +167,7 @@ Output:
 
 Optional source types:
 - Confluence/PRD text pasted by the user
+- Confluence PRD URL via `--prd-url`
 - Jira ticket text or key when the current user has access
 - implemented feature URL
 - existing CSV/Excel/manual test cases
@@ -174,6 +175,15 @@ Optional source types:
 
 If a source requires unavailable credentials, the pipeline records it as
 `not_accessible` and continues with the sources that were provided.
+
+Preferred Confluence PRD command:
+
+```bash
+PYTHONPATH=. ./venv/bin/python3.11 cli.py pipeline \
+  --feature "Sprint 3 - Post Management" \
+  --platform android \
+  --prd-url "https://thehono.atlassian.net/wiki/spaces/H/pages/37847042/PRD+-+Sprint+3+-+Post+Management"
+```
 
 ### 1.5 Backlog Refinement and Story Coverage
 

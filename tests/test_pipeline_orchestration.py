@@ -56,11 +56,76 @@ def test_source_intake_builds_context_bundle():
     assert bundle["ticket_id"] == "QA-123"
     assert bundle["feature_url"] == "https://app-dev.thehono.com/login"
     assert bundle["existing_test_cases"] == [{"scenario_id": "TC-OLD"}]
-    assert bundle["intake_quality"] == {
-        "has_ticket": True,
-        "has_prd_content": True,
-        "has_feature_url": True,
+    assert bundle["intake_quality"]["has_ticket"] is True
+    assert bundle["intake_quality"]["has_prd_content"] is True
+    assert bundle["intake_quality"]["has_feature_url"] is True
+    assert bundle["intake_quality"]["has_prd_url"] is False
+    assert bundle["intake_quality"]["prd_fetched"] is False
+
+
+def test_source_intake_fetches_confluence_prd(monkeypatch):
+    class FakeConfluenceClient:
+        def fetch_page(self, prd_url):
+            assert prd_url == "https://thehono.atlassian.net/wiki/spaces/H/pages/37847042/PRD"
+            return {
+                "id": "37847042",
+                "title": "PRD - Sprint 3 - Post Management",
+                "space_key": "H",
+                "source_url": prd_url,
+                "body_text": "Users can create and manage posts.",
+                "version": 7,
+            }
+
+    fake_module = SimpleNamespace(confluence_client=FakeConfluenceClient())
+    monkeypatch.setitem(
+        sys.modules,
+        "mcp_tools.confluence_client.confluence_client",
+        fake_module,
+    )
+
+    state = pipeline.node_source_intake({
+        "feature": "Post Management",
+        "platforms": ["android"],
+        "story_text": "Post Management",
+        "prd_url": "https://thehono.atlassian.net/wiki/spaces/H/pages/37847042/PRD",
+    })
+
+    bundle = state["source_bundle"]
+    assert state["error"] is None
+    assert "Users can create and manage posts." in bundle["prd_content"]
+    assert bundle["prd_source"] == {
+        "type": "confluence",
+        "url": "https://thehono.atlassian.net/wiki/spaces/H/pages/37847042/PRD",
+        "page_id": "37847042",
+        "title": "PRD - Sprint 3 - Post Management",
+        "space_key": "H",
+        "version": 7,
+        "fetched": True,
     }
+    assert bundle["intake_quality"]["prd_fetched"] is True
+
+
+def test_source_intake_blocks_when_prd_url_unreadable_without_manual_fallback(monkeypatch):
+    class FakeConfluenceClient:
+        def fetch_page(self, prd_url):
+            raise PermissionError("Confluence authentication failed with 401.")
+
+    fake_module = SimpleNamespace(confluence_client=FakeConfluenceClient())
+    monkeypatch.setitem(
+        sys.modules,
+        "mcp_tools.confluence_client.confluence_client",
+        fake_module,
+    )
+
+    state = pipeline.node_source_intake({
+        "feature": "Post Management",
+        "platforms": ["android"],
+        "story_text": "Post Management",
+        "prd_url": "https://thehono.atlassian.net/wiki/spaces/H/pages/37847042/PRD",
+    })
+
+    assert state["error"]["phase"] == "source_intake"
+    assert pipeline.route_after_source_intake(state) == "report"
 
 
 def test_build_pipeline_compiles_without_state_key_node_collisions():
