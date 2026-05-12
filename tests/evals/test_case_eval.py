@@ -22,6 +22,8 @@ class EvalResult:
     coverage_score:  float   # % of expected scenarios matched
     precision_score: float   # % of steps that are concrete
     has_edge_cases:  bool
+    has_combination_edge_cases: bool
+    has_weird_edge_cases: bool
     passed:          bool
     notes:           str = ""
 
@@ -54,14 +56,23 @@ def _score_output(output, golden: dict) -> EvalResult:
 
     # Edge case coverage
     has_edge_cases = any(len(s.edge_cases) > 0 for s in output.scenarios)
+    has_combination_edge_cases = any(len(s.combination_edge_cases) > 0 for s in output.scenarios)
+    has_weird_edge_cases = any(len(s.weird_edge_cases) > 0 for s in output.scenarios)
+    edge_score = sum([
+        has_edge_cases,
+        has_combination_edge_cases,
+        has_weird_edge_cases,
+    ]) / 3
 
-    overall = (coverage * 0.5) + (precision * 0.3) + (0.2 if has_edge_cases else 0.0)
+    overall = (coverage * 0.5) + (precision * 0.3) + (0.2 * edge_score)
 
     return EvalResult(
         fixture_id=golden.get("id", "unknown"),
         coverage_score=round(coverage, 2),
         precision_score=round(precision, 2),
         has_edge_cases=has_edge_cases,
+        has_combination_edge_cases=has_combination_edge_cases,
+        has_weird_edge_cases=has_weird_edge_cases,
         passed=overall >= THRESHOLD,
         notes=f"Overall: {overall:.2f} (threshold: {THRESHOLD})",
     )
@@ -96,6 +107,8 @@ async def test_eval_all_fixtures():
             print(f"  Coverage:  {result.coverage_score:.0%}")
             print(f"  Precision: {result.precision_score:.0%}")
             print(f"  Edge Cases: {'✓' if result.has_edge_cases else '✗'}")
+            print(f"  Combination Edge Cases: {'✓' if result.has_combination_edge_cases else '✗'}")
+            print(f"  Weird Edge Cases: {'✓' if result.has_weird_edge_cases else '✗'}")
             print(f"  Result:    {'PASS' if result.passed else 'FAIL'}")
     finally:
         settings.approval_required = original_approval

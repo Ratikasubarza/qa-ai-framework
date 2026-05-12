@@ -61,6 +61,8 @@ class ScenarioSchema(BaseModel):
     platforms:    list[Platform]  = Field(default_factory=list)
     priority:     Priority        = Priority.MEDIUM
     edge_cases:   list[str]       = Field(default_factory=list)
+    combination_edge_cases: list[str] = Field(default_factory=list)
+    weird_edge_cases: list[str] = Field(default_factory=list)
 
 
 class TestCaseAgentInput(BaseModel):

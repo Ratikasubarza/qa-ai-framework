@@ -88,6 +88,10 @@ class CodeGeneratorAgent:
             lines.append(f"Expected Result: {s.expected_result}")
             if s.edge_cases:
                 lines.append(f"Edge Cases: {', '.join(s.edge_cases)}")
+            if s.combination_edge_cases:
+                lines.append(f"Combination Edge Cases: {', '.join(s.combination_edge_cases)}")
+            if s.weird_edge_cases:
+                lines.append(f"Weird Edge Cases: {', '.join(s.weird_edge_cases)}")
             lines.append("")
         return "\n".join(lines)
 

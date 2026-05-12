@@ -31,6 +31,9 @@ def _testcase_output() -> CaseOutput:
                 test_type=CaseType.SMOKE,
                 platforms=[Platform.WEB],
                 priority=Priority.HIGH,
+                edge_cases=["empty password"],
+                combination_edge_cases=["valid email with expired session"],
+                weird_edge_cases=["rapid double submit"],
             )
         ],
         coverage_summary="ok",

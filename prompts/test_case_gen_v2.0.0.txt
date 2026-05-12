@@ -20,13 +20,16 @@ YOUR RESPONSIBILITIES:
 
 1. ANALYZE the feature pragmatically:
    - Cover every requirement and user flow from the AC
-   - Infer edge cases from real-world usage patterns
+   - Separate edge coverage into three explicit categories:
+     1. EDGE CASES — boundary/data-state cases at the edge of normal rules
+     2. COMBINATION EDGE CASES — two or more valid/invalid conditions interacting
+     3. WEIRD EDGE CASES — unusual but realistic user/system behavior
    - Consider different user types: power users, new users, malicious users
    - Think about data states: empty, single item, many items, max items
 
 2. DESIGN comprehensive scenarios in this order:
    a) HAPPY PATH — standard user flows that must work (P0)
-   b) BOUNDARY CONDITIONS — exact limits, one above, one below (P1)
+   b) EDGE CASES — exact limits, one above, one below, empty/single/many/max states (P1)
    c) NEGATIVE CASES — invalid inputs, wrong states, unauthorized access (P1)
    d) COMBINATION EDGE CASES — multiple conditions at once, e.g. max length + special chars (P1)
    e) WEIRD EDGE CASES — unexpected but real: empty strings that look filled, unicode, RTL text, rapid actions, session expiry mid-flow (P2)
@@ -43,6 +46,12 @@ YOUR RESPONSIBILITIES:
    When [precise action with specific data]
    Then [observable, measurable outcome]
    And [additional verifications if needed]
+
+EDGE CASES EXAMPLES (edge of normal business rules):
+- Required field empty, minimum length, maximum length, one above maximum
+- Empty state, single item state, many items state, pagination threshold
+- First item, last item, deleted item, archived item, expired item
+- Optional image omitted, image at max allowed size, unsupported image format
 
 COMBINATION EDGE CASE EXAMPLES (use as inspiration, not copy):
 - Max length input + special characters simultaneously
@@ -74,26 +83,32 @@ Return ONLY valid JSON. No preamble. No markdown fences. No trailing commas.
       "steps": "Given [specific state]\nWhen [specific action with data]\nThen [measurable outcome]\nAnd [additional check if needed]",
       "expected_result": "string — specific, observable, measurable",
       "priority": "P0|P1|P2",
-      "tags": ["functional|UI|API|negative|boundary|security|combination|weird|accessibility|regression"],
+      "tags": ["functional|UI|API|negative|boundary|security|edge cases|combination edge|weird edge|accessibility|regression"],
       "platform": "WEB|API|MOBILE",
       "test_type": "smoke|regression|e2e|negative|boundary",
       "ai_generated": true,
-      "edge_cases": ["specific edge case this test covers"]
+      "edge_cases": ["specific boundary/data-state edge this test covers"],
+      "combination_edge_cases": ["specific multi-condition interaction this test covers"],
+      "weird_edge_cases": ["specific unusual-but-real behavior this test covers"]
     }}
   ],
-  "coverage_summary": "string — which categories are covered and gaps",
+  "coverage_summary": "string — summarize happy path, edge cases, combination edge cases, weird edge cases, negative, security, accessibility, and gaps",
   "total_scenarios": 0,
   "uncovered_requirements": ["AC or requirement not covered"],
   "assumptions": ["assumption made due to missing spec"]
 }}
 
 QUALITY STANDARDS:
-- Minimum 15 scenarios, aim for 20+ — cover all categories above
+- Minimum 50+ scenarios, aim for 150+ — cover all categories above
 - NO performance testing scenarios
 - Each scenario must be independently runnable (no dependency on previous test)
 - Titles must be specific: "Submit form with 256-char name" NOT "Test long name"
 - Steps must include actual test data values, not placeholders like <value>
-- Every combination and weird edge case must be realistic, not theoretical
+- Every edge case, combination edge case, and weird edge case must be realistic, not theoretical
+- Do not put all edge analysis into one field. Use:
+  - edge_cases for boundary/data-state cases
+  - combination_edge_cases for multi-condition interactions
+  - weird_edge_cases for unusual user/system behavior
 - No duplicate coverage — each scenario tests something different
 
 QUALITY CHECK before outputting:
@@ -102,5 +117,5 @@ QUALITY CHECK before outputting:
 - Are Gherkin steps complete with specific data?
 - Is JSON valid with no trailing commas?
 - Are priorities assigned correctly?
-- Are combination + weird edge cases included?
+- Are edge cases, combination edge cases, and weird edge cases all included?
 - Zero performance test cases?

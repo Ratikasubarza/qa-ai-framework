@@ -228,6 +228,8 @@ class TestCaseAgent:
                         "high":"high","medium":"medium","low":"low"
                     }.get(s.get("priority","medium"),"medium")),
                 edge_cases=s.get("edge_cases", []),
+                combination_edge_cases=s.get("combination_edge_cases", []),
+                weird_edge_cases=s.get("weird_edge_cases", []),
             ))
 
         return TestCaseAgentOutput(

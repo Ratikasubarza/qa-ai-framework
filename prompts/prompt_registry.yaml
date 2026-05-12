@@ -2,7 +2,7 @@ prompts:
   test_case_gen:
     version: "2.0.0"
     model_tier: standard
-    changelog: "v2.0.0 — Pragmatic, 20+ scenarios, combination+weird edge cases, no performance, detail-oriented"
+    changelog: "v2.0.0 — Pragmatic, explicit edge/combination/weird edge categories, no performance, detail-oriented"
     template_ref: "prompts/test_case_gen_v2.0.0.txt"
     eval_threshold: 0.85
 
