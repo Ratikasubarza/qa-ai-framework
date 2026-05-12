@@ -12,6 +12,10 @@ class AgentState(TypedDict, total=False):
     feature:              str           # Human-readable feature name
     platforms:            list[str]     # ["web", "api", "mobile"]
     story_text:           str           # Raw requirements text
+    feature_url:          str           # Optional implemented feature URL
+
+    # ── Source intake phase ─────────────────────────────────────────
+    source_bundle:        dict          # Normalized Jira/PRD/URL/context bundle
 
     # ── Requirements phase ──────────────────────────────────────────
     acceptance_criteria:  list[str]     # Extracted AC summaries for prompts
@@ -22,6 +26,7 @@ class AgentState(TypedDict, total=False):
     # ── Test case phase ─────────────────────────────────────────────
     test_cases:           list[dict]    # Generated test case dicts
     testcase_output:      Any           # TestCaseAgentOutput used by downstream agents
+    case_review:          dict          # AI review summary before human approval
     approved:             bool          # Telegram approval gate
     approval:             dict          # Approval status, reviewer, feedback
     approval_feedback:    str           # Reviewer comment if rejected

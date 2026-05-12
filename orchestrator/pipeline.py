@@ -5,8 +5,9 @@ This module owns cross-agent coordination. Agents create artifacts; the graph
 decides when an artifact is approved, reused, skipped, or reported.
 
 Flow:
-  START → requirements → testcase → approval → testcase_export → codegen
-        → execute → debug (on failure) → skill_gap → report → END
+  START → source_intake → requirements → testcase → case_review → approval
+        → testcase_export → codegen → execute → debug (on failure)
+        → skill_gap → report → END
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ logger = structlog.get_logger(__name__)
 
 PYTHON_BIN = "./venv/bin/python3.11"
 MAX_APPROVAL_ATTEMPTS = 1
+CASE_REVIEW_MIN_SCORE = 7.0
 
 
 def _criteria_summary(criteria: list[Any]) -> list[str]:
@@ -69,6 +71,46 @@ def _approval_payload(status: str, **extra: Any) -> dict:
     }
 
 
+# ── Node: Source Intake ─────────────────────────────────────────────────────
+def node_source_intake(state: AgentState) -> AgentState:
+    logger.info("node_start", node="source_intake", feature=state.get("feature"))
+
+    story_text = state.get("story_text") or state.get("feature", "")
+    ticket_id = state.get("ticket_id") or ""
+    feature_url = state.get("feature_url") or ""
+
+    source_refs = []
+    if ticket_id:
+        source_refs.append({"type": "jira", "ref": ticket_id})
+    if story_text:
+        source_refs.append({"type": "manual_story", "ref": "story_text"})
+    if feature_url:
+        source_refs.append({"type": "feature_url", "ref": feature_url})
+
+    source_bundle = {
+        "feature": state.get("feature", ""),
+        "platforms": state.get("platforms") or ["web"],
+        "ticket_id": ticket_id,
+        "prd_content": story_text,
+        "feature_url": feature_url,
+        "existing_test_cases": state.get("existing_test_cases") or [],
+        "source_refs": source_refs,
+        "intake_quality": {
+            "has_ticket": bool(ticket_id),
+            "has_prd_content": bool(story_text.strip()),
+            "has_feature_url": bool(feature_url),
+        },
+    }
+
+    return {
+        **state,
+        "current_phase": "source_intake",
+        "source_bundle": source_bundle,
+        "story_text": story_text,
+        "error": None,
+    }
+
+
 # ── Node: Requirements ───────────────────────────────────────────────────────
 def node_requirements(state: AgentState) -> AgentState:
     from agents.requirements_agent import requirements_agent
@@ -76,12 +118,13 @@ def node_requirements(state: AgentState) -> AgentState:
     logger.info("node_start", node="requirements", ticket=state.get("ticket_id"))
 
     try:
+        source_bundle = state.get("source_bundle") or {}
         if state.get("ticket_id"):
             result = requirements_agent.run_from_jira(state["ticket_id"])
         else:
             result = requirements_agent.run_from_text(
                 feature=state.get("feature", ""),
-                story_text=state.get("story_text", ""),
+                story_text=source_bundle.get("prd_content") or state.get("story_text", ""),
                 parent_key="",
             )
 
@@ -148,6 +191,75 @@ async def node_testcase(state: AgentState) -> AgentState:
             "approved": False,
             "approval": _approval_payload("failed", message=str(e)),
             "error": {"phase": "testcase", "message": str(e)},
+        }
+
+
+# ── Node: Approval Gate ─────────────────────────────────────────────────────
+def node_case_review(state: AgentState) -> AgentState:
+    from agents.reviewer_agent import reviewer_agent
+
+    logger.info("node_start", node="case_review", feature=state.get("feature"))
+
+    try:
+        test_cases = state.get("test_cases") or []
+        if not test_cases:
+            raise ValueError("No test cases available for AI case review.")
+
+        source_bundle = state.get("source_bundle") or {}
+        prd_content = source_bundle.get("prd_content") or state.get("story_text", "")
+        report = reviewer_agent.review(
+            prd_content=prd_content,
+            test_cases_json=test_cases,
+            feature=state.get("feature", "Feature"),
+        )
+
+        review = {
+            "status": "passed",
+            "quality_score": report.overall_quality_score,
+            "coverage_percentage": report.coverage_percentage,
+            "findings": {
+                "critical": report.findings_critical,
+                "major": report.findings_major,
+                "minor": report.findings_minor,
+            },
+            "missing_test_cases": report.missing_test_cases,
+            "prd_clarifications": report.prd_clarifications,
+            "recommendation": report.recommendation,
+            "traceability_matrix": report.traceability_matrix,
+        }
+
+        if (
+            report.findings_critical > 0
+            or report.overall_quality_score < CASE_REVIEW_MIN_SCORE
+        ):
+            review["status"] = "needs_revision"
+            return {
+                **state,
+                "current_phase": "case_review",
+                "case_review": review,
+                "error": {
+                    "phase": "case_review",
+                    "message": (
+                        "AI case review did not pass quality gate: "
+                        f"score={report.overall_quality_score}, "
+                        f"critical={report.findings_critical}"
+                    ),
+                },
+            }
+
+        return {
+            **state,
+            "current_phase": "case_review",
+            "case_review": review,
+            "error": None,
+        }
+    except Exception as e:
+        logger.error("node_failed", node="case_review", error=str(e))
+        return {
+            **state,
+            "current_phase": "case_review",
+            "case_review": {"status": "failed", "message": str(e)},
+            "error": {"phase": "case_review", "message": str(e)},
         }
 
 
@@ -449,6 +561,7 @@ def node_report(state: AgentState) -> AgentState:
     failures = state.get("failures") or []
     bugs = state.get("bug_reports") or []
     gaps = state.get("coverage_gaps") or []
+    case_review = state.get("case_review") or {}
     coverage = state.get("coverage_percentage", 0.0)
     status = "PASSED" if not failures and not state.get("error") else "FAILED"
 
@@ -460,6 +573,7 @@ def node_report(state: AgentState) -> AgentState:
         f"*Feature:* `{state.get('feature', 'N/A')}`\n"
         f"*Run ID:* `{state.get('run_id', 'N/A')}`\n\n"
         f"*Test Cases:* {len(state.get('test_cases', []))}\n"
+        f"*Case Review:* {case_review.get('status', 'N/A')}\n"
         f"*Exports:* {len(state.get('testcase_exports', {}))}\n"
         f"*Files Generated:* {len(state.get('generated_files', {}))}\n"
         f"*Failures:* {len(failures)}\n"
@@ -467,6 +581,13 @@ def node_report(state: AgentState) -> AgentState:
     )
     if state.get("error"):
         msg += f"\n*Error:* `{state['error'].get('message', state['error'])}`\n"
+    if case_review:
+        msg += (
+            "\n*AI Case Review:*\n"
+            f"  - Score: `{case_review.get('quality_score', 'N/A')}`\n"
+            f"  - Critical: `{case_review.get('findings', {}).get('critical', 'N/A')}`\n"
+            f"  - Major: `{case_review.get('findings', {}).get('major', 'N/A')}`\n"
+        )
     if state.get("testcase_exports"):
         export_lines = "\n".join(
             f"  - {name}: `{path}`"
@@ -499,6 +620,13 @@ def node_report(state: AgentState) -> AgentState:
 
 
 # ── Routing functions ───────────────────────────────────────────────────────
+def route_after_case_review(state: AgentState) -> Literal["approval", "report"]:
+    review = state.get("case_review") or {}
+    if review.get("status") == "passed" and not state.get("error"):
+        return "approval"
+    return "report"
+
+
 def route_after_approval(state: AgentState) -> Literal["testcase_export", "report"]:
     if state.get("approved"):
         return "testcase_export"
@@ -531,8 +659,10 @@ def build_pipeline():
 
     graph = StateGraph(AgentState)
 
+    graph.add_node("source_intake", node_source_intake)
     graph.add_node("requirements", node_requirements)
     graph.add_node("testcase", node_testcase)
+    graph.add_node("case_review", node_case_review)
     graph.add_node("approval", node_approval)
     graph.add_node("testcase_export", node_testcase_export)
     graph.add_node("codegen", node_codegen)
@@ -541,9 +671,11 @@ def build_pipeline():
     graph.add_node("skill_gap", node_skill_gap)
     graph.add_node("report", node_report)
 
-    graph.set_entry_point("requirements")
+    graph.set_entry_point("source_intake")
+    graph.add_edge("source_intake", "requirements")
     graph.add_edge("requirements", "testcase")
-    graph.add_edge("testcase", "approval")
+    graph.add_edge("testcase", "case_review")
+    graph.add_conditional_edges("case_review", route_after_case_review)
     graph.add_conditional_edges("approval", route_after_approval)
     graph.add_conditional_edges("testcase_export", route_after_testcase_export)
     graph.add_conditional_edges("codegen", route_after_codegen)
@@ -561,6 +693,8 @@ async def run_pipeline(
     platforms: list[str] | None = None,
     ticket_id: str | None = None,
     story_text: str | None = None,
+    feature_url: str | None = None,
+    existing_test_cases: list[dict] | None = None,
 ) -> AgentState:
     pipeline = build_pipeline()
     init_state: AgentState = {
@@ -568,6 +702,8 @@ async def run_pipeline(
         "platforms": platforms or ["web"],
         "ticket_id": ticket_id or "",
         "story_text": story_text or feature,
+        "feature_url": feature_url or "",
+        "existing_test_cases": existing_test_cases or [],
         "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "approved": False,
         "approval": _approval_payload("not_started", attempt=0),

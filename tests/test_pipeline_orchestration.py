@@ -40,6 +40,97 @@ def _testcase_output() -> CaseOutput:
     )
 
 
+def test_source_intake_builds_context_bundle():
+    state = pipeline.node_source_intake({
+        "feature": "Login",
+        "platforms": ["web", "api"],
+        "ticket_id": "QA-123",
+        "story_text": "Users can log in with email and password.",
+        "feature_url": "https://app-dev.thehono.com/login",
+        "existing_test_cases": [{"scenario_id": "TC-OLD"}],
+    })
+
+    bundle = state["source_bundle"]
+    assert bundle["feature"] == "Login"
+    assert bundle["platforms"] == ["web", "api"]
+    assert bundle["ticket_id"] == "QA-123"
+    assert bundle["feature_url"] == "https://app-dev.thehono.com/login"
+    assert bundle["existing_test_cases"] == [{"scenario_id": "TC-OLD"}]
+    assert bundle["intake_quality"] == {
+        "has_ticket": True,
+        "has_prd_content": True,
+        "has_feature_url": True,
+    }
+
+
+def test_case_review_quality_gate_passes(monkeypatch):
+    calls = []
+
+    class FakeReviewer:
+        def review(self, prd_content, test_cases_json, feature):
+            calls.append((prd_content, test_cases_json, feature))
+            return SimpleNamespace(
+                overall_quality_score=8.5,
+                coverage_percentage=90.0,
+                findings_critical=0,
+                findings_major=1,
+                findings_minor=2,
+                missing_test_cases=[],
+                prd_clarifications=[],
+                recommendation="approve",
+                traceability_matrix=[],
+            )
+
+    fake_module = SimpleNamespace(reviewer_agent=FakeReviewer())
+    monkeypatch.setitem(sys.modules, "agents.reviewer_agent", fake_module)
+
+    state = pipeline.node_case_review({
+        "feature": "Login",
+        "source_bundle": {"prd_content": "Users can log in."},
+        "test_cases": [{"scenario_id": "TC-001", "name": "Valid login"}],
+    })
+
+    assert state["case_review"]["status"] == "passed"
+    assert state["case_review"]["quality_score"] == 8.5
+    assert pipeline.route_after_case_review(state) == "approval"
+    assert calls == [
+        (
+            "Users can log in.",
+            [{"scenario_id": "TC-001", "name": "Valid login"}],
+            "Login",
+        )
+    ]
+
+
+def test_case_review_quality_gate_blocks_low_score(monkeypatch):
+    class FakeReviewer:
+        def review(self, prd_content, test_cases_json, feature):
+            return SimpleNamespace(
+                overall_quality_score=5.5,
+                coverage_percentage=60.0,
+                findings_critical=1,
+                findings_major=2,
+                findings_minor=0,
+                missing_test_cases=["Missing invalid password test"],
+                prd_clarifications=[],
+                recommendation="revise",
+                traceability_matrix=[],
+            )
+
+    fake_module = SimpleNamespace(reviewer_agent=FakeReviewer())
+    monkeypatch.setitem(sys.modules, "agents.reviewer_agent", fake_module)
+
+    state = pipeline.node_case_review({
+        "feature": "Login",
+        "source_bundle": {"prd_content": "Users can log in."},
+        "test_cases": [{"scenario_id": "TC-001", "name": "Valid login"}],
+    })
+
+    assert state["case_review"]["status"] == "needs_revision"
+    assert state["error"]["phase"] == "case_review"
+    assert pipeline.route_after_case_review(state) == "report"
+
+
 def test_codegen_uses_existing_testcase_output(monkeypatch):
     output = _testcase_output()
     calls = []

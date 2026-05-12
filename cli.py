@@ -379,12 +379,12 @@ async def cmd_bot_start(args):
 
 async def cmd_pipeline(args):
     from orchestrator.pipeline import run_pipeline
-    import json
 
     console.print(Panel(
         f"[bold cyan]Feature:[/] {args.feature}\n"
         f"[bold cyan]Platforms:[/] {args.platform}\n"
-        f"[bold cyan]Ticket:[/] {args.ticket or 'N/A'}",
+        f"[bold cyan]Ticket:[/] {args.ticket or 'N/A'}\n"
+        f"[bold cyan]URL:[/] {args.url or 'N/A'}",
         title="[bold]QA Pipeline — Phase 9", border_style="cyan",
     ))
 
@@ -394,13 +394,18 @@ async def cmd_pipeline(args):
         platforms=platforms,
         ticket_id=args.ticket or None,
         story_text=args.story or args.feature,
+        feature_url=args.url or None,
     )
 
     console.print(f"\n[bold]Pipeline Complete[/]")
     console.print(f"  Coverage:   [cyan]{final.get('coverage_percentage', 0):.0f}%[/]")
     console.print(f"  Test cases: {len(final.get('test_cases') or [])}")
+    console.print(f"  Case review: {final.get('case_review', {}).get('status', 'N/A')}")
     console.print(f"  Bugs found: {len(final.get('bug_reports') or [])}")
     console.print(f"  Gaps:       {len(final.get('coverage_gaps') or [])}")
+    if final.get('testcase_exports'):
+        for name, path in final['testcase_exports'].items():
+            console.print(f"  {name.upper()}:      [dim]{path}[/]")
     if final.get('gap_report_path'):
         console.print(f"  Gap report: [dim]{final['gap_report_path']}[/]")
 
@@ -473,6 +478,7 @@ def build_parser():
     pip.add_argument("--platform", default="web")
     pip.add_argument("--ticket",   default=None, help="Jira ticket ID")
     pip.add_argument("--story",    default=None, help="Raw story text")
+    pip.add_argument("--url",      default=None, help="Implemented feature URL")
 
     return parser
 
@@ -720,6 +726,3 @@ def _extract_adf_text(node) -> str:
         if node.get("type") in ["paragraph", "listItem", "bulletList", "heading"]:
             text += "\n"
     return text
-
-
-

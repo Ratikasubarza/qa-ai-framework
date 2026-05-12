@@ -49,11 +49,13 @@ AI Engineer: prompt/model/version lineage and coverage metrics
 
 | Key | Owner | Purpose |
 | --- | --- | --- |
+| `source_bundle` | `source_intake` | Normalized Jira/PRD/URL/existing-test context. |
 | `requirements_output` | `requirements` | Full output from RequirementsAgent. |
 | `acceptance_criteria` | `requirements` | Prompt-ready AC summaries. |
 | `acceptance_criteria_details` | `requirements` | Full AC objects for traceability. |
 | `testcase_output` | `testcase` | Full `TestCaseAgentOutput`; source of truth for approval, export, and codegen. |
 | `test_cases` | `testcase` | JSON-safe scenario list for reporting and coverage. |
+| `case_review` | `case_review` | AI quality gate summary before QA Lead approval. |
 | `approval` | `approval` | Decision metadata, reviewer, feedback, attempt. |
 | `testcase_exports` | `testcase_export` | Approved CSV/Excel test case artifact paths. |
 | `generated_files` | `codegen` | Dict of `{relative_path: absolute_path}`. |
@@ -66,8 +68,12 @@ AI Engineer: prompt/model/version lineage and coverage metrics
 
 ```text
 START
+  -> source_intake
   -> requirements
   -> testcase
+  -> case_review
+      -> approval when AI quality gate passes
+      -> report when critical gaps or low quality score are found
   -> approval
       -> testcase_export when approved
       -> report when rejected, timed out, or failed
@@ -88,6 +94,8 @@ Use this as the concrete end-to-end process for a product feature.
 Trigger:
 - Jira story key, or
 - raw story text from CLI/local development.
+- optional implemented feature URL.
+- optional existing CSV/manual test cases.
 
 Required input:
 - feature name
@@ -101,11 +109,20 @@ Definition of Ready:
 - required test data is either provided or explicitly marked missing
 
 Output:
+- `source_bundle`
+- source references
+- intake quality flags
+
+### 2. Requirements Extraction
+
+RequirementsAgent extracts AC from the source bundle.
+
+Output:
 - `requirements_output`
 - `acceptance_criteria`
 - ambiguity and assumption list
 
-### 2. Test Design
+### 3. Test Design
 
 The TestCaseAgent creates scenarios from accepted AC. It should cover:
 - positive flows
@@ -121,7 +138,25 @@ Output:
 Rule:
 - this is draft until the approval node marks it approved.
 
-### 3. QA Lead Approval
+### 4. AI Case Review
+
+ReviewerAgent checks the generated scenarios before human approval.
+
+Checks:
+- PRD alignment
+- completeness and clarity
+- missing positive/negative/boundary coverage
+- traceability matrix
+- PRD clarification needs
+
+Output:
+- `case_review`
+
+Routing:
+- pass: continue to QA Lead approval
+- critical findings or low quality score: stop and report for revision
+
+### 5. QA Lead Approval
 
 QA Lead reviews the generated scenarios before they become official.
 
@@ -135,7 +170,7 @@ Output:
 - `approval`
 - `approved`
 
-### 4. Official Test Plan Export
+### 6. Official Test Plan Export
 
 The pipeline exports only approved test cases.
 
@@ -150,7 +185,7 @@ Rule:
 - if export fails, the pipeline stops before codegen because the team does not
   have an official test plan artifact.
 
-### 5. Automation Generation
+### 7. Automation Generation
 
 CodeGen consumes the same approved `testcase_output` used for CSV/Excel.
 
@@ -162,7 +197,7 @@ Rules:
 - do not hardcode credentials
 - use `TestConfig`/test data classes for environment data
 
-### 6. Execution
+### 8. Execution
 
 Run generated/affected tests with the project venv.
 
@@ -177,7 +212,7 @@ Output:
 - `failures`
 - pytest JSON report
 
-### 7. Failure Analysis
+### 9. Failure Analysis
 
 DebugAgent runs only when execution fails.
 
@@ -189,7 +224,7 @@ Rules:
   issue
 - Jira bug creation should remain explicit, not hidden inside analysis
 
-### 8. Coverage Analysis
+### 10. Coverage Analysis
 
 SkillGap compares approved test cases against AC.
 
@@ -206,6 +241,24 @@ Definition of Done:
 - unresolved gaps are visible to the team
 
 ## Node Contracts
+
+### `source_intake`
+
+Input:
+- `feature`
+- `platforms`
+- `ticket_id`
+- `story_text`
+- optional `feature_url`
+- optional `existing_test_cases`
+
+Output:
+- `source_bundle`
+
+Rules:
+- Normalizes all human, Jira, PRD, URL, and existing-test context.
+- Downstream nodes read from `source_bundle` instead of each rediscovering
+  source context.
 
 ### `requirements`
 
@@ -253,6 +306,22 @@ Rules:
 - This is the only approval gate in the LangGraph pipeline.
 - If approval is disabled in settings, the node records `auto_approved`.
 - Rejected, timed-out, or failed approvals route to `report`.
+
+### `case_review`
+
+Input:
+- `source_bundle.prd_content`
+- `test_cases`
+
+Output:
+- `case_review`
+
+Rules:
+- Runs before human approval.
+- Blocks approval when critical findings exist.
+- Blocks approval when `overall_quality_score` is below the configured quality
+  threshold.
+- Produces a traceability matrix and revision recommendations for the team.
 
 ### `testcase_export`
 
@@ -407,6 +476,8 @@ overwriting multiple approved runs on the same day.
 ## Architecture Review Notes
 
 Current strengths:
+- source intake creates a normalized context bundle
+- AI case review runs before QA Lead approval
 - approved `testcase_output` is reused by export and codegen
 - CSV/Excel export is a separate graph node
 - execution uses the project Python runtime
@@ -415,7 +486,6 @@ Current strengths:
 
 Recommended next improvements:
 - add retry/edit workflow for rejected approvals instead of stopping at report
-- add a reviewer quality gate before human approval for large stories
 - add `run_id` to exported CSV/Excel filenames
 - persist full pipeline state as JSON for audit/debug replay
 - split web/API/mobile codegen by platform instead of using only `platforms[0]`
