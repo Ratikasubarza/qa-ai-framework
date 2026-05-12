@@ -26,6 +26,9 @@ class AgentState(TypedDict, total=False):
     approval:             dict          # Approval status, reviewer, feedback
     approval_feedback:    str           # Reviewer comment if rejected
 
+    # ── Test case export phase ──────────────────────────────────────
+    testcase_exports:     dict[str, str]  # {csv: path, excel: path}
+
     # ── Code generation phase ───────────────────────────────────────
     generated_files:      dict[str, str]  # {relative_path: absolute_path}
 

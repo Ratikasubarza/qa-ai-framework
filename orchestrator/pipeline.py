@@ -5,7 +5,7 @@ This module owns cross-agent coordination. Agents create artifacts; the graph
 decides when an artifact is approved, reused, skipped, or reported.
 
 Flow:
-  START → requirements → testcase → approval → codegen
+  START → requirements → testcase → approval → testcase_export → codegen
         → execute → debug (on failure) → skill_gap → report → END
 """
 from __future__ import annotations
@@ -246,6 +246,40 @@ async def node_approval(state: AgentState) -> AgentState:
         }
 
 
+# ── Node: Test Case Export ──────────────────────────────────────────────────
+def node_testcase_export(state: AgentState) -> AgentState:
+    from core.agent_contracts import TestCaseAgentOutput
+    from skills.reporting.excel_writer import excel_writer
+
+    logger.info("node_start", node="testcase_export", feature=state.get("feature"))
+
+    try:
+        output = state.get("testcase_output")
+        if output is None:
+            raise ValueError("Missing approved testcase_output in pipeline state.")
+        if isinstance(output, dict):
+            output = TestCaseAgentOutput.model_validate(output)
+
+        paths = excel_writer.write_both(output)
+        exports = {name: str(path) for name, path in paths.items()}
+
+        return {
+            **state,
+            "current_phase": "testcase_export",
+            "testcase_output": output,
+            "testcase_exports": exports,
+            "error": None,
+        }
+    except Exception as e:
+        logger.error("node_failed", node="testcase_export", error=str(e))
+        return {
+            **state,
+            "current_phase": "testcase_export",
+            "testcase_exports": {},
+            "error": {"phase": "testcase_export", "message": str(e)},
+        }
+
+
 # ── Node: Code Generation ───────────────────────────────────────────────────
 def node_codegen(state: AgentState) -> AgentState:
     from agents.code_generator_agent import code_generator_agent
@@ -426,12 +460,19 @@ def node_report(state: AgentState) -> AgentState:
         f"*Feature:* `{state.get('feature', 'N/A')}`\n"
         f"*Run ID:* `{state.get('run_id', 'N/A')}`\n\n"
         f"*Test Cases:* {len(state.get('test_cases', []))}\n"
+        f"*Exports:* {len(state.get('testcase_exports', {}))}\n"
         f"*Files Generated:* {len(state.get('generated_files', {}))}\n"
         f"*Failures:* {len(failures)}\n"
         f"*Coverage:* {coverage:.0f}%\n"
     )
     if state.get("error"):
         msg += f"\n*Error:* `{state['error'].get('message', state['error'])}`\n"
+    if state.get("testcase_exports"):
+        export_lines = "\n".join(
+            f"  - {name}: `{path}`"
+            for name, path in state["testcase_exports"].items()
+        )
+        msg += f"\n*Test Case Exports:*\n{export_lines}\n"
     if bug_lines:
         msg += f"\n*Bugs Found:*\n{bug_lines}\n"
     if gap_lines:
@@ -458,11 +499,17 @@ def node_report(state: AgentState) -> AgentState:
 
 
 # ── Routing functions ───────────────────────────────────────────────────────
-def route_after_approval(state: AgentState) -> Literal["codegen", "report"]:
+def route_after_approval(state: AgentState) -> Literal["testcase_export", "report"]:
     if state.get("approved"):
-        return "codegen"
+        return "testcase_export"
     if int((state.get("approval") or {}).get("attempt", 0)) >= MAX_APPROVAL_ATTEMPTS:
         return "report"
+    return "report"
+
+
+def route_after_testcase_export(state: AgentState) -> Literal["codegen", "report"]:
+    if state.get("testcase_exports") and not state.get("error"):
+        return "codegen"
     return "report"
 
 
@@ -487,6 +534,7 @@ def build_pipeline():
     graph.add_node("requirements", node_requirements)
     graph.add_node("testcase", node_testcase)
     graph.add_node("approval", node_approval)
+    graph.add_node("testcase_export", node_testcase_export)
     graph.add_node("codegen", node_codegen)
     graph.add_node("execute", node_execute)
     graph.add_node("debug", node_debug)
@@ -497,6 +545,7 @@ def build_pipeline():
     graph.add_edge("requirements", "testcase")
     graph.add_edge("testcase", "approval")
     graph.add_conditional_edges("approval", route_after_approval)
+    graph.add_conditional_edges("testcase_export", route_after_testcase_export)
     graph.add_conditional_edges("codegen", route_after_codegen)
     graph.add_conditional_edges("execute", route_after_execute)
     graph.add_edge("debug", "skill_gap")

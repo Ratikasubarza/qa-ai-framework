@@ -11,9 +11,10 @@ regenerating them.
 | `requirements_output` | `requirements` | Full output from RequirementsAgent. |
 | `acceptance_criteria` | `requirements` | Prompt-ready AC summaries. |
 | `acceptance_criteria_details` | `requirements` | Full AC objects for traceability. |
-| `testcase_output` | `testcase` | Full `TestCaseAgentOutput`; source of truth for approval and codegen. |
+| `testcase_output` | `testcase` | Full `TestCaseAgentOutput`; source of truth for approval, export, and codegen. |
 | `test_cases` | `testcase` | JSON-safe scenario list for reporting and coverage. |
 | `approval` | `approval` | Decision metadata, reviewer, feedback, attempt. |
+| `testcase_exports` | `testcase_export` | Approved CSV/Excel test case artifact paths. |
 | `generated_files` | `codegen` | Dict of `{relative_path: absolute_path}`. |
 | `execution_results` | `execute` | Pytest result metadata by absolute file path. |
 | `failures` | `execute` | Normalized failure contexts for DebugAgent. |
@@ -27,8 +28,9 @@ START
   -> requirements
   -> testcase
   -> approval
-      -> codegen when approved
+      -> testcase_export when approved
       -> report when rejected, timed out, or failed
+  -> codegen when exports were created
   -> execute when files were generated
   -> debug when tests failed
   -> skill_gap
@@ -84,6 +86,20 @@ Rules:
 - This is the only approval gate in the LangGraph pipeline.
 - If approval is disabled in settings, the node records `auto_approved`.
 - Rejected, timed-out, or failed approvals route to `report`.
+
+### `testcase_export`
+
+Input:
+- approved `testcase_output`
+
+Output:
+- `testcase_exports`
+
+Rules:
+- Exports only approved test cases.
+- CSV and Excel must come from the same `testcase_output` consumed by codegen.
+- Export failure routes to `report` instead of continuing with missing official
+  artifacts.
 
 ### `codegen`
 

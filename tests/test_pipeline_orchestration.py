@@ -67,6 +67,34 @@ def test_codegen_uses_existing_testcase_output(monkeypatch):
     assert calls == [(output, Platform.WEB)]
 
 
+def test_testcase_export_uses_approved_testcase_output(monkeypatch, tmp_path):
+    output = _testcase_output()
+    calls = []
+    csv_path = tmp_path / "test_plan_login.csv"
+    excel_path = tmp_path / "test_plan_login.xlsx"
+
+    class FakeExcelWriter:
+        def write_both(self, testcase_output):
+            calls.append(testcase_output)
+            return {"csv": csv_path, "excel": excel_path}
+
+    fake_module = SimpleNamespace(excel_writer=FakeExcelWriter())
+    monkeypatch.setitem(sys.modules, "skills.reporting.excel_writer", fake_module)
+
+    state = pipeline.node_testcase_export({
+        "feature": "Login",
+        "testcase_output": output,
+        "approved": True,
+    })
+
+    assert state["testcase_exports"] == {
+        "csv": str(csv_path),
+        "excel": str(excel_path),
+    }
+    assert calls == [output]
+    assert pipeline.route_after_testcase_export(state) == "codegen"
+
+
 def test_execute_reads_generated_file_dict_values(monkeypatch, tmp_path):
     test_file = tmp_path / "test_login.py"
     test_file.write_text("def test_login():\n    assert True\n")
