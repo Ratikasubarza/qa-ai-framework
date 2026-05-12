@@ -50,7 +50,11 @@ class TestCaseAgent:
             self._telegram.set_review_queue(review_queue)
         return self._telegram
 
-    async def run(self, input_data: TestCaseAgentInput) -> TestCaseAgentOutput:
+    async def run(
+        self,
+        input_data: TestCaseAgentInput,
+        require_approval: bool | None = None,
+    ) -> TestCaseAgentOutput:
         """Main entry point — full agent pipeline with Human-in-the-Loop."""
         logger.info(
             "test_case_agent_start",
@@ -104,7 +108,10 @@ class TestCaseAgent:
         output = self._parse_output(response.content, input_data, response.model)
 
         # ── Step 6: Human-in-the-Loop (if required) ───────────
-        if settings.approval_required:
+        if require_approval is None:
+            require_approval = settings.approval_required
+
+        if require_approval:
             output = await self._request_approval(output)
 
         return output

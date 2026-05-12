@@ -1,31 +1,78 @@
-# paste isi dari artifact orchestrator/pipeline.py
 """
-Phase 9 — Full LangGraph QA Pipeline Orchestrator
-Wires all agents into a single directed graph with conditional routing.
+Phase 9 — Full LangGraph QA Pipeline Orchestrator.
+
+This module owns cross-agent coordination. Agents create artifacts; the graph
+decides when an artifact is approved, reused, skipped, or reported.
 
 Flow:
-  START → requirements → testcase → [approval gate] → codegen
+  START → requirements → testcase → approval → codegen
         → execute → debug (on failure) → skill_gap → report → END
 """
 from __future__ import annotations
-import asyncio
+
 import subprocess
-import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
+import httpx
 import structlog
-from langgraph.graph import StateGraph, END
 
 from core.agent_state import AgentState
 
 logger = structlog.get_logger(__name__)
 
+PYTHON_BIN = "./venv/bin/python3.11"
+MAX_APPROVAL_ATTEMPTS = 1
+
+
+def _criteria_summary(criteria: list[Any]) -> list[str]:
+    """Return prompt-ready AC summaries while preserving details elsewhere."""
+    summaries: list[str] = []
+    for item in criteria:
+        if isinstance(item, str):
+            if item.strip():
+                summaries.append(item.strip())
+        elif isinstance(item, dict):
+            summary = item.get("summary") or item.get("description") or item.get("title")
+            if summary:
+                summaries.append(str(summary).strip())
+    return summaries
+
+
+def _scenario_to_dict(scenario: Any) -> dict:
+    if hasattr(scenario, "model_dump"):
+        data = scenario.model_dump(mode="json")
+    elif isinstance(scenario, dict):
+        data = dict(scenario)
+    else:
+        data = {"name": str(scenario)}
+
+    data["scenario_id"] = data.get("scenario_id") or data.get("case_id") or "TC-UNKNOWN"
+    data["name"] = (data.get("name") or data.get("title") or "Unnamed scenario").strip()
+    return data
+
+
+def _generated_file_paths(generated_files: Any) -> list[str]:
+    if isinstance(generated_files, dict):
+        return [str(path) for path in generated_files.values()]
+    if isinstance(generated_files, list):
+        return [str(path) for path in generated_files]
+    return []
+
+
+def _approval_payload(status: str, **extra: Any) -> dict:
+    return {
+        "status": status,
+        "reviewed_at": datetime.now().isoformat(),
+        **extra,
+    }
+
 
 # ── Node: Requirements ───────────────────────────────────────────────────────
 def node_requirements(state: AgentState) -> AgentState:
     from agents.requirements_agent import requirements_agent
+
     logger.info("node_start", node="requirements", ticket=state.get("ticket_id"))
 
     try:
@@ -37,33 +84,39 @@ def node_requirements(state: AgentState) -> AgentState:
                 story_text=state.get("story_text", ""),
                 parent_key="",
             )
-        # requirements_agent returns criteria or acceptance_criteria
-        raw_criteria = (
-            result.get("acceptance_criteria")
-            or result.get("criteria")
+
+        criteria_details = (
+            result.get("criteria")
+            or result.get("acceptance_criteria_details")
             or []
         )
-        acs = []
-        for ac in raw_criteria:
-            if isinstance(ac, dict):
-                acs.append(ac.get("summary") or ac.get("description") or str(ac))
-            elif isinstance(ac, str):
-                acs.append(ac)
+        summaries = _criteria_summary(
+            criteria_details or result.get("acceptance_criteria") or []
+        )
+
         return {
             **state,
-            "current_phase":      "requirements",
-            "acceptance_criteria": acs,
-            "requirements_raw":    result,
+            "current_phase": "requirements",
+            "acceptance_criteria": summaries,
+            "acceptance_criteria_details": criteria_details,
+            "requirements_output": result,
+            "requirements_raw": result,
+            "error": None,
         }
     except Exception as e:
         logger.error("node_failed", node="requirements", error=str(e))
-        return {**state, "current_phase": "requirements", "error": str(e)}
+        return {
+            **state,
+            "current_phase": "requirements",
+            "error": {"phase": "requirements", "message": str(e)},
+        }
 
 
 # ── Node: Test Case Generation ───────────────────────────────────────────────
 async def node_testcase(state: AgentState) -> AgentState:
     from agents.test_case_agent import test_case_agent
-    from core.agent_contracts import TestCaseAgentInput, Platform
+    from core.agent_contracts import Platform, TestCaseAgentInput
+
     logger.info("node_start", node="testcase", feature=state.get("feature"))
 
     try:
@@ -74,189 +127,255 @@ async def node_testcase(state: AgentState) -> AgentState:
             platforms=platforms,
             acceptance_criteria=state.get("acceptance_criteria", []),
         )
-        output = await test_case_agent.run(inp)
-        tcs = []
-        for s in (output.scenarios or []):
-            try:
-                tcs.append({
-                    "scenario_id": s.scenario_id or f"TC-{len(tcs)+1:03d}",
-                    "name":        (s.name or "").strip() or "Unnamed scenario",
-                    "test_type":   s.test_type.value if s.test_type else "functional",
-                    "platforms":   [p.value for p in (s.platforms or [])],
-                    "priority":    s.priority.value if s.priority else "P2",
-                    "steps":       getattr(s, "steps", []) or [],
-                })
-            except Exception as se:
-                logger.warning("scenario_skip", error=str(se))
-                continue
-        return {**state, "current_phase": "testcase", "test_cases": tcs, "approved": False, "error": None}
+        output = await test_case_agent.run(inp, require_approval=False)
+        test_cases = [_scenario_to_dict(s) for s in output.scenarios]
+
+        return {
+            **state,
+            "current_phase": "testcase",
+            "testcase_output": output,
+            "test_cases": test_cases,
+            "approved": False,
+            "approval": _approval_payload("pending", attempt=0),
+            "error": None,
+        }
     except Exception as e:
         logger.error("node_failed", node="testcase", error=str(e))
-        # Non-fatal: continue with empty test cases
-        return {**state, "current_phase": "testcase", "test_cases": [], "approved": False, "error": None}
+        return {
+            **state,
+            "current_phase": "testcase",
+            "test_cases": [],
+            "approved": False,
+            "approval": _approval_payload("failed", message=str(e)),
+            "error": {"phase": "testcase", "message": str(e)},
+        }
 
 
-# ── Node: Approval Gate (Telegram) ──────────────────────────────────────────
+# ── Node: Approval Gate ─────────────────────────────────────────────────────
 async def node_approval(state: AgentState) -> AgentState:
     """
-    If APPROVAL_REQUIRED env var is true, wait for Telegram approval.
-    Otherwise auto-approve.
+    Single approval gate for orchestrated runs.
+
+    TestCaseAgent approval is disabled in node_testcase so the graph owns the
+    decision and guarantees codegen consumes the same reviewed artifact.
     """
-    import os
-
     logger.info("node_start", node="approval")
-    approval_required = os.getenv("APPROVAL_REQUIRED", "false").lower() == "true"
 
-    if not approval_required:
-        logger.info("approval_auto", reason="APPROVAL_REQUIRED=false")
-        return {**state, "current_phase": "approval", "approved": True}
+    from config.settings import settings
+
+    output = state.get("testcase_output")
+    test_cases = state.get("test_cases") or []
+    attempt = int((state.get("approval") or {}).get("attempt", 0)) + 1
+
+    if not test_cases or output is None:
+        return {
+            **state,
+            "current_phase": "approval",
+            "approved": False,
+            "approval": _approval_payload(
+                "rejected",
+                attempt=attempt,
+                reason="no_test_cases",
+                feedback="No test cases were generated.",
+            ),
+            "error": {"phase": "approval", "message": "No test cases were generated."},
+        }
+
+    if not settings.approval_required:
+        logger.info("approval_auto", reason="settings.approval_required=false")
+        return {
+            **state,
+            "current_phase": "approval",
+            "approved": True,
+            "approval": _approval_payload("auto_approved", attempt=attempt),
+        }
 
     try:
         from core.telegram_bot import telegram_bot
         from core.workflows.approval_workflow import review_queue
 
-        tc_summary = "\n".join(
-            f"• [{tc['scenario_id']}] {tc['name']}"
-            for tc in (state.get("test_cases") or [])[:10]
+        telegram_bot.set_review_queue(review_queue)
+        item = review_queue.enqueue(
+            agent_name="orchestrator.testcase_approval",
+            payload={
+                "feature": state.get("feature", ""),
+                "test_cases": test_cases,
+                "run_id": state.get("run_id", ""),
+            },
         )
-        msg = (
-            f"🤖 *Test Cases Ready for Review*\n\n"
-            f"Feature: `{state.get('feature')}`\n"
-            f"Count: {len(state.get('test_cases', []))}\n\n"
-            f"{tc_summary}\n\n"
-            f"Reply /approve or /reject"
+        await telegram_bot.send_test_cases_for_review(
+            output_id=item.output_id,
+            feature=state.get("feature", ""),
+            scenarios=output.scenarios,
+            model_used=output.model_used,
         )
-        await telegram_bot.notify_approval_request(msg)
 
-        # Wait up to 10 minutes for approval
-        for _ in range(60):
-            await asyncio.sleep(10)
-            item = review_queue.get_latest()
-            if item and str(getattr(item, "status", "")) in ("approved", "ApprovalStatus.APPROVED"):
-                return {**state, "current_phase": "approval", "approved": True}
-            if item and str(getattr(item, "status", "")) in ("rejected", "ApprovalStatus.REJECTED"):
-                return {
-                    **state,
-                    "current_phase":     "approval",
-                    "approved":          False,
-                    "approval_feedback": item.feedback or "Rejected",
-                }
+        feedback = await item.wait(timeout=300.0)
+        status = feedback.decision.value
+        approved = status == "approve"
 
-        # Timeout → auto-approve
-        logger.warning("approval_timeout", action="auto_approve")
-        return {**state, "current_phase": "approval", "approved": True}
-
+        return {
+            **state,
+            "current_phase": "approval",
+            "approved": approved,
+            "approval": _approval_payload(
+                "approved" if approved else status,
+                attempt=attempt,
+                output_id=item.output_id,
+                reviewer_id=feedback.reviewer_id,
+                rejection_reason=(
+                    feedback.rejection_reason.value
+                    if feedback.rejection_reason else None
+                ),
+                feedback=feedback.corrected_output,
+            ),
+            "approval_feedback": feedback.corrected_output or "",
+            "error": None if approved else {
+                "phase": "approval",
+                "message": f"Test cases were not approved: {status}",
+            },
+        }
     except Exception as e:
         logger.error("node_failed", node="approval", error=str(e))
-        return {**state, "current_phase": "approval", "approved": True}
+        return {
+            **state,
+            "current_phase": "approval",
+            "approved": False,
+            "approval": _approval_payload("failed", attempt=attempt, message=str(e)),
+            "error": {"phase": "approval", "message": str(e)},
+        }
 
 
-# ── Node: Code Generation ────────────────────────────────────────────────────
+# ── Node: Code Generation ───────────────────────────────────────────────────
 def node_codegen(state: AgentState) -> AgentState:
     from agents.code_generator_agent import code_generator_agent
-    from agents.test_case_agent import test_case_agent
-    from core.agent_contracts import TestCaseAgentInput, Platform, TestCaseAgentOutput
+    from core.agent_contracts import Platform, TestCaseAgentOutput
+
     logger.info("node_start", node="codegen", feature=state.get("feature"))
 
     try:
-        # Reconstruct output object for code_generator_agent
-        platforms = [Platform(p) for p in (state.get("platforms") or ["web"])]
-        inp = TestCaseAgentInput(
-            feature=state.get("feature", ""),
-            description=state.get("story_text", ""),
-            platforms=platforms,
-            acceptance_criteria=state.get("acceptance_criteria", []),
-        )
-        from core.agent_contracts import TestType
-        valid_types = {t.value for t in TestType}
+        output = state.get("testcase_output")
+        if output is None:
+            raise ValueError("Missing approved testcase_output in pipeline state.")
+        if isinstance(output, dict):
+            output = TestCaseAgentOutput.model_validate(output)
 
-        # Use test cases from state if available, re-generate if not
-        existing_tcs = state.get("test_cases") or []
-        if existing_tcs:
-            tc_output = asyncio.run(test_case_agent.run(inp))
-            # Filter scenarios with invalid test types
-            tc_output.scenarios = [
-                s for s in tc_output.scenarios
-                if s.test_type.value in valid_types
-            ]
-        else:
-            tc_output = asyncio.run(test_case_agent.run(inp))
-            tc_output.scenarios = [
-                s for s in tc_output.scenarios
-                if s.test_type.value in valid_types
-            ]
-        saved = code_generator_agent.run(tc_output, platforms[0])
-        return {**state, "current_phase": "codegen", "generated_files": saved}
+        platforms = [Platform(p) for p in (state.get("platforms") or ["web"])]
+        saved = code_generator_agent.run(output, platforms[0])
+
+        return {
+            **state,
+            "current_phase": "codegen",
+            "testcase_output": output,
+            "generated_files": saved,
+            "error": None,
+        }
     except Exception as e:
         logger.error("node_failed", node="codegen", error=str(e))
-        return {**state, "current_phase": "codegen", "error": str(e)}
+        return {
+            **state,
+            "current_phase": "codegen",
+            "generated_files": {},
+            "error": {"phase": "codegen", "message": str(e)},
+        }
 
 
-# ── Node: Test Execution ─────────────────────────────────────────────────────
+# ── Node: Test Execution ────────────────────────────────────────────────────
 def node_execute(state: AgentState) -> AgentState:
     """Run generated test files via pytest, collect results."""
     logger.info("node_start", node="execute")
-    files = state.get("generated_files") or []
-    results = {}
-    failures = []
+    files = _generated_file_paths(state.get("generated_files") or {})
+    results: dict[str, dict] = {}
+    failures: list[dict] = []
 
     for fpath in files:
-        if not Path(fpath).exists():
+        path = Path(fpath)
+        if not path.exists():
+            failures.append({
+                "test_file": fpath,
+                "error_message": "Generated test file does not exist.",
+                "platform": (state.get("platforms") or ["web"])[0],
+                "test_name": path.stem,
+                "location": fpath,
+            })
             continue
+
+        report_path = Path("reports") / f"pytest_{path.stem}.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
         run = subprocess.run(
-            ["python", "-m", "pytest", fpath, "-v", "--tb=short", "--json-report",
-             f"--json-report-file=reports/pytest_{Path(fpath).stem}.json"],
-            capture_output=True, text=True,
+            [
+                PYTHON_BIN,
+                "-m",
+                "pytest",
+                fpath,
+                "-v",
+                "--tb=short",
+                "--json-report",
+                f"--json-report-file={report_path}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
         )
         passed = run.returncode == 0
         results[fpath] = {
-            "passed":  passed,
-            "stdout":  run.stdout[-2000:],
+            "passed": passed,
+            "stdout": run.stdout[-4000:],
+            "stderr": run.stderr[-4000:],
             "returncode": run.returncode,
+            "json_report": str(report_path),
         }
         if not passed:
             failures.append({
-                "test_file":     fpath,
-                "error_message": run.stdout[-500:],
-                "platform":      "web",
-                "test_name":     Path(fpath).stem,
-                "location":      fpath,
+                "test_file": fpath,
+                "error_message": (run.stdout + "\n" + run.stderr)[-1000:],
+                "platform": (state.get("platforms") or ["web"])[0],
+                "test_name": path.stem,
+                "location": fpath,
+                "json_report": str(report_path),
             })
 
     logger.info("execute_complete", files=len(files), failures=len(failures))
-    return {**state, "current_phase": "execute",
-            "execution_results": results, "failures": failures}
+    return {
+        **state,
+        "current_phase": "execute",
+        "execution_results": results,
+        "failures": failures,
+    }
 
 
-# ── Node: Debug Agent ────────────────────────────────────────────────────────
+# ── Node: Debug Agent ───────────────────────────────────────────────────────
 def node_debug(state: AgentState) -> AgentState:
-    from agents.debug_agent import debug_agent, FailureContext
+    from agents.debug_agent import FailureContext, debug_agent
+
     logger.info("node_start", node="debug", failures=len(state.get("failures", [])))
 
     bug_reports = []
-    for f in (state.get("failures") or []):
+    for failure in state.get("failures") or []:
         ctx = FailureContext(
-            test_name=f.get("test_name", "unknown"),
-            error_message=f.get("error_message", ""),
-            platform=f.get("platform", "web"),
-            location=f.get("location", ""),
+            test_name=failure.get("test_name", "unknown"),
+            error_message=failure.get("error_message", ""),
+            platform=failure.get("platform", "web"),
+            location=failure.get("location", ""),
+            stack_trace=failure.get("stderr", ""),
         )
         report = debug_agent.analyze(ctx)
         bug_reports.append({
-            "title":       report.title,
-            "severity":    report.severity,
-            "bug_type":    report.bug_type,
-            "root_cause":  report.root_cause,
-            "steps":       report.steps_to_reproduce,
-            "jira_key":    report.jira_key,
+            "title": report.title,
+            "severity": report.severity,
+            "bug_type": report.bug_type,
+            "root_cause": report.root_cause,
+            "steps": report.steps_to_reproduce,
+            "jira_key": report.jira_key,
         })
 
     return {**state, "current_phase": "debug", "bug_reports": bug_reports}
 
 
-# ── Node: Skill Gap Analysis ─────────────────────────────────────────────────
+# ── Node: Skill Gap Analysis ────────────────────────────────────────────────
 def node_skill_gap(state: AgentState) -> AgentState:
     from agents.skill_gap_agent import skill_gap_agent
+
     logger.info("node_start", node="skill_gap")
 
     gap = skill_gap_agent.analyze(
@@ -269,42 +388,50 @@ def node_skill_gap(state: AgentState) -> AgentState:
         feature=state.get("feature", "unknown"),
         run_id=state.get("run_id", ""),
     )
+    coverage_report = {
+        **gap,
+        "report_path": path,
+    }
     return {
         **state,
-        "current_phase":      "skill_gap",
-        "coverage_gaps":      gap.get("missing_scenarios", []),
+        "current_phase": "skill_gap",
+        "coverage_report": coverage_report,
+        "coverage_gaps": gap.get("missing_scenarios", []),
         "coverage_percentage": gap.get("coverage_percentage", 0.0),
-        "gap_report_path":    path,
+        "gap_report_path": path,
     }
 
 
-# ── Node: Report ─────────────────────────────────────────────────────────────
+# ── Node: Report ────────────────────────────────────────────────────────────
 def node_report(state: AgentState) -> AgentState:
     """Send final Telegram summary report."""
-    import os, httpx
+    import os
+
     logger.info("node_start", node="report")
 
-    token   = os.getenv("TELEGRAM_BOT_TOKEN")
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_QA_OPS_CHAT_ID")
 
-    failures  = state.get("failures") or []
-    bugs      = state.get("bug_reports") or []
-    gaps      = state.get("coverage_gaps") or []
-    coverage  = state.get("coverage_percentage", 0.0)
-    status    = "✅ PASSED" if not failures else "❌ FAILED"
+    failures = state.get("failures") or []
+    bugs = state.get("bug_reports") or []
+    gaps = state.get("coverage_gaps") or []
+    coverage = state.get("coverage_percentage", 0.0)
+    status = "PASSED" if not failures and not state.get("error") else "FAILED"
 
-    bug_lines = "\n".join(f"  • [{b['severity']}] {b['title'][:60]}" for b in bugs[:5])
-    gap_lines = "\n".join(f"  • {g[:70]}" for g in gaps[:3])
+    bug_lines = "\n".join(f"  - [{b['severity']}] {b['title'][:60]}" for b in bugs[:5])
+    gap_lines = "\n".join(f"  - {g[:70]}" for g in gaps[:3])
 
     msg = (
-        f"{status} *QA Pipeline — Phase 9*\n\n"
+        f"{status} *QA Pipeline - Phase 9*\n\n"
         f"*Feature:* `{state.get('feature', 'N/A')}`\n"
         f"*Run ID:* `{state.get('run_id', 'N/A')}`\n\n"
         f"*Test Cases:* {len(state.get('test_cases', []))}\n"
-        f"*Files Generated:* {len(state.get('generated_files', []))}\n"
+        f"*Files Generated:* {len(state.get('generated_files', {}))}\n"
         f"*Failures:* {len(failures)}\n"
         f"*Coverage:* {coverage:.0f}%\n"
     )
+    if state.get("error"):
+        msg += f"\n*Error:* `{state['error'].get('message', state['error'])}`\n"
     if bug_lines:
         msg += f"\n*Bugs Found:*\n{bug_lines}\n"
     if gap_lines:
@@ -323,14 +450,26 @@ def node_report(state: AgentState) -> AgentState:
         except Exception as e:
             logger.error("telegram_failed", error=str(e))
 
-    return {**state, "current_phase": "report"}
+    notifications = [
+        *(state.get("notifications") or []),
+        {"channel": "qa_ops", "status": status, "sent": bool(token and chat_id)},
+    ]
+    return {**state, "current_phase": "report", "notifications": notifications}
 
 
-# ── Routing functions ────────────────────────────────────────────────────────
-def route_after_approval(state: AgentState) -> Literal["codegen", "testcase", "__end__"]:
+# ── Routing functions ───────────────────────────────────────────────────────
+def route_after_approval(state: AgentState) -> Literal["codegen", "report"]:
     if state.get("approved"):
         return "codegen"
-    return "testcase"  # Re-generate if rejected
+    if int((state.get("approval") or {}).get("attempt", 0)) >= MAX_APPROVAL_ATTEMPTS:
+        return "report"
+    return "report"
+
+
+def route_after_codegen(state: AgentState) -> Literal["execute", "skill_gap"]:
+    if state.get("generated_files"):
+        return "execute"
+    return "skill_gap"
 
 
 def route_after_execute(state: AgentState) -> Literal["debug", "skill_gap"]:
@@ -339,33 +478,35 @@ def route_after_execute(state: AgentState) -> Literal["debug", "skill_gap"]:
     return "skill_gap"
 
 
-# ── Build graph ──────────────────────────────────────────────────────────────
-def build_pipeline() -> StateGraph:
+# ── Build graph ─────────────────────────────────────────────────────────────
+def build_pipeline():
+    from langgraph.graph import END, StateGraph
+
     graph = StateGraph(AgentState)
 
     graph.add_node("requirements", node_requirements)
-    graph.add_node("testcase",     node_testcase)
-    graph.add_node("approval",     node_approval)
-    graph.add_node("codegen",      node_codegen)
-    graph.add_node("execute",      node_execute)
-    graph.add_node("debug",        node_debug)
-    graph.add_node("skill_gap",    node_skill_gap)
-    graph.add_node("report",       node_report)
+    graph.add_node("testcase", node_testcase)
+    graph.add_node("approval", node_approval)
+    graph.add_node("codegen", node_codegen)
+    graph.add_node("execute", node_execute)
+    graph.add_node("debug", node_debug)
+    graph.add_node("skill_gap", node_skill_gap)
+    graph.add_node("report", node_report)
 
     graph.set_entry_point("requirements")
     graph.add_edge("requirements", "testcase")
-    graph.add_edge("testcase",     "approval")
+    graph.add_edge("testcase", "approval")
     graph.add_conditional_edges("approval", route_after_approval)
-    graph.add_edge("codegen",      "execute")
+    graph.add_conditional_edges("codegen", route_after_codegen)
     graph.add_conditional_edges("execute", route_after_execute)
-    graph.add_edge("debug",        "skill_gap")
-    graph.add_edge("skill_gap",    "report")
-    graph.add_edge("report",       END)
+    graph.add_edge("debug", "skill_gap")
+    graph.add_edge("skill_gap", "report")
+    graph.add_edge("report", END)
 
     return graph.compile()
 
 
-# ── Public entry point ───────────────────────────────────────────────────────
+# ── Public entry point ──────────────────────────────────────────────────────
 async def run_pipeline(
     feature: str,
     platforms: list[str] | None = None,
@@ -374,17 +515,20 @@ async def run_pipeline(
 ) -> AgentState:
     pipeline = build_pipeline()
     init_state: AgentState = {
-        "feature":   feature,
+        "feature": feature,
         "platforms": platforms or ["web"],
         "ticket_id": ticket_id or "",
         "story_text": story_text or feature,
-        "run_id":    datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "approved":  False,
-        "error":     None,
+        "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "approved": False,
+        "approval": _approval_payload("not_started", attempt=0),
+        "error": None,
     }
     logger.info("pipeline_start", feature=feature, platforms=platforms)
     final = await pipeline.ainvoke(init_state)
-    logger.info("pipeline_complete",
-                coverage=final.get("coverage_percentage"),
-                bugs=len(final.get("bug_reports") or []))
+    logger.info(
+        "pipeline_complete",
+        coverage=final.get("coverage_percentage"),
+        bugs=len(final.get("bug_reports") or []),
+    )
     return final

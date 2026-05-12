@@ -14,16 +14,20 @@ class AgentState(TypedDict, total=False):
     story_text:           str           # Raw requirements text
 
     # ── Requirements phase ──────────────────────────────────────────
-    acceptance_criteria:  list[str]     # Extracted AC list
-    requirements_raw:     dict          # Full requirements_agent output
+    acceptance_criteria:  list[str]     # Extracted AC summaries for prompts
+    acceptance_criteria_details: list[dict]  # Full AC objects for traceability
+    requirements_output:  dict          # Full requirements_agent output
+    requirements_raw:     dict          # Backward-compatible alias
 
     # ── Test case phase ─────────────────────────────────────────────
     test_cases:           list[dict]    # Generated test case dicts
+    testcase_output:      Any           # TestCaseAgentOutput used by downstream agents
     approved:             bool          # Telegram approval gate
+    approval:             dict          # Approval status, reviewer, feedback
     approval_feedback:    str           # Reviewer comment if rejected
 
     # ── Code generation phase ───────────────────────────────────────
-    generated_files:      list[str]     # Paths to generated test files
+    generated_files:      dict[str, str]  # {relative_path: absolute_path}
 
     # ── Execution phase ─────────────────────────────────────────────
     execution_results:    dict[str, Any]  # {platform: {passed, failed, errors}}
@@ -39,5 +43,5 @@ class AgentState(TypedDict, total=False):
 
     # ── Pipeline metadata ───────────────────────────────────────────
     current_phase:        str           # Current node name
-    error:                str | None    # Last error message
+    error:                Any           # Last error payload
     run_id:               str           # Unique pipeline run ID

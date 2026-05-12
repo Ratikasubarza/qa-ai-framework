@@ -47,8 +47,13 @@ class RequirementsAgent:
         return {
             "story_key":       story_key,
             "story_summary":   summary,
+            "feature":         ac_output.feature,
+            "source_ref":      ac_output.source_ref,
             "ac_count":        len(ac_output.criteria),
+            "criteria":        [c.model_dump(mode="json") for c in ac_output.criteria],
+            "acceptance_criteria": [c.summary for c in ac_output.criteria],
             "ambiguities":     [a.model_dump() for a in ac_output.ambiguities],
+            "assumptions":     [a.model_dump() for a in ac_output.assumptions],
             "ticket_drafts":   [d.model_dump() for d in drafts],
             "tickets_created": [],
             "tickets_failed":  [],
@@ -63,8 +68,12 @@ class RequirementsAgent:
         drafts       = self._generate_tickets(ac_output, parent_key or feature, feature, "Medium")
         return {
             "feature":       feature,
+            "source_ref":    ac_output.source_ref,
             "ac_count":      len(ac_output.criteria),
+            "criteria":      [c.model_dump(mode="json") for c in ac_output.criteria],
+            "acceptance_criteria": [c.summary for c in ac_output.criteria],
             "ambiguities":   [a.model_dump() for a in ac_output.ambiguities],
+            "assumptions":   [a.model_dump() for a in ac_output.assumptions],
             "ticket_drafts": [d.model_dump() for d in drafts],
             "out_of_scope":  ac_output.out_of_scope,
             "missing_data":  ac_output.missing_data,

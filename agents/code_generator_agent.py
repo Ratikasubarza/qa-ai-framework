@@ -9,6 +9,7 @@ from core.llm_client import llm_client, ModelTier
 from core.agent_contracts import TestCaseAgentOutput, Platform
 from core.circuit_breaker import get_breaker
 from core.prompt_manager import prompt_manager
+from config.test_config import TestConfig
 
 logger = structlog.get_logger(__name__)
 
@@ -17,8 +18,8 @@ PROMPT_NAME   = "code_gen"
 PROMPT_VERSION = "1.0.0"
 
 BASE_URLS = {
-    Platform.WEB: "https://app-dev.thehono.com",
-    Platform.API: "https://api-dev.thehono.com",
+    Platform.WEB: TestConfig.WEB_APP_URL,
+    Platform.API: TestConfig.API_URL,
 }
 
 
@@ -117,8 +118,9 @@ class CodeGeneratorAgent:
     def _default_conftest(self) -> str:
         return '''import pytest
 from playwright.sync_api import Page
+from config.test_config import TestConfig
 
-BASE_URL = "https://app-dev.thehono.com"
+BASE_URL = TestConfig.WEB_APP_URL
 
 @pytest.fixture(scope="session")
 def base_url():
