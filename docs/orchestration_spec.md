@@ -85,6 +85,58 @@ START
 END
 ```
 
+## Golden Workflow Alignment
+
+The attached Golden Workflows document describes a broader engineering workflow
+around the QA pipeline. This framework should implement that guidance with local
+Python adapters and existing project conventions, not by forcing credentialed
+external links or MCP servers during local runs.
+
+Target end-to-end operating model:
+
+```text
+Product source
+  -> backlog refinement
+  -> requirements extraction
+  -> story coverage analysis
+  -> test case generation
+  -> AI case review
+  -> QA Lead approval
+  -> CSV/Excel official test plan
+  -> optional TestRail import
+  -> locator/page-object preparation
+  -> automation codegen
+  -> execution
+  -> debug and coverage report
+  -> post-deployment healing
+```
+
+Principles:
+- read only sources the current user can access
+- preserve credential boundaries; never force-open another person's Confluence,
+  Jira, or private MCP resource
+- keep every workflow artifact traceable to the original story, PRD, Jira issue,
+  observed URL, or existing test case file
+- make generated CSV/Excel the official handoff from QA design into automation
+- separate human approval, AI review, code generation, and test execution gates
+
+## Future Architecture Lanes
+
+These lanes make the framework useful for more than one person and more than one
+phase of delivery.
+
+| Lane | Purpose | Recommended Nodes/Adapters | Status |
+| --- | --- | --- | --- |
+| Backlog refinement | Convert PRD/Jira context into implementation-ready work | `prd_sync`, `task_breakdown`, `story_coverage`, `jira_backfill` | Future |
+| QA test design | Generate, review, approve, and export test cases | `source_intake`, `requirements`, `testcase`, `case_review`, `approval`, `testcase_export` | Implemented core |
+| Automation generation | Turn approved test cases into maintainable tests | `locator_page_object`, `codegen`, `execute` | Partial |
+| Failure triage | Classify failures and produce bug/debug reports | `debug`, `skill_gap`, `report` | Implemented core |
+| Maintenance healing | Repair brittle UI automation safely after deployment | `healer_baseline`, `failure_analyzer`, `repair_decision`, `ui_trace_diagnoser`, `surrender` | Future |
+
+The current graph should remain narrow and reliable. New lanes should be added
+as explicit graph nodes or standalone commands only when their artifact contract
+is clear.
+
 ## Feature Team Workflow
 
 Use this as the concrete end-to-end process for a product feature.
@@ -113,6 +165,41 @@ Output:
 - source references
 - intake quality flags
 
+Optional source types:
+- Confluence/PRD text pasted by the user
+- Jira ticket text or key when the current user has access
+- implemented feature URL
+- existing CSV/Excel/manual test cases
+- screenshots or observed behavior notes
+
+If a source requires unavailable credentials, the pipeline records it as
+`not_accessible` and continues with the sources that were provided.
+
+### 1.5 Backlog Refinement and Story Coverage
+
+This phase is recommended before QA automation for larger features.
+
+Workflow:
+
+```text
+PRD/Jira source
+  -> sync product context
+  -> break down implementation tasks
+  -> map story coverage
+  -> identify missing acceptance criteria
+  -> optionally update Jira task description
+```
+
+Outputs:
+- refined requirement list
+- implementation task breakdown
+- story coverage gaps
+- clarification questions for PO/PM
+
+Rule:
+- backlog refinement does not generate automation code. It improves the source
+  material that later feeds requirements and test design.
+
 ### 2. Requirements Extraction
 
 RequirementsAgent extracts AC from the source bundle.
@@ -130,6 +217,9 @@ The TestCaseAgent creates scenarios from accepted AC. It should cover:
 - boundary cases
 - platform-specific behavior
 - important regression paths
+- permission and role-based behavior when mentioned
+- API contract behavior when platform includes `api`
+- security-sensitive inputs when the PRD exposes auth, input, or permission risk
 
 Output:
 - `testcase_output`
@@ -137,6 +227,10 @@ Output:
 
 Rule:
 - this is draft until the approval node marks it approved.
+- priority should follow team convention: `P0` for release-blocking/high-risk,
+  `P1` for important standard coverage, and `P2` for lower-risk or extended
+  coverage.
+- generated cases must be traceable to requirement IDs or AC summaries.
 
 ### 4. AI Case Review
 
@@ -155,6 +249,12 @@ Output:
 Routing:
 - pass: continue to QA Lead approval
 - critical findings or low quality score: stop and report for revision
+
+Severity model:
+- Critical: missing release-blocking requirement, unsafe/invalid expectation, or
+  test plan cannot be executed
+- Major: important negative, role, boundary, or API-contract coverage is absent
+- Minor: clarity, naming, tagging, or formatting improvement
 
 ### 5. QA Lead Approval
 
@@ -178,6 +278,17 @@ Output:
 - CSV for lightweight sharing/import
 - Excel for QA review and manual execution
 
+Required columns:
+- `Case ID`
+- `Title`
+- `Preconditions`
+- `Steps`
+- `Expected Result`
+- `Priority`
+- `Tags`
+- `Platform`
+- `AI Generated`
+
 Artifact owner:
 - `testcase_export`
 
@@ -185,7 +296,41 @@ Rule:
 - if export fails, the pipeline stops before codegen because the team does not
   have an official test plan artifact.
 
-### 7. Automation Generation
+Recommended manual or future automated import:
+
+```text
+approved CSV/Excel -> QA Lead review -> TestRail/spreadsheet import -> automation codegen
+```
+
+`AI Generated` should stay in the exported artifact so the team can distinguish
+AI-created cases from manually-authored or manually-edited cases.
+
+### 7. Locator and Page Object Preparation
+
+For web and mobile automation, prepare stable interaction contracts before
+test-code generation.
+
+Workflow:
+
+```text
+approved test cases
+  -> inspect available URL/app screen when accessible
+  -> collect stable selectors and screen elements
+  -> create or update page-object helpers
+  -> hand locator map to codegen
+```
+
+Rules:
+- prefer existing helpers and page objects over raw selectors
+- use stable IDs/accessibility labels/test IDs where available
+- avoid storing credentials or environment secrets in generated tests
+- when the target URL/app is not accessible, generate code with explicit TODO
+  markers and fixture placeholders instead of inventing selectors
+
+Future node:
+- `locator_page_object`
+
+### 8. Automation Generation
 
 CodeGen consumes the same approved `testcase_output` used for CSV/Excel.
 
@@ -196,8 +341,10 @@ Rules:
 - do not regenerate test cases
 - do not hardcode credentials
 - use `TestConfig`/test data classes for environment data
+- use page-object or platform helper methods when available
+- keep generated tests small enough to debug from a single failed case ID
 
-### 8. Execution
+### 9. Execution
 
 Run generated/affected tests with the project venv.
 
@@ -212,7 +359,7 @@ Output:
 - `failures`
 - pytest JSON report
 
-### 9. Failure Analysis
+### 10. Failure Analysis
 
 DebugAgent runs only when execution fails.
 
@@ -224,7 +371,7 @@ Rules:
   issue
 - Jira bug creation should remain explicit, not hidden inside analysis
 
-### 10. Coverage Analysis
+### 11. Coverage Analysis
 
 SkillGap compares approved test cases against AC.
 
@@ -239,6 +386,31 @@ Definition of Done:
 - execution result exists
 - coverage report exists
 - unresolved gaps are visible to the team
+
+### 12. Post-Deployment Healing
+
+Healing should be conservative. Its job is to repair brittle automation, not hide
+product defects.
+
+Workflow:
+
+```text
+failed test
+  -> baseline rerun
+  -> lightweight failure analysis
+  -> safety check
+  -> small repair attempt
+  -> verification
+  -> trace/UI diagnosis when needed
+  -> surrender report when confidence remains low
+```
+
+Rules:
+- stop immediately when the failure is likely backend/API/product instability
+- do not edit unrelated passing steps
+- prefer small locator/page-object repairs over rewriting a test
+- limit automatic repair attempts so failures stay visible
+- if no safe fix is found, add a clear report and leave the test for human review
 
 ## Node Contracts
 
@@ -259,6 +431,18 @@ Rules:
 - Normalizes all human, Jira, PRD, URL, and existing-test context.
 - Downstream nodes read from `source_bundle` instead of each rediscovering
   source context.
+- External sources that require unavailable credentials are recorded as
+  inaccessible instead of blocking the whole workflow.
+- Feature URL observation is optional and should be performed by a dedicated
+  adapter/node when the target is reachable.
+
+Future observed URL fields:
+- page title
+- visible labels and actions
+- detected forms
+- screenshots or trace path
+- network/API hints when available
+- observation warnings
 
 ### `requirements`
 
@@ -390,6 +574,76 @@ Output:
 Rules:
 - Coverage is measured against approved test cases, not regenerated cases.
 
+### Future `locator_page_object`
+
+Input:
+- approved `testcase_output`
+- `platforms`
+- optional `feature_url`
+- existing platform helper files
+
+Output:
+- locator map
+- page-object/helper update plan
+- warnings for missing stable selectors
+
+Rules:
+- Runs before `codegen` for `web`, `android`, and `ios`.
+- For `api`, this node is skipped.
+- Must prefer existing helpers in `platforms/` and `skills/`.
+- Must not require credentials in chat; use `.env`, `TestConfig`, and test data
+  providers.
+
+### Future `testrail_import`
+
+Input:
+- `testcase_exports.csv`
+- approval metadata
+
+Output:
+- imported test case IDs
+- import status
+- skipped row report
+
+Rules:
+- This should be explicit and reversible.
+- CSV/Excel remains the source artifact even when an external test management
+  system is used.
+
+### Future `healer_baseline`
+
+Input:
+- failed generated test path
+- pytest failure context
+
+Output:
+- baseline failure classification
+- retry evidence
+
+Rules:
+- Rerun the exact failing test before attempting any fix.
+- If the rerun passes, classify as flaky and report without editing code.
+- If backend/API instability is likely, stop and report instead of patching UI
+  tests.
+
+### Future `repair_decision`
+
+Input:
+- baseline failure classification
+- trace/screenshot/DOM evidence when available
+- target test file and helper files
+
+Output:
+- repair proposal
+- confidence score
+- changed files when applied
+
+Rules:
+- Apply only high-confidence, narrowly-scoped repairs.
+- Prefer page-object/helper updates over inline selector churn.
+- Limit automatic attempts; after repeated failure, surrender with evidence for
+  human review.
+
 ### `report`
 
 Input:
@@ -472,6 +726,30 @@ Recommended naming conventions:
 
 For future improvement, include `run_id` in CSV/Excel filenames to avoid
 overwriting multiple approved runs on the same day.
+
+## Recommended Implementation Order
+
+Use this order to keep the architecture tidy while improving team value.
+
+1. Persist full pipeline state JSON per run.
+2. Add `run_id` to CSV/Excel export filenames.
+3. Make `case_review` threshold configurable per mode: advisory locally,
+   blocking in CI/release mode.
+4. Add optional `feature_observe` for reachable URLs using the existing
+   Playwright/web driver approach.
+5. Add `testrail_import` or a manual import manifest without replacing CSV/Excel.
+6. Add `locator_page_object` before codegen for web/mobile flows.
+7. Split codegen by platform so API, web, and mobile generation can evolve
+   independently.
+8. Add conservative post-deployment healer flow with strict retry limits and
+   surrender reports.
+
+Do not implement all future nodes at once. Each node should land with:
+- state keys in `AgentState`
+- one contract test
+- one CLI or pipeline integration path
+- one artifact written to `reports/`
+- documentation in this spec
 
 ## Architecture Review Notes
 
