@@ -113,11 +113,11 @@ def node_source_intake(state: AgentState) -> AgentState:
 
 # ── Node: Requirements ───────────────────────────────────────────────────────
 def node_requirements(state: AgentState) -> AgentState:
-    from agents.requirements_agent import requirements_agent
-
     logger.info("node_start", node="requirements", ticket=state.get("ticket_id"))
 
     try:
+        from agents.requirements_agent import requirements_agent
+
         source_bundle = state.get("source_bundle") or {}
         if state.get("ticket_id"):
             result = requirements_agent.run_from_jira(state["ticket_id"])
@@ -562,6 +562,9 @@ def node_report(state: AgentState) -> AgentState:
     bugs = state.get("bug_reports") or []
     gaps = state.get("coverage_gaps") or []
     case_review = state.get("case_review") or {}
+    test_cases = state.get("test_cases") or []
+    testcase_exports = state.get("testcase_exports") or {}
+    generated_files = state.get("generated_files") or {}
     coverage = state.get("coverage_percentage", 0.0)
     status = "PASSED" if not failures and not state.get("error") else "FAILED"
 
@@ -572,10 +575,10 @@ def node_report(state: AgentState) -> AgentState:
         f"{status} *QA Pipeline - Phase 9*\n\n"
         f"*Feature:* `{state.get('feature', 'N/A')}`\n"
         f"*Run ID:* `{state.get('run_id', 'N/A')}`\n\n"
-        f"*Test Cases:* {len(state.get('test_cases', []))}\n"
+        f"*Test Cases:* {len(test_cases)}\n"
         f"*Case Review:* {case_review.get('status', 'N/A')}\n"
-        f"*Exports:* {len(state.get('testcase_exports', {}))}\n"
-        f"*Files Generated:* {len(state.get('generated_files', {}))}\n"
+        f"*Exports:* {len(testcase_exports)}\n"
+        f"*Files Generated:* {len(generated_files)}\n"
         f"*Failures:* {len(failures)}\n"
         f"*Coverage:* {coverage:.0f}%\n"
     )
@@ -591,7 +594,7 @@ def node_report(state: AgentState) -> AgentState:
     if state.get("testcase_exports"):
         export_lines = "\n".join(
             f"  - {name}: `{path}`"
-            for name, path in state["testcase_exports"].items()
+            for name, path in testcase_exports.items()
         )
         msg += f"\n*Test Case Exports:*\n{export_lines}\n"
     if bug_lines:

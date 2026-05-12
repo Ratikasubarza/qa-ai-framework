@@ -211,3 +211,28 @@ def test_execute_reads_generated_file_dict_values(monkeypatch, tmp_path):
     assert str(test_file) in state["execution_results"]
     assert calls[0][0] == pipeline.PYTHON_BIN
     assert calls[0][3] == str(test_file)
+
+
+def test_report_handles_none_optional_artifacts(monkeypatch):
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_QA_OPS_CHAT_ID", raising=False)
+
+    state = pipeline.node_report({
+        "feature": "HM 516",
+        "run_id": "test-run",
+        "test_cases": None,
+        "testcase_exports": None,
+        "generated_files": None,
+        "failures": None,
+        "coverage_gaps": None,
+        "bug_reports": None,
+        "case_review": {"status": "failed"},
+        "error": {"phase": "case_review", "message": "No test cases available"},
+    })
+
+    assert state["current_phase"] == "report"
+    assert state["notifications"][-1] == {
+        "channel": "qa_ops",
+        "status": "FAILED",
+        "sent": False,
+    }

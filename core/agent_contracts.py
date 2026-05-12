@@ -3,7 +3,7 @@ Agent Contracts — typed Pydantic I/O schemas for every agent boundary.
 Every agent input and output must validate against these schemas.
 Schema mismatch fails loudly at the boundary, not silently downstream.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, Literal
 from datetime import datetime
 from enum import Enum
@@ -73,6 +73,8 @@ class TestCaseAgentInput(BaseModel):
 
 
 class TestCaseAgentOutput(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     feature:          str
     scenarios:        list[ScenarioSchema]
     coverage_summary: str
@@ -113,6 +115,8 @@ class AcceptanceCriteria(BaseModel):
 
 
 class AcceptanceCriteriaOutput(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     source_ref:   str
     feature:      str
     criteria:     list[AcceptanceCriteria]

@@ -25,13 +25,13 @@ FALLBACK_MODELS = {
         "openai/gpt-oss-20b:free",
     ],
     "standard": [
+        "openai/gpt-oss-20b:free",
+        "openai/gpt-oss-120b:free",
         "deepseek/deepseek-r1-0528:free",
         "mistralai/mistral-small-3.1-24b-instruct:free",
         "qwen/qwen3-next-80b-a3b-instruct:free",
         "meta-llama/llama-3.3-70b-instruct:free",
         "nousresearch/hermes-3-llama-3.1-405b:free",
-        "openai/gpt-oss-20b:free",
-        "openai/gpt-oss-120b:free",
     ],
     "complex": [
         "openai/gpt-oss-120b:free",
