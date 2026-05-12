@@ -620,10 +620,10 @@ def node_report(state: AgentState) -> AgentState:
 
 
 # ── Routing functions ───────────────────────────────────────────────────────
-def route_after_case_review(state: AgentState) -> Literal["approval", "report"]:
+def route_after_case_review(state: AgentState) -> Literal["approval_gate", "report"]:
     review = state.get("case_review") or {}
     if review.get("status") == "passed" and not state.get("error"):
-        return "approval"
+        return "approval_gate"
     return "report"
 
 
@@ -662,8 +662,8 @@ def build_pipeline():
     graph.add_node("source_intake", node_source_intake)
     graph.add_node("requirements", node_requirements)
     graph.add_node("testcase", node_testcase)
-    graph.add_node("case_review", node_case_review)
-    graph.add_node("approval", node_approval)
+    graph.add_node("case_review_gate", node_case_review)
+    graph.add_node("approval_gate", node_approval)
     graph.add_node("testcase_export", node_testcase_export)
     graph.add_node("codegen", node_codegen)
     graph.add_node("execute", node_execute)
@@ -674,9 +674,9 @@ def build_pipeline():
     graph.set_entry_point("source_intake")
     graph.add_edge("source_intake", "requirements")
     graph.add_edge("requirements", "testcase")
-    graph.add_edge("testcase", "case_review")
-    graph.add_conditional_edges("case_review", route_after_case_review)
-    graph.add_conditional_edges("approval", route_after_approval)
+    graph.add_edge("testcase", "case_review_gate")
+    graph.add_conditional_edges("case_review_gate", route_after_case_review)
+    graph.add_conditional_edges("approval_gate", route_after_approval)
     graph.add_conditional_edges("testcase_export", route_after_testcase_export)
     graph.add_conditional_edges("codegen", route_after_codegen)
     graph.add_conditional_edges("execute", route_after_execute)

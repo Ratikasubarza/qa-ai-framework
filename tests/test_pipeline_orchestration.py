@@ -63,6 +63,11 @@ def test_source_intake_builds_context_bundle():
     }
 
 
+def test_build_pipeline_compiles_without_state_key_node_collisions():
+    compiled = pipeline.build_pipeline()
+    assert compiled is not None
+
+
 def test_case_review_quality_gate_passes(monkeypatch):
     calls = []
 
@@ -92,7 +97,7 @@ def test_case_review_quality_gate_passes(monkeypatch):
 
     assert state["case_review"]["status"] == "passed"
     assert state["case_review"]["quality_score"] == 8.5
-    assert pipeline.route_after_case_review(state) == "approval"
+    assert pipeline.route_after_case_review(state) == "approval_gate"
     assert calls == [
         (
             "Users can log in.",
