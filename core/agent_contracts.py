@@ -23,6 +23,7 @@ class Platform(str, Enum):
 
 class TestType(str, Enum):
     SMOKE      = "smoke"
+    FUNCTIONAL = "functional"
     REGRESSION = "regression"
     E2E        = "e2e"
     NEGATIVE   = "negative"
@@ -57,12 +58,14 @@ class ScenarioSchema(BaseModel):
     expected_result: str
     test_data:    dict             = Field(default_factory=dict)
     tags:         list[str]       = Field(default_factory=list)
-    test_type:    TestType        = TestType.REGRESSION
+    test_type:    TestType        = TestType.FUNCTIONAL
     platforms:    list[Platform]  = Field(default_factory=list)
     priority:     Priority        = Priority.MEDIUM
     edge_cases:   list[str]       = Field(default_factory=list)
     combination_edge_cases: list[str] = Field(default_factory=list)
     weird_edge_cases: list[str] = Field(default_factory=list)
+    regression_candidate: bool = False
+    regression_risk_area: list[str] = Field(default_factory=list)
 
 
 class TestCaseAgentInput(BaseModel):
@@ -141,7 +144,7 @@ class QATicketDraft(BaseModel):
     components:   list[str]  = Field(default_factory=list)
     parent_key:   Optional[str] = None
     linked_story: Optional[str] = None
-    test_type:    TestType   = TestType.REGRESSION
+    test_type:    TestType   = TestType.FUNCTIONAL
     platform:     Platform   = Platform.WEB
     precondition: str        = ""
     steps:        list[str]  = Field(default_factory=list)

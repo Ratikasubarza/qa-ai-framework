@@ -14,7 +14,7 @@ INSTRUCTIONS:
 2. Each scenario must have: clear precondition, numbered steps, explicit expected result.
 3. Steps must be actionable — no vague instructions like "verify the page works".
 4. Identify edge cases beyond the happy path using the past context provided.
-5. Assign test_type: smoke (critical path), regression (standard), e2e (full flow), negative (error cases), boundary (limits).
+5. Assign test_type: smoke (critical path), functional (new-feature requirement coverage), e2e (full flow), negative (error cases), boundary (limits), regression (existing behavior impacted by this change only).
 6. Set automation_candidate=true only if steps are deterministic and assertions are verifiable programmatically.
 
 OUTPUT FORMAT:
@@ -33,7 +33,7 @@ Match this exact structure:
       "expected_result": "string",
       "test_data": {{}},
       "tags": ["string"],
-      "test_type": "smoke|regression|e2e|negative|boundary",
+      "test_type": "smoke|functional|regression|e2e|negative|boundary",
       "platforms": ["web|api"],
       "priority": "high|medium|low",
       "edge_cases": ["string"]

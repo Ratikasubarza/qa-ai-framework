@@ -185,7 +185,7 @@ class RequirementsAgent:
                     when=item.get("when", []),
                     then=item.get("then", []),
                     edge_cases=item.get("edge_cases", []),
-                    test_types=[TestType(t) for t in item.get("test_types", ["regression"])
+                    test_types=[TestType(t) for t in item.get("test_types", ["functional"])
                                 if t in TestType._value2member_map_],
                     platforms=[Platform(p) for p in item.get("platforms", ["web"])
                                if p in Platform._value2member_map_],
@@ -214,7 +214,7 @@ class RequirementsAgent:
     def _generate_tickets(self, ac_output, story_key, story_summary, story_priority) -> list[QATicketDraft]:
         drafts = []
         for ac in ac_output.criteria:
-            for test_type in (ac.test_types or [TestType.REGRESSION]):
+            for test_type in (ac.test_types or [TestType.FUNCTIONAL]):
                 for platform in (ac.platforms or [Platform.WEB]):
                     title = f"[QA] {ac_output.feature} — {ac.summary} [{test_type.value.upper()}]"
                     drafts.append(QATicketDraft(
@@ -233,7 +233,11 @@ class RequirementsAgent:
                         source_ac_id=ac.ac_id,
                         generated_by=f"{AGENT_NAME} v2.0",
                         prompt_version=PROMPT_VERSION,
-                        automation_candidate=test_type in [TestType.SMOKE, TestType.REGRESSION],
+                        automation_candidate=test_type in [
+                            TestType.SMOKE,
+                            TestType.FUNCTIONAL,
+                            TestType.REGRESSION,
+                        ],
                     ))
         return drafts
 

@@ -158,6 +158,14 @@ class TestCaseAgent:
 
         scenarios = []
         for i, s in enumerate(scenario_items, 1):
+            def _list_field(name: str) -> list[str]:
+                value = s.get(name, [])
+                if isinstance(value, list):
+                    return [str(item) for item in value if str(item).strip()]
+                if isinstance(value, str) and value.strip():
+                    return [value.strip()]
+                return []
+
             raw_steps = s.get("steps", [])
             steps = []
             if isinstance(raw_steps, str):
@@ -183,10 +191,10 @@ class TestCaseAgent:
                 priority_val = priority_map.get(priority_raw, "medium")
 
                 # Map test_type
-                tt = s.get("test_type", "regression").lower()
-                valid_types = ["smoke", "regression", "e2e", "negative", "boundary"]
+                tt = s.get("test_type", "functional").lower()
+                valid_types = ["smoke", "functional", "regression", "e2e", "negative", "boundary"]
                 if tt not in valid_types:
-                    tt = "regression"
+                    tt = "functional"
             except Exception as map_err:
                 import structlog as _sl
                 _sl.get_logger(__name__).warning("scenario_field_mapping_error", error=str(map_err), scenario=s)
@@ -213,6 +221,11 @@ class TestCaseAgent:
             if not normalized_platforms:
                 normalized_platforms = input_data.platforms or [Platform.WEB]
 
+            regression_candidate = s.get("regression_candidate", False)
+            if isinstance(regression_candidate, str):
+                regression_candidate = regression_candidate.strip().lower() in {"true", "yes", "1"}
+            regression_candidate = bool(regression_candidate or tt == "regression")
+
             scenarios.append(ScenarioSchema(
                 scenario_id=s.get("scenario_id", s.get("case_id", f"TC-{i:03d}")),
                 name=s.get("name", s.get("title", f"Scenario {i}")),
@@ -227,9 +240,11 @@ class TestCaseAgent:
                         "P0":"high","P1":"medium","P2":"low",
                         "high":"high","medium":"medium","low":"low"
                     }.get(s.get("priority","medium"),"medium")),
-                edge_cases=s.get("edge_cases", []),
-                combination_edge_cases=s.get("combination_edge_cases", []),
-                weird_edge_cases=s.get("weird_edge_cases", []),
+                edge_cases=_list_field("edge_cases"),
+                combination_edge_cases=_list_field("combination_edge_cases"),
+                weird_edge_cases=_list_field("weird_edge_cases"),
+                regression_candidate=regression_candidate,
+                regression_risk_area=_list_field("regression_risk_area"),
             ))
 
         return TestCaseAgentOutput(

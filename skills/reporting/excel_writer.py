@@ -18,7 +18,8 @@ logger = structlog.get_logger(__name__)
 # Column definitions — matches spec
 COLUMNS = [
     "Case ID", "Title", "Preconditions", "Steps",
-    "Expected Result", "Priority", "Tags", "Platform", "AI Generated"
+    "Expected Result", "Priority", "Tags", "Platform", "AI Generated",
+    "Regression Candidate", "Regression Risk Area"
 ]
 
 # Priority colors for Excel
@@ -47,10 +48,9 @@ class ExcelWriter:
         """Convert TestCaseAgentOutput to list of rows."""
         rows = []
         for s in output.scenarios:
-            # Map test_type to priority if not set
-            priority_map = {"smoke": "P0", "regression": "P1",
-                           "e2e": "P1", "negative": "P1", "boundary": "P2"}
-            priority = priority_map.get(s.test_type.value, "P1")
+            # Preserve scenario priority instead of deriving it from test type.
+            priority_map = {"high": "P0", "medium": "P1", "low": "P2"}
+            priority = priority_map.get(s.priority.value, "P1")
 
             # Build Gherkin steps from scenario steps
             steps_text = ""
@@ -76,6 +76,8 @@ class ExcelWriter:
                 tags,
                 platforms,
                 "true",
+                "true" if s.regression_candidate else "false",
+                ", ".join(s.regression_risk_area),
             ])
         return rows
 
@@ -130,7 +132,7 @@ class ExcelWriter:
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
 
         # ── Column widths ────────────────────────────────────
-        col_widths = [10, 35, 25, 50, 35, 10, 20, 12, 14]
+        col_widths = [10, 35, 25, 50, 35, 10, 20, 12, 14, 20, 35]
         for i, width in enumerate(col_widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = width
 

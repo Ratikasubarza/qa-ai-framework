@@ -241,6 +241,21 @@ Rule:
   `P1` for important standard coverage, and `P2` for lower-risk or extended
   coverage.
 - generated cases must be traceable to requirement IDs or AC summaries.
+- new-feature requirement coverage should default to `functional`, not
+  `regression`.
+- `regression` is reserved for existing behavior that may be impacted by the
+  new feature and must include a concrete regression risk area.
+
+Recommended test type mapping:
+
+| Type | Use When |
+| --- | --- |
+| `smoke` | Minimal critical path proving the feature is basically usable. |
+| `functional` | New-feature requirement and acceptance-criteria coverage. |
+| `negative` | Invalid input, forbidden action, wrong state, or auth failure. |
+| `boundary` | Limits and data-state edges such as empty, single, many, max. |
+| `e2e` | Cross-module user flow across multiple product surfaces. |
+| `regression` | Existing feature behavior that could break because of the new change. |
 
 ### 4. AI Case Review
 
@@ -298,6 +313,8 @@ Required columns:
 - `Tags`
 - `Platform`
 - `AI Generated`
+- `Regression Candidate`
+- `Regression Risk Area`
 
 Artifact owner:
 - `testcase_export`

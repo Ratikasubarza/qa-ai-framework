@@ -627,7 +627,7 @@ async def cmd_generate_testcase_batch_by_scenario(args):
                 TestType, Platform, Priority
             )
             priority_map = {"P0": "high", "P1": "medium", "P2": "low"}
-            platform_map = {"WEB": "web", "API": "api", "MOBILE": "mobile", "ANDROID": "mobile"}
+            platform_map = {"WEB": "web", "API": "api", "MOBILE": "android", "ANDROID": "android"}
 
             schemas = []
             for s in all_scenarios:
@@ -642,10 +642,14 @@ async def cmd_generate_testcase_batch_by_scenario(args):
                     p_val = priority_map.get(p_raw, "medium")
                     pl_raw = s.get("platform", "WEB").upper()
                     pl_val = platform_map.get(pl_raw, "web")
-                    tt = s.get("test_type", "regression").lower()
-                    valid_types = ["smoke", "regression", "e2e", "negative", "boundary"]
+                    tt = s.get("test_type", "functional").lower()
+                    valid_types = ["smoke", "functional", "regression", "e2e", "negative", "boundary"]
                     if tt not in valid_types:
-                        tt = "regression"
+                        tt = "functional"
+
+                    regression_risk_area = s.get("regression_risk_area", [])
+                    if isinstance(regression_risk_area, str):
+                        regression_risk_area = [regression_risk_area]
 
                     schemas.append(ScenarioSchema(
                         scenario_id=s.get("case_id", "TC-001"),
@@ -658,6 +662,8 @@ async def cmd_generate_testcase_batch_by_scenario(args):
                         test_type=TestType(tt),
                         platforms=[Platform(pl_val)],
                         priority=Priority(p_val),
+                        regression_candidate=bool(s.get("regression_candidate", tt == "regression")),
+                        regression_risk_area=regression_risk_area,
                     ))
                 except Exception:
                     continue

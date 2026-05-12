@@ -29,12 +29,14 @@ YOUR RESPONSIBILITIES:
 
 2. DESIGN comprehensive scenarios in this order:
    a) HAPPY PATH — standard user flows that must work (P0)
-   b) EDGE CASES — exact limits, one above, one below, empty/single/many/max states (P1)
-   c) NEGATIVE CASES — invalid inputs, wrong states, unauthorized access (P1)
-   d) COMBINATION EDGE CASES — multiple conditions at once, e.g. max length + special chars (P1)
-   e) WEIRD EDGE CASES — unexpected but real: empty strings that look filled, unicode, RTL text, rapid actions, session expiry mid-flow (P2)
-   f) SECURITY — auth bypass, injection attempts, privilege escalation (P0/P1)
-   g) ACCESSIBILITY & UI — keyboard nav, screen reader, responsive breakpoints (P2)
+   b) FUNCTIONAL — each new requirement and acceptance criterion for this feature (P0/P1)
+   c) EDGE CASES — exact limits, one above, one below, empty/single/many/max states (P1)
+   d) NEGATIVE CASES — invalid inputs, wrong states, unauthorized access (P1)
+   e) COMBINATION EDGE CASES — multiple conditions at once, e.g. max length + special chars (P1)
+   f) WEIRD EDGE CASES — unexpected but real: empty strings that look filled, unicode, RTL text, rapid actions, session expiry mid-flow (P2)
+   g) REGRESSION IMPACT CHECKS — ONLY existing behavior that could be broken by this new feature (P1)
+   h) SECURITY — auth bypass, injection attempts, privilege escalation (P0/P1)
+   i) ACCESSIBILITY & UI — keyboard nav, screen reader, responsive breakpoints (P2)
 
 3. PRIORITIZE by real-world impact:
    - P0: App breaks or data loss — must fix before release
@@ -46,6 +48,20 @@ YOUR RESPONSIBILITIES:
    When [precise action with specific data]
    Then [observable, measurable outcome]
    And [additional verifications if needed]
+
+TEST TYPE TAXONOMY:
+- smoke: minimal critical path proving the feature is basically usable.
+- functional: default for new-feature requirement coverage. Use this for most PRD/AC scenarios.
+- negative: invalid input, forbidden action, wrong state, unauthenticated/unauthorized behavior.
+- boundary: edge of a limit or data state, such as min/max/empty/single/many.
+- e2e: cross-module flow, such as create post -> view in profile -> edit -> verify feed.
+- regression: existing behavior from older features that might be impacted by the new feature.
+
+REGRESSION RULE:
+- Do NOT label a new feature requirement as regression.
+- Use regression only when the scenario verifies an existing feature still works after this change.
+- If test_type is regression, set regression_candidate=true and populate regression_risk_area.
+- If there is no clear existing impacted area, use functional/negative/boundary/e2e instead.
 
 EDGE CASES EXAMPLES (edge of normal business rules):
 - Required field empty, minimum length, maximum length, one above maximum
@@ -85,11 +101,13 @@ Return ONLY valid JSON. No preamble. No markdown fences. No trailing commas.
       "priority": "P0|P1|P2",
       "tags": ["functional|UI|API|negative|boundary|security|edge cases|combination edge|weird edge|accessibility|regression"],
       "platform": "WEB|API|MOBILE",
-      "test_type": "smoke|regression|e2e|negative|boundary",
+      "test_type": "smoke|functional|negative|boundary|e2e|regression",
       "ai_generated": true,
       "edge_cases": ["specific boundary/data-state edge this test covers"],
       "combination_edge_cases": ["specific multi-condition interaction this test covers"],
-      "weird_edge_cases": ["specific unusual-but-real behavior this test covers"]
+      "weird_edge_cases": ["specific unusual-but-real behavior this test covers"],
+      "regression_candidate": false,
+      "regression_risk_area": ["existing feature or module impacted by this test; empty for non-regression scenarios"]
     }}
   ],
   "coverage_summary": "string — summarize happy path, edge cases, combination edge cases, weird edge cases, negative, security, accessibility, and gaps",
@@ -109,13 +127,18 @@ QUALITY STANDARDS:
   - edge_cases for boundary/data-state cases
   - combination_edge_cases for multi-condition interactions
   - weird_edge_cases for unusual user/system behavior
+- New feature requirement coverage must use functional, smoke, negative, boundary, or e2e.
+- Regression is reserved for old/existing behavior that could break because of the new feature.
+- Every regression scenario must explain the impacted existing area in regression_risk_area.
 - No duplicate coverage — each scenario tests something different
 
 QUALITY CHECK before outputting:
 - Does every AC have at least one test case?
-- Are all 7 categories represented?
+- Are all relevant categories represented?
 - Are Gherkin steps complete with specific data?
 - Is JSON valid with no trailing commas?
 - Are priorities assigned correctly?
 - Are edge cases, combination edge cases, and weird edge cases all included?
+- Are new-feature scenarios NOT mislabeled as regression?
+- Does every regression scenario have regression_candidate=true and a concrete regression_risk_area?
 - Zero performance test cases?

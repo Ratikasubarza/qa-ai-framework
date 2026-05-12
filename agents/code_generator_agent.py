@@ -92,6 +92,9 @@ class CodeGeneratorAgent:
                 lines.append(f"Combination Edge Cases: {', '.join(s.combination_edge_cases)}")
             if s.weird_edge_cases:
                 lines.append(f"Weird Edge Cases: {', '.join(s.weird_edge_cases)}")
+            lines.append(f"Regression Candidate: {s.regression_candidate}")
+            if s.regression_risk_area:
+                lines.append(f"Regression Risk Area: {', '.join(s.regression_risk_area)}")
             lines.append("")
         return "\n".join(lines)
 

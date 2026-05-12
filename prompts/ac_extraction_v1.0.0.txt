@@ -16,6 +16,8 @@ INSTRUCTIONS:
 6. MANDATORY: populate assumptions for anything inferred. State the risk if wrong.
 7. Set out_of_scope from explicit story boundaries.
 8. Set missing_data for info needed from PO to complete ACs.
+9. Use "functional" as the default test type for new-feature requirements.
+10. Use "regression" only for existing behavior that may be impacted by the new feature.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON. No preamble. No markdown. No explanation outside JSON.
@@ -31,7 +33,7 @@ Return ONLY valid JSON. No preamble. No markdown. No explanation outside JSON.
       "when": ["string"],
       "then": ["string"],
       "edge_cases": ["string"],
-      "test_types": ["smoke|regression|e2e|negative|boundary"],
+      "test_types": ["smoke|functional|regression|e2e|negative|boundary"],
       "platforms": ["web|api|android|ios"],
       "priority": "high|medium|low",
       "dependencies": []
