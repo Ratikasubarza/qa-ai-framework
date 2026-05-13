@@ -1,6 +1,9 @@
+import asyncio
 import json
+from types import SimpleNamespace
 
-from agents.test_case_agent import TestCaseAgent
+from agents import test_case_agent as test_case_agent_module
+from agents.test_case_agent import MAX_AC_PER_BATCH, TestCaseAgent
 from core.agent_contracts import Platform, TestCaseAgentInput
 
 
@@ -113,3 +116,64 @@ def test_parse_output_marks_regression_candidates_with_risk_area():
     assert scenario.test_type.value == "regression"
     assert scenario.regression_candidate is True
     assert scenario.regression_risk_area == ["profile media grid"]
+
+
+def test_chunked_generation_merges_and_renumbers_scenarios(monkeypatch):
+    agent = TestCaseAgent()
+    input_data = TestCaseAgentInput(
+        feature="Post Management",
+        description="Large PRD",
+        platforms=[Platform.ANDROID],
+        acceptance_criteria=[
+            f"AC {index}: User can validate post behavior {index}"
+            for index in range(MAX_AC_PER_BATCH + 1)
+        ],
+    )
+    calls = []
+
+    monkeypatch.setattr(
+        test_case_agent_module.rag_engine,
+        "retrieve",
+        lambda query, top_k: "",
+    )
+    monkeypatch.setattr(
+        test_case_agent_module.prompt_manager,
+        "get",
+        lambda name: (
+            "FEATURE: {feature}\nDESCRIPTION: {description}\nPLATFORMS: {platforms}\n"
+            "ACCEPTANCE CRITERIA:\n{acceptance_criteria}\nPAST CONTEXT:\n{past_context}\nDATE: {date}"
+        ),
+    )
+
+    def fake_complete_text(system, user, tier, agent_name, json_mode):
+        calls.append((system, user))
+        return SimpleNamespace(
+            content=json.dumps({
+                "feature": "Post Management",
+                "scenarios": [
+                    {
+                        "case_id": "TC-LOCAL",
+                        "title": f"Scenario from batch {len(calls)}",
+                        "preconditions": "User is logged in.",
+                        "steps": "Given user is logged in\nWhen user opens posts\nThen posts are visible",
+                        "expected_result": "Posts are visible.",
+                        "platform": "MOBILE",
+                        "test_type": "functional",
+                    }
+                ],
+                "coverage_summary": f"batch {len(calls)} covered",
+            }),
+            model="fake-model",
+            tokens_used=10,
+        )
+
+    monkeypatch.setattr(test_case_agent_module.llm_client, "complete_text", fake_complete_text)
+
+    output = asyncio.run(agent.run(input_data, require_approval=False))
+
+    assert len(calls) == 2
+    assert [scenario.scenario_id for scenario in output.scenarios] == ["TC-001", "TC-002"]
+    assert output.total_scenarios == 2
+    assert output.tokens_used == 20
+    assert "batch 1 covered" in output.coverage_summary
+    assert "batch 2 covered" in output.coverage_summary

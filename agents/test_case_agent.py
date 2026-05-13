@@ -36,6 +36,7 @@ logger = structlog.get_logger(__name__)
 AGENT_NAME    = "test_case_agent"
 PROMPT_NAME   = "test_case_gen"
 PROMPT_VERSION = "2.0.0"
+MAX_AC_PER_BATCH = 8
 
 
 class TestCaseAgent:
@@ -80,33 +81,20 @@ class TestCaseAgent:
         )
 
         # ── Step 3: Format prompt ─────────────────────────────
-        template = prompt_manager.get(PROMPT_NAME)
-        ac_text   = "\n".join(f"- {ac}" for ac in clean_ac) or "Not provided"
-        platforms = ", ".join(p.value for p in input_data.platforms)
-
-        system_prompt = template.format(
-            feature=input_data.feature,
-            description=clean_desc.content,
-            platforms=platforms,
-            acceptance_criteria=ac_text,
-            past_context=past_context,
-            date=__import__('datetime').datetime.now().strftime('%Y%m%d'),
-        )
-
-        # ── Step 4: LLM call via circuit breaker ─────────────
-        def _call_llm():
-            return llm_client.complete_text(
-                system=system_prompt,
-                user=f"Generate comprehensive test cases for: {input_data.feature}",
-                tier=ModelTier.STANDARD,
-                agent_name=AGENT_NAME,
-                json_mode=True,
+        if len(clean_ac) > MAX_AC_PER_BATCH:
+            output = self._run_chunked_generation(
+                input_data=input_data,
+                clean_description=clean_desc.content,
+                clean_acceptance_criteria=clean_ac,
+                past_context=past_context,
             )
-
-        response = self.breaker.call(_call_llm)
-
-        # ── Step 5: Parse + validate ──────────────────────────
-        output = self._parse_output(response.content, input_data, response.model)
+        else:
+            output = self._run_single_generation(
+                input_data=input_data,
+                clean_description=clean_desc.content,
+                clean_acceptance_criteria=clean_ac,
+                past_context=past_context,
+            )
 
         # ── Step 6: Human-in-the-Loop (if required) ───────────
         if require_approval is None:
@@ -117,11 +105,111 @@ class TestCaseAgent:
 
         return output
 
+    def _run_single_generation(
+        self,
+        input_data: TestCaseAgentInput,
+        clean_description: str,
+        clean_acceptance_criteria: list[str],
+        past_context: str,
+        batch_index: int | None = None,
+        batch_total: int | None = None,
+    ) -> TestCaseAgentOutput:
+        template = prompt_manager.get(PROMPT_NAME)
+        ac_text = "\n".join(f"- {ac}" for ac in clean_acceptance_criteria) or "Not provided"
+        platforms = ", ".join(p.value for p in input_data.platforms)
+        system_prompt = template.format(
+            feature=input_data.feature,
+            description=clean_description,
+            platforms=platforms,
+            acceptance_criteria=ac_text,
+            past_context=past_context,
+            date=__import__('datetime').datetime.now().strftime('%Y%m%d'),
+        )
+        batch_note = ""
+        if batch_index is not None and batch_total is not None:
+            batch_note = (
+                f"\nThis is batch {batch_index}/{batch_total}. "
+                "Generate 1-3 high-value scenarios per AC in this batch. "
+                "Keep JSON complete and valid; do not cover ACs outside this batch."
+            )
+
+        def _call_llm():
+            return llm_client.complete_text(
+                system=system_prompt,
+                user=f"Generate comprehensive test cases for: {input_data.feature}.{batch_note}",
+                tier=ModelTier.STANDARD,
+                agent_name=AGENT_NAME,
+                json_mode=True,
+            )
+
+        response = self.breaker.call(_call_llm)
+        return self._parse_output(
+            response.content,
+            input_data,
+            response.model,
+            tokens_used=response.tokens_used,
+        )
+
+    def _run_chunked_generation(
+        self,
+        input_data: TestCaseAgentInput,
+        clean_description: str,
+        clean_acceptance_criteria: list[str],
+        past_context: str,
+    ) -> TestCaseAgentOutput:
+        chunks = [
+            clean_acceptance_criteria[i:i + MAX_AC_PER_BATCH]
+            for i in range(0, len(clean_acceptance_criteria), MAX_AC_PER_BATCH)
+        ]
+        logger.info(
+            "test_case_chunked_generation",
+            chunks=len(chunks),
+            acceptance_criteria=len(clean_acceptance_criteria),
+        )
+
+        merged_scenarios: list[ScenarioSchema] = []
+        coverage_parts: list[str] = []
+        models: list[str] = []
+        tokens_used = 0
+
+        for index, chunk in enumerate(chunks, 1):
+            logger.info("test_case_processing_chunk", chunk=index, total=len(chunks))
+            chunk_output = self._run_single_generation(
+                input_data=input_data,
+                clean_description=clean_description,
+                clean_acceptance_criteria=chunk,
+                past_context=past_context if index == 1 else "",
+                batch_index=index,
+                batch_total=len(chunks),
+            )
+            merged_scenarios.extend(chunk_output.scenarios)
+            if chunk_output.coverage_summary:
+                coverage_parts.append(f"Batch {index}: {chunk_output.coverage_summary}")
+            if chunk_output.model_used not in models:
+                models.append(chunk_output.model_used)
+            tokens_used += chunk_output.tokens_used
+
+        for index, scenario in enumerate(merged_scenarios, 1):
+            scenario.scenario_id = f"TC-{index:03d}"
+
+        logger.info("test_case_chunked_complete", total=len(merged_scenarios))
+        return TestCaseAgentOutput(
+            feature=input_data.feature,
+            scenarios=merged_scenarios,
+            coverage_summary="\n".join(coverage_parts),
+            total_scenarios=len(merged_scenarios),
+            prompt_version=PROMPT_VERSION,
+            model_used=", ".join(models) if models else "unknown",
+            generated_at=datetime.now(),
+            tokens_used=tokens_used,
+        )
+
     def _parse_output(
         self,
         raw_json:   str,
         input_data: TestCaseAgentInput,
         model_used: str,
+        tokens_used: int = 0,
     ) -> TestCaseAgentOutput:
         """Parse LLM JSON response into typed TestCaseAgentOutput."""
         # Clean common LLM artifacts
@@ -255,6 +343,7 @@ class TestCaseAgent:
             prompt_version=PROMPT_VERSION,
             model_used=model_used,
             generated_at=datetime.now(),
+            tokens_used=tokens_used,
         )
 
     async def _request_approval(self, output: TestCaseAgentOutput) -> TestCaseAgentOutput:

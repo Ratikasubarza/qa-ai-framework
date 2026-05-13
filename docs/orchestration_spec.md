@@ -245,6 +245,8 @@ Rule:
   `regression`.
 - `regression` is reserved for existing behavior that may be impacted by the
   new feature and must include a concrete regression risk area.
+- large PRDs must be generated in AC batches so each LLM response stays valid
+  JSON. Prefer complete, traceable output over a single oversized response.
 
 Recommended test type mapping:
 

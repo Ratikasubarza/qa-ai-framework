@@ -117,7 +117,9 @@ Return ONLY valid JSON. No preamble. No markdown fences. No trailing commas.
 }}
 
 QUALITY STANDARDS:
-- Minimum 50+ scenarios, aim for 150+ — cover all categories above
+- For small feature input, target 15-30 high-value scenarios.
+- For large PRD or batch mode, generate 1-3 high-value scenarios per AC in the provided batch and keep JSON complete.
+- Prefer complete, valid, traceable JSON over excessive scenario volume.
 - NO performance testing scenarios
 - Each scenario must be independently runnable (no dependency on previous test)
 - Titles must be specific: "Submit form with 256-char name" NOT "Test long name"
