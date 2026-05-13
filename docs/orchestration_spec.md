@@ -185,6 +185,13 @@ Recommended scope rule:
   are more precise than the PRD.
 - Prefer one focused run per Jira story/substory for maintainable TDD output.
 
+When `--include-subtasks` is used, source intake filters subtasks by platform:
+- `api` prioritizes `[BE]`, API, endpoint, contract, payload, and schema tasks.
+- `android` and `ios` prioritize `[Mobile]`, mobile, Appium, and Flutter tasks.
+- `web` prioritizes `[FE]`, frontend, web, CMS, browser, and Playwright tasks.
+- if no platform-specific subtask is detected, all subtasks are retained as a
+  fallback so unlabeled teams do not lose context.
+
 Preferred Jira + PRD command:
 
 ```bash

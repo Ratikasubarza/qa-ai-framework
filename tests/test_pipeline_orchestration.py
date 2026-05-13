@@ -171,8 +171,66 @@ def test_source_intake_composes_jira_prd_and_subtasks(monkeypatch):
     assert bundle["jira_source"]["fetched"] is True
     assert bundle["jira_source"]["subtasks_included"] is True
     assert bundle["jira_source"]["subtask_count"] == 1
+    assert bundle["jira_source"]["included_subtask_count"] == 1
     assert bundle["intake_quality"]["jira_fetched"] is True
     assert bundle["intake_quality"]["subtasks_included"] is True
+
+
+def test_source_intake_filters_parent_subtasks_by_platform(monkeypatch):
+    class FakeJiraClient:
+        def get_issue(self, issue_key):
+            assert issue_key == "HM-516"
+            return {
+                "key": "HM-516",
+                "summary": "Profile content tabs",
+                "status": "To Do",
+                "priority": "Medium",
+                "issue_type": "Story",
+                "description": "Users can view posts and media tabs.",
+                "acceptance_criteria": ["Profile tabs show posts and media."],
+                "subtasks": [
+                    {
+                        "key": "HM-557",
+                        "summary": "[BE] Post Visibility API",
+                        "status": "Done",
+                        "description": "API returns visibility payload.",
+                    },
+                    {
+                        "key": "HM-558",
+                        "summary": "[Mobile] Profile Posts Tab - UI",
+                        "status": "Done",
+                        "description": "Android UI supports posts tab pagination.",
+                    },
+                    {
+                        "key": "HM-559",
+                        "summary": "[FE] Profile Posts Tab - UI",
+                        "status": "To Do",
+                        "description": "Web UI supports posts tab pagination.",
+                    },
+                ],
+            }
+
+    monkeypatch.setitem(
+        sys.modules,
+        "mcp_tools.jira_client.jira_client",
+        SimpleNamespace(jira_client=FakeJiraClient()),
+    )
+
+    state = pipeline.node_source_intake({
+        "feature": "HM-516 Profile Posts Tab Android",
+        "platforms": ["android"],
+        "ticket_id": "HM-516",
+        "story_text": "Generate Android UI cases only.",
+        "include_subtasks": True,
+    })
+
+    bundle = state["source_bundle"]
+    assert "HM-558: [Mobile] Profile Posts Tab - UI" in bundle["prd_content"]
+    assert "HM-557: [BE] Post Visibility API" not in bundle["prd_content"]
+    assert "HM-559: [FE] Profile Posts Tab - UI" not in bundle["prd_content"]
+    assert bundle["jira_source"]["subtask_count"] == 3
+    assert bundle["jira_source"]["included_subtask_count"] == 1
+    assert bundle["jira_source"]["subtask_filter_platforms"] == ["android"]
 
 
 def test_source_intake_blocks_when_prd_url_unreadable_without_manual_fallback(monkeypatch):

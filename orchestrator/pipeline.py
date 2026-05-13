@@ -30,6 +30,41 @@ PYTHON_BIN = "./venv/bin/python3.11"
 MAX_APPROVAL_ATTEMPTS = 1
 CASE_REVIEW_MIN_SCORE = 7.0
 
+PLATFORM_SUBTASK_MARKERS = {
+    "api": (
+        "[be]",
+        " backend ",
+        " api ",
+        " endpoint",
+        " contract",
+        " payload",
+        " schema",
+    ),
+    "android": (
+        "[mobile]",
+        " mobile ",
+        " android ",
+        " appium ",
+        " flutter ",
+    ),
+    "ios": (
+        "[mobile]",
+        " mobile ",
+        " ios ",
+        " appium ",
+        " flutter ",
+    ),
+    "web": (
+        "[fe]",
+        " frontend ",
+        " front-end ",
+        " web ",
+        " cms ",
+        " browser ",
+        " playwright ",
+    ),
+}
+
 
 def _criteria_summary(criteria: list[Any]) -> list[str]:
     """Return prompt-ready AC summaries while preserving details elsewhere."""
@@ -140,7 +175,29 @@ def _write_case_review_draft_exports(state: AgentState, review: dict) -> dict[st
     return {"json": str(json_path), "csv": str(csv_path)}
 
 
-def _format_jira_issue_context(issue: dict, include_subtasks: bool = False) -> str:
+def _subtask_matches_platform(subtask: dict, platforms: list[str]) -> bool:
+    text = f" {subtask.get('summary', '')} {subtask.get('description', '')} ".lower()
+    markers = []
+    for platform in platforms:
+        markers.extend(PLATFORM_SUBTASK_MARKERS.get(platform, ()))
+    return any(marker in text for marker in markers)
+
+
+def _filter_subtasks_for_platforms(subtasks: list[dict], platforms: list[str]) -> list[dict]:
+    if not subtasks:
+        return []
+    filtered = [
+        subtask for subtask in subtasks
+        if _subtask_matches_platform(subtask, platforms)
+    ]
+    return filtered or subtasks
+
+
+def _format_jira_issue_context(
+    issue: dict,
+    include_subtasks: bool = False,
+    platforms: list[str] | None = None,
+) -> str:
     lines = [
         f"Jira Issue: {issue.get('key', '')}",
         f"Summary: {issue.get('summary', '')}",
@@ -158,8 +215,11 @@ def _format_jira_issue_context(issue: dict, include_subtasks: bool = False) -> s
         lines.extend(f"- {item}" for item in acceptance_criteria)
 
     if include_subtasks and issue.get("subtasks"):
-        lines.extend(["", "Developer Subtasks / Implementation Details:"])
-        for subtask in issue["subtasks"]:
+        target_platforms = platforms or []
+        subtasks = _filter_subtasks_for_platforms(issue["subtasks"], target_platforms)
+        platform_note = f" for {', '.join(target_platforms)}" if target_platforms else ""
+        lines.extend(["", f"Developer Subtasks / Implementation Details{platform_note}:"])
+        for subtask in subtasks:
             lines.extend([
                 f"- {subtask.get('key', '')}: {subtask.get('summary', '')}",
                 f"  Status: {subtask.get('status', '')}",
@@ -181,6 +241,7 @@ def node_source_intake(state: AgentState) -> AgentState:
 
     story_text = state.get("story_text") or state.get("feature", "")
     ticket_id = state.get("ticket_id") or ""
+    platforms = state.get("platforms") or ["web"]
     feature_url = state.get("feature_url") or ""
     prd_url = state.get("prd_url") or ""
     include_subtasks = bool(state.get("include_subtasks"))
@@ -208,9 +269,16 @@ def node_source_intake(state: AgentState) -> AgentState:
             jira_text = _format_jira_issue_context(
                 issue,
                 include_subtasks=include_subtasks,
+                platforms=platforms,
             )
             if jira_text:
                 context_parts.append(f"=== JIRA STORY / TICKET ===\n{jira_text}")
+            raw_subtasks = issue.get("subtasks") or []
+            included_subtasks = (
+                _filter_subtasks_for_platforms(raw_subtasks, platforms)
+                if include_subtasks
+                else []
+            )
             jira_source = {
                 "type": "jira",
                 "key": issue.get("key", ticket_id),
@@ -218,13 +286,16 @@ def node_source_intake(state: AgentState) -> AgentState:
                 "status": issue.get("status", ""),
                 "priority": issue.get("priority", ""),
                 "subtasks_included": include_subtasks,
-                "subtask_count": len(issue.get("subtasks") or []),
+                "subtask_count": len(raw_subtasks),
+                "included_subtask_count": len(included_subtasks),
+                "subtask_filter_platforms": platforms if include_subtasks else [],
                 "fetched": True,
             }
             logger.info(
                 "jira_issue_fetched_for_intake",
                 key=ticket_id,
                 subtasks=jira_source["subtask_count"],
+                included_subtasks=jira_source["included_subtask_count"],
                 include_subtasks=include_subtasks,
             )
         except Exception as e:
