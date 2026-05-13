@@ -230,6 +230,11 @@ async def node_testcase(state: AgentState) -> AgentState:
             acceptance_criteria=state.get("acceptance_criteria", []),
         )
         output = await test_case_agent.run(inp, require_approval=False)
+        if not output.scenarios:
+            raise ValueError(
+                "TestCaseAgent generated 0 scenarios. "
+                f"coverage_summary={output.coverage_summary or 'N/A'}"
+            )
         test_cases = [_scenario_to_dict(s) for s in output.scenarios]
 
         return {

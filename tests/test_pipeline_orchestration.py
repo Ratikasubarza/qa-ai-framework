@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from types import SimpleNamespace
 
@@ -279,6 +280,29 @@ def test_execute_reads_generated_file_dict_values(monkeypatch, tmp_path):
     assert str(test_file) in state["execution_results"]
     assert calls[0][0] == pipeline.PYTHON_BIN
     assert calls[0][3] == str(test_file)
+
+
+def test_testcase_node_stops_with_clear_error_when_agent_generates_zero(monkeypatch):
+    class FakeTestCaseAgent:
+        async def run(self, input_data, require_approval):
+            return SimpleNamespace(
+                scenarios=[],
+                coverage_summary="JSON truncated — retry",
+            )
+
+    fake_module = SimpleNamespace(test_case_agent=FakeTestCaseAgent())
+    monkeypatch.setitem(sys.modules, "agents.test_case_agent", fake_module)
+
+    state = asyncio.run(pipeline.node_testcase({
+        "feature": "Post Management",
+        "platforms": ["android"],
+        "acceptance_criteria": ["User can create a post."],
+    }))
+
+    assert state["current_phase"] == "testcase"
+    assert state["test_cases"] == []
+    assert state["error"]["phase"] == "testcase"
+    assert "generated 0 scenarios" in state["error"]["message"]
 
 
 def test_report_handles_none_optional_artifacts(monkeypatch):

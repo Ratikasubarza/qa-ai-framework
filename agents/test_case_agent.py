@@ -182,6 +182,12 @@ class TestCaseAgent:
                 batch_index=index,
                 batch_total=len(chunks),
             )
+            logger.info(
+                "test_case_chunk_complete",
+                chunk=index,
+                total=len(chunks),
+                scenarios=chunk_output.total_scenarios,
+            )
             merged_scenarios.extend(chunk_output.scenarios)
             if chunk_output.coverage_summary:
                 coverage_parts.append(f"Batch {index}: {chunk_output.coverage_summary}")
@@ -225,6 +231,7 @@ class TestCaseAgent:
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
+            logger.warning("test_case_parse_json_failed", raw_preview=raw[:500])
             # Try to salvage truncated JSON
             last_bracket = raw.rfind("}]")
             if last_bracket != -1:
@@ -232,6 +239,7 @@ class TestCaseAgent:
                 try:
                     data = json.loads(raw)
                 except json.JSONDecodeError:
+                    logger.warning("test_case_parse_salvage_failed", raw_preview=raw[:500])
                     data = {"feature": input_data.feature, "scenarios": [], "coverage_summary": "JSON truncated — retry"}
             else:
                 data = {"feature": input_data.feature, "scenarios": [], "coverage_summary": "JSON truncated — retry"}
@@ -243,6 +251,12 @@ class TestCaseAgent:
             or data.get("testcases")
             or []
         )
+        if not scenario_items:
+            logger.warning(
+                "test_case_parse_no_scenarios",
+                keys=list(data.keys()),
+                coverage_summary=str(data.get("coverage_summary", ""))[:300],
+            )
 
         scenarios = []
         for i, s in enumerate(scenario_items, 1):
