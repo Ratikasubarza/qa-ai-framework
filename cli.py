@@ -400,7 +400,11 @@ async def cmd_pipeline(args):
     )
 
     console.print(f"\n[bold]Pipeline Complete[/]")
-    console.print(f"  Coverage:   [cyan]{final.get('coverage_percentage', 0):.0f}%[/]")
+    try:
+        coverage = float(final.get("coverage_percentage") or 0.0)
+    except (TypeError, ValueError):
+        coverage = 0.0
+    console.print(f"  Coverage:   [cyan]{coverage:.0f}%[/]")
     console.print(f"  Test cases: {len(final.get('test_cases') or [])}")
     console.print(f"  Case review: {final.get('case_review', {}).get('status', 'N/A')}")
     console.print(f"  Bugs found: {len(final.get('bug_reports') or [])}")

@@ -71,6 +71,21 @@ def _approval_payload(status: str, **extra: Any) -> dict:
     }
 
 
+def _as_float(value: Any, default: float = 0.0) -> float:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _error_message(error: Any) -> str:
+    if isinstance(error, dict):
+        return str(error.get("message", error))
+    return str(error)
+
+
 # ── Node: Source Intake ─────────────────────────────────────────────────────
 def node_source_intake(state: AgentState) -> AgentState:
     logger.info("node_start", node="source_intake", feature=state.get("feature"))
@@ -609,7 +624,7 @@ def node_report(state: AgentState) -> AgentState:
     test_cases = state.get("test_cases") or []
     testcase_exports = state.get("testcase_exports") or {}
     generated_files = state.get("generated_files") or {}
-    coverage = state.get("coverage_percentage", 0.0)
+    coverage = _as_float(state.get("coverage_percentage"), 0.0)
     status = "PASSED" if not failures and not state.get("error") else "FAILED"
 
     bug_lines = "\n".join(f"  - [{b['severity']}] {b['title'][:60]}" for b in bugs[:5])
@@ -627,7 +642,7 @@ def node_report(state: AgentState) -> AgentState:
         f"*Coverage:* {coverage:.0f}%\n"
     )
     if state.get("error"):
-        msg += f"\n*Error:* `{state['error'].get('message', state['error'])}`\n"
+        msg += f"\n*Error:* `{_error_message(state['error'])}`\n"
     if case_review:
         msg += (
             "\n*AI Case Review:*\n"

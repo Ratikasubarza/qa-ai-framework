@@ -295,6 +295,7 @@ def test_report_handles_none_optional_artifacts(monkeypatch):
         "coverage_gaps": None,
         "bug_reports": None,
         "case_review": {"status": "failed"},
+        "coverage_percentage": None,
         "error": {"phase": "case_review", "message": "No test cases available"},
     })
 
@@ -304,3 +305,17 @@ def test_report_handles_none_optional_artifacts(monkeypatch):
         "status": "FAILED",
         "sent": False,
     }
+
+
+def test_report_handles_string_error_payload(monkeypatch):
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_QA_OPS_CHAT_ID", raising=False)
+
+    state = pipeline.node_report({
+        "feature": "Post Management",
+        "coverage_percentage": None,
+        "error": "Manual stop before codegen",
+    })
+
+    assert state["current_phase"] == "report"
+    assert state["notifications"][-1]["status"] == "FAILED"
