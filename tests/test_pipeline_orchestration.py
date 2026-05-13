@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 from core.agent_contracts import (
@@ -203,6 +204,46 @@ def test_case_review_quality_gate_blocks_low_score(monkeypatch):
     assert state["case_review"]["status"] == "needs_revision"
     assert state["error"]["phase"] == "case_review"
     assert pipeline.route_after_case_review(state) == "report"
+
+
+def test_case_review_normalizes_0_to_100_score_and_exports_draft(monkeypatch, tmp_path):
+    class FakeReviewer:
+        def review(self, prd_content, test_cases_json, feature):
+            return SimpleNamespace(
+                overall_quality_score=71,
+                coverage_percentage=68.0,
+                findings_critical=1,
+                findings_major=2,
+                findings_minor=3,
+                missing_test_cases=[{"priority": "P0", "title": "Missing search block"}],
+                prd_clarifications=[],
+                recommendation="revise",
+                traceability_matrix=[],
+            )
+
+    fake_module = SimpleNamespace(reviewer_agent=FakeReviewer())
+    monkeypatch.setitem(sys.modules, "agents.reviewer_agent", fake_module)
+    monkeypatch.chdir(tmp_path)
+
+    state = pipeline.node_case_review({
+        "feature": "Post Management",
+        "run_id": "20260513_143153",
+        "source_bundle": {"prd_content": "Users manage posts."},
+        "test_cases": [{
+            "scenario_id": "TC-001",
+            "name": "Create post",
+            "steps": [],
+            "expected_result": "Post is visible",
+        }],
+    })
+
+    assert state["case_review"]["status"] == "needs_revision"
+    assert state["case_review"]["quality_score"] == 7.1
+    assert state["case_review"]["quality_score_raw"] == 71
+    assert state["draft_exports"]["json"].endswith("_needs_revision.json")
+    assert state["draft_exports"]["csv"].endswith("_needs_revision.csv")
+    assert Path(state["draft_exports"]["json"]).exists()
+    assert Path(state["draft_exports"]["csv"]).exists()
 
 
 def test_codegen_uses_existing_testcase_output(monkeypatch):

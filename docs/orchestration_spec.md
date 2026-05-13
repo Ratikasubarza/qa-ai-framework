@@ -276,6 +276,8 @@ Output:
 Routing:
 - pass: continue to QA Lead approval
 - critical findings or low quality score: stop and report for revision
+- needs revision: export draft JSON/CSV under `reports/drafts/` for inspection,
+  but do not create official CSV/Excel test plan artifacts.
 
 Severity model:
 - Critical: missing release-blocking requirement, unsafe/invalid expectation, or

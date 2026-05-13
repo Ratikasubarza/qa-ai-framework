@@ -73,3 +73,8 @@ Return ONLY valid JSON. No preamble. No markdown fences.
   "overall_quality_score": 0,
   "recommendation": "string — overall recommendation"
 }}
+
+SCORING RULE:
+- overall_quality_score must be on a 0-10 scale.
+- Use decimals when helpful, for example 7.1.
+- Do not return a 0-100 score.

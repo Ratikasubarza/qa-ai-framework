@@ -11,6 +11,9 @@ Flow:
 """
 from __future__ import annotations
 
+import csv
+import json
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -84,6 +87,57 @@ def _error_message(error: Any) -> str:
     if isinstance(error, dict):
         return str(error.get("message", error))
     return str(error)
+
+
+def _normalize_review_score(score: Any) -> tuple[float, float]:
+    raw_score = _as_float(score, 0.0)
+    if raw_score > 10:
+        return round(raw_score / 10, 2), raw_score
+    return raw_score, raw_score
+
+
+def _slugify(value: str) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower()).strip("_")
+    return slug or "feature"
+
+
+def _write_case_review_draft_exports(state: AgentState, review: dict) -> dict[str, str]:
+    output_dir = Path("reports/drafts")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    feature_slug = _slugify(state.get("feature", "feature"))
+    run_id = state.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    base = output_dir / f"test_plan_{feature_slug}_{run_id}_needs_revision"
+    test_cases = state.get("test_cases") or []
+
+    json_path = base.with_suffix(".json")
+    csv_path = base.with_suffix(".csv")
+    payload = {
+        "feature": state.get("feature"),
+        "run_id": run_id,
+        "status": "needs_revision",
+        "case_review": review,
+        "test_cases": test_cases,
+    }
+    json_path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        fieldnames = [
+            "scenario_id", "name", "precondition", "steps", "expected_result",
+            "priority", "test_type", "platforms", "tags",
+            "regression_candidate", "regression_risk_area",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for case in test_cases:
+            row = {field: case.get(field, "") for field in fieldnames}
+            for field in ["steps", "platforms", "tags", "regression_risk_area"]:
+                if isinstance(row[field], list):
+                    row[field] = json.dumps(row[field], ensure_ascii=False)
+            writer.writerow(row)
+
+    logger.info("case_review_draft_exported", json=str(json_path), csv=str(csv_path))
+    return {"json": str(json_path), "csv": str(csv_path)}
 
 
 # ── Node: Source Intake ─────────────────────────────────────────────────────
@@ -277,9 +331,13 @@ def node_case_review(state: AgentState) -> AgentState:
             feature=state.get("feature", "Feature"),
         )
 
+        quality_score, raw_quality_score = _normalize_review_score(
+            report.overall_quality_score
+        )
         review = {
             "status": "passed",
-            "quality_score": report.overall_quality_score,
+            "quality_score": quality_score,
+            "quality_score_raw": raw_quality_score,
             "coverage_percentage": report.coverage_percentage,
             "findings": {
                 "critical": report.findings_critical,
@@ -294,18 +352,20 @@ def node_case_review(state: AgentState) -> AgentState:
 
         if (
             report.findings_critical > 0
-            or report.overall_quality_score < CASE_REVIEW_MIN_SCORE
+            or quality_score < CASE_REVIEW_MIN_SCORE
         ):
             review["status"] = "needs_revision"
+            draft_exports = _write_case_review_draft_exports(state, review)
             return {
                 **state,
                 "current_phase": "case_review",
                 "case_review": review,
+                "draft_exports": draft_exports,
                 "error": {
                     "phase": "case_review",
                     "message": (
                         "AI case review did not pass quality gate: "
-                        f"score={report.overall_quality_score}, "
+                        f"score={quality_score}, "
                         f"critical={report.findings_critical}"
                     ),
                 },

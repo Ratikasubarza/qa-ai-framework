@@ -414,7 +414,11 @@ async def cmd_pipeline(args):
     console.print(f"  Case review: {case_review.get('status', 'N/A')}")
     if case_review:
         findings = case_review.get("findings") or {}
-        console.print(f"  Review score: [cyan]{case_review.get('quality_score', 'N/A')}[/]")
+        raw_score = case_review.get("quality_score_raw")
+        score_text = str(case_review.get("quality_score", "N/A"))
+        if raw_score not in (None, case_review.get("quality_score")):
+            score_text = f"{score_text} (raw: {raw_score})"
+        console.print(f"  Review score: [cyan]{score_text}[/]")
         console.print(
             "  Findings:    "
             f"critical={findings.get('critical', 'N/A')}, "
@@ -436,6 +440,9 @@ async def cmd_pipeline(args):
     if final.get('testcase_exports'):
         for name, path in final['testcase_exports'].items():
             console.print(f"  {name.upper()}:      [dim]{path}[/]")
+    if final.get('draft_exports'):
+        for name, path in final['draft_exports'].items():
+            console.print(f"  DRAFT {name.upper()}: [dim]{path}[/]")
     if final.get('gap_report_path'):
         console.print(f"  Gap report: [dim]{final['gap_report_path']}[/]")
 

@@ -34,6 +34,7 @@ class AgentState(TypedDict, total=False):
 
     # ── Test case export phase ──────────────────────────────────────
     testcase_exports:     dict[str, str]  # {csv: path, excel: path}
+    draft_exports:        dict[str, str]  # Draft artifacts for needs_revision cases
 
     # ── Code generation phase ───────────────────────────────────────
     generated_files:      dict[str, str]  # {relative_path: absolute_path}
