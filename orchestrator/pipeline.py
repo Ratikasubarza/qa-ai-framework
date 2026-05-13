@@ -23,6 +23,7 @@ import httpx
 import structlog
 
 from core.agent_state import AgentState
+from core.automation_readiness import check_automation_readiness
 from core.case_review import normalize_review_scope
 from core.source_intake import build_source_intake_state
 
@@ -463,6 +464,31 @@ def node_testcase_export(state: AgentState) -> AgentState:
 
 
 # ── Node: Code Generation ───────────────────────────────────────────────────
+def node_automation_readiness(state: AgentState) -> AgentState:
+    logger.info("node_start", node="automation_readiness", feature=state.get("feature"))
+    readiness = check_automation_readiness(state)
+    if readiness["codegen_allowed"]:
+        return {
+            **state,
+            "current_phase": "automation_readiness",
+            "automation_readiness": readiness,
+            "error": None,
+        }
+
+    return {
+        **state,
+        "current_phase": "automation_readiness",
+        "automation_readiness": readiness,
+        "generated_files": {},
+        "error": {
+            "phase": "automation_readiness",
+            "message": "Automation codegen blocked: executable flow evidence is incomplete.",
+            "missing_evidence": readiness["missing_evidence"],
+        },
+    }
+
+
+# ── Node: Code Generation ───────────────────────────────────────────────────
 def node_codegen(state: AgentState) -> AgentState:
     from agents.code_generator_agent import code_generator_agent
     from core.agent_contracts import Platform, TestCaseAgentOutput
@@ -632,6 +658,7 @@ def node_report(state: AgentState) -> AgentState:
     bugs = state.get("bug_reports") or []
     gaps = state.get("coverage_gaps") or []
     case_review = state.get("case_review") or {}
+    automation_readiness = state.get("automation_readiness") or {}
     test_cases = state.get("test_cases") or []
     testcase_exports = state.get("testcase_exports") or {}
     generated_files = state.get("generated_files") or {}
@@ -652,6 +679,7 @@ def node_report(state: AgentState) -> AgentState:
         f"*Run ID:* `{state.get('run_id', 'N/A')}`\n\n"
         f"*Test Cases:* {len(test_cases)}\n"
         f"*Case Review:* {case_review.get('status', 'N/A')}\n"
+        f"*Automation Readiness:* {automation_readiness.get('status', 'N/A')}\n"
         f"*Exports:* {len(testcase_exports)}\n"
         f"*Files Generated:* {len(generated_files)}\n"
         f"*Failures:* {len(failures)}\n"
@@ -672,6 +700,12 @@ def node_report(state: AgentState) -> AgentState:
             for name, path in testcase_exports.items()
         )
         msg += f"\n*Test Case Exports:*\n{export_lines}\n"
+    if automation_readiness.get("missing_evidence"):
+        missing_lines = "\n".join(
+            f"  - {item.get('platform')}/{item.get('type')}: `{item.get('message')}`"
+            for item in automation_readiness["missing_evidence"][:5]
+        )
+        msg += f"\n*Automation Missing Evidence:*\n{missing_lines}\n"
     if bug_lines:
         msg += f"\n*Bugs Found:*\n{bug_lines}\n"
     if gap_lines:
@@ -720,8 +754,15 @@ def route_after_approval(state: AgentState) -> Literal["testcase_export", "repor
     return "report"
 
 
-def route_after_testcase_export(state: AgentState) -> Literal["codegen", "report"]:
+def route_after_testcase_export(state: AgentState) -> Literal["automation_readiness_gate", "report"]:
     if state.get("testcase_exports") and not state.get("error"):
+        return "automation_readiness_gate"
+    return "report"
+
+
+def route_after_automation_readiness(state: AgentState) -> Literal["codegen", "report"]:
+    readiness = state.get("automation_readiness") or {}
+    if readiness.get("codegen_allowed") and not state.get("error"):
         return "codegen"
     return "report"
 
@@ -750,6 +791,7 @@ def build_pipeline():
     graph.add_node("case_review_gate", node_case_review)
     graph.add_node("approval_gate", node_approval)
     graph.add_node("testcase_export", node_testcase_export)
+    graph.add_node("automation_readiness_gate", node_automation_readiness)
     graph.add_node("codegen", node_codegen)
     graph.add_node("execute", node_execute)
     graph.add_node("debug", node_debug)
@@ -763,6 +805,7 @@ def build_pipeline():
     graph.add_conditional_edges("case_review_gate", route_after_case_review)
     graph.add_conditional_edges("approval_gate", route_after_approval)
     graph.add_conditional_edges("testcase_export", route_after_testcase_export)
+    graph.add_conditional_edges("automation_readiness_gate", route_after_automation_readiness)
     graph.add_conditional_edges("codegen", route_after_codegen)
     graph.add_conditional_edges("execute", route_after_execute)
     graph.add_edge("debug", "skill_gap")

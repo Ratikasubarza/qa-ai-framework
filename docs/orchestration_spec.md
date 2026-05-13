@@ -84,6 +84,7 @@ AI Engineer: prompt/model/version lineage and coverage metrics
 | `case_review` | `case_review` | AI quality gate summary before QA Lead approval. |
 | `approval` | `approval` | Decision metadata, reviewer, feedback, attempt. |
 | `testcase_exports` | `testcase_export` | Approved CSV/Excel test case artifact paths. |
+| `automation_readiness` | `automation_readiness` | Executable evidence check before code generation. |
 | `generated_files` | `codegen` | Dict of `{relative_path: absolute_path}`. |
 | `execution_results` | `execute` | Pytest result metadata by absolute file path. |
 | `failures` | `execute` | Normalized failure contexts for DebugAgent. |
@@ -103,7 +104,9 @@ START
   -> approval
       -> testcase_export when approved
       -> report when rejected, timed out, or failed
-  -> codegen when exports were created
+  -> automation_readiness when exports were created
+      -> codegen when executable evidence is complete
+      -> report when executable evidence is missing
   -> execute when files were generated
   -> debug when tests failed
   -> skill_gap
@@ -423,7 +426,27 @@ Rules:
 Future node:
 - `locator_page_object`
 
-### 8. Automation Generation
+### 8. Automation Readiness Gate
+
+Automation code generation is allowed only when approved test cases have
+explicit executable evidence. This prevents fake steps, hallucinated locators,
+invented API payloads, weak assertions, and forced-green automation.
+
+Required evidence:
+
+| Platform | Evidence |
+| --- | --- |
+| `api` | curl/endpoint/API spec, method, expected status or response schema |
+| `android`/`ios` | actual navigation steps, locator/app-source/accessibility evidence, test data/preconditions |
+| `web` | URL/route, actual navigation steps, selector/DOM/accessibility evidence |
+
+If evidence is missing:
+- do not generate automation code
+- do not invent steps, locators, payloads, or assertions
+- record exact missing evidence in `automation_readiness`
+- keep approved test cases and exports intact
+
+### 9. Automation Generation
 
 CodeGen consumes the same approved `testcase_output` used for CSV/Excel.
 
@@ -432,12 +455,14 @@ Output:
 
 Rules:
 - do not regenerate test cases
+- require `automation_readiness.codegen_allowed == true`
 - do not hardcode credentials
+- do not change approved expected behavior just to make tests pass
 - use `TestConfig`/test data classes for environment data
 - use page-object or platform helper methods when available
 - keep generated tests small enough to debug from a single failed case ID
 
-### 9. Execution
+### 10. Execution
 
 Run generated/affected tests with the project venv.
 
@@ -452,7 +477,7 @@ Output:
 - `failures`
 - pytest JSON report
 
-### 10. Failure Analysis
+### 11. Failure Analysis
 
 DebugAgent runs only when execution fails.
 
@@ -460,11 +485,16 @@ Output:
 - `bug_reports`
 
 Rules:
-- classify failures as product bug, test code issue, environment issue, or data
-  issue
+- classify failures as product bug, developer/API bug, test bug, locator issue,
+  test data issue, environment issue, flaky sync, or unknown
+- failed tests are quality signals, not problems to hide
+- do not remove assertions, weaken expected results, skip tests, catch and ignore
+  exceptions, or change steps to avoid failing product paths
+- auto-fix is allowed only for high-confidence test bugs, locator issues, or
+  flaky sync issues where approved expected behavior remains intact
 - Jira bug creation should remain explicit, not hidden inside analysis
 
-### 11. Coverage Analysis
+### 12. Coverage Analysis
 
 SkillGap compares approved test cases against AC.
 
@@ -480,7 +510,7 @@ Definition of Done:
 - coverage report exists
 - unresolved gaps are visible to the team
 
-### 12. Post-Deployment Healing
+### 13. Post-Deployment Healing
 
 Healing should be conservative. Its job is to repair brittle automation, not hide
 product defects.

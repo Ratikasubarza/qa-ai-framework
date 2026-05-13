@@ -37,6 +37,10 @@ class AgentState(TypedDict, total=False):
     testcase_exports:     dict[str, str]  # {csv: path, excel: path}
     draft_exports:        dict[str, str]  # Draft artifacts for needs_revision cases
 
+    # ── Automation readiness phase ─────────────────────────────────
+    automation_evidence:  dict[str, Any]  # Explicit curl/locator/step evidence for codegen
+    automation_readiness: dict[str, Any]  # Readiness report before codegen
+
     # ── Code generation phase ───────────────────────────────────────
     generated_files:      dict[str, str]  # {relative_path: absolute_path}
 

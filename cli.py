@@ -414,6 +414,8 @@ async def cmd_pipeline(args):
     console.print(f"  Coverage:   [cyan]{coverage:.0f}%[/]")
     console.print(f"  Test cases: {len(final.get('test_cases') or [])}")
     console.print(f"  Case review: {case_review.get('status', 'N/A')}")
+    readiness = final.get("automation_readiness") or {}
+    console.print(f"  Automation readiness: {readiness.get('status', 'N/A')}")
     if case_review:
         findings = case_review.get("findings") or {}
         raw_score = case_review.get("quality_score_raw")
@@ -439,6 +441,14 @@ async def cmd_pipeline(args):
                 console.print(f"    - {str(item)[:120]}")
     console.print(f"  Bugs found: {len(final.get('bug_reports') or [])}")
     console.print(f"  Gaps:       {len(final.get('coverage_gaps') or [])}")
+    missing_evidence = readiness.get("missing_evidence") or []
+    if missing_evidence:
+        console.print("  Missing automation evidence:")
+        for item in missing_evidence[:5]:
+            console.print(
+                f"    - {item.get('platform')}/{item.get('type')}: "
+                f"{item.get('message')}"
+            )
     if final.get('testcase_exports'):
         for name, path in final['testcase_exports'].items():
             console.print(f"  {name.upper()}:      [dim]{path}[/]")

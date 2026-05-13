@@ -113,6 +113,26 @@ classified as:
 - `clarification_needed`: reported for PO/Dev follow-up
 - `security_blocker`: always blocks until redacted or removed
 
+Automation code generation has a separate readiness gate. It requires executable
+flow evidence before codegen:
+- API: curl/endpoint/spec, method, expected status/schema
+- Android/iOS: actual app steps, locator/app-source/accessibility evidence, test data
+- Web: URL/route, actual web steps, selector/DOM/accessibility evidence
+
+If evidence is missing, the framework reports what is missing and does not
+generate code. This prevents fake steps, fake locators, fake payloads, weak
+assertions, and automation that only passes because the AI changed the truth of
+the test.
+
+Debug triage also has an integrity policy:
+- failed tests are quality signals, not problems to hide
+- product/API/developer bugs must preserve the failing signal and produce a bug
+  report or human triage item
+- AI must not remove assertions, weaken expected results, skip tests, catch and
+  ignore exceptions, or change steps to avoid the real failure
+- auto-fix is allowed only for high-confidence test bugs, locator issues, or
+  flaky sync issues where approved expected behavior remains intact
+
 ## When To Start External MCP
 
 Start or configure external MCP when:

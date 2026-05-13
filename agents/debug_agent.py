@@ -38,20 +38,29 @@ ADDITIONAL CONTEXT:
 {context}
 
 ANALYSIS INSTRUCTIONS:
-1. Identify: Is this a UI bug, API bug, test code issue, or environment issue?
+1. Identify: Is this a product bug, API bug, test code issue, locator issue, test data issue, flaky sync issue, or environment issue?
 2. Root cause: What specifically caused the failure?
-3. Severity based on user impact:
+3. Integrity rule: Do not optimize for passing tests. Optimize for truthful test results.
+   - Never suggest removing assertions, weakening expected results, skipping tests, catching exceptions and continuing, or changing steps to avoid a failing product path.
+   - Only allow automation fixes when evidence strongly shows a test bug, locator issue, or flaky sync issue.
+   - Product/API/developer bugs must preserve the failing signal and create a bug report.
+4. Severity based on user impact:
    - P0: App crashes, data loss, security issue, blocks all users
    - P1: Major feature broken, affects most users
    - P2: Minor feature broken, workaround exists
    - P3: UI/cosmetic issue, edge case
-4. Steps to reproduce: Clear, numbered steps
-5. Expected vs Actual: Precise statements
+5. Steps to reproduce: Clear, numbered steps
+6. Expected vs Actual: Precise statements
 
 OUTPUT FORMAT — Return ONLY valid JSON:
 {{
   "root_cause": "string — specific cause of failure",
   "bug_type": "ui_bug|api_bug|test_code|environment|regression",
+  "failure_classification": "product_bug|developer_bug|test_bug|locator_issue|test_data_issue|environment_issue|flaky_sync|unknown",
+  "confidence": 0.0,
+  "recommended_action": "create_bug_report|fix_test_code|update_locator|fix_test_data|report_environment_issue|ask_human_triage",
+  "auto_fix_allowed": false,
+  "integrity_notes": ["string — why this should not hide product bugs"],
   "severity": "P0|P1|P2|P3",
   "title": "string — concise bug title (max 100 chars)",
   "description": "string — detailed description",
@@ -92,6 +101,11 @@ class BugReport:
     suggested_fix:      str
     needs_dev_attention: bool
     labels:             list[str]
+    failure_classification: str = "unknown"
+    confidence:         float = 0.0
+    recommended_action: str = "ask_human_triage"
+    auto_fix_allowed:   bool = False
+    integrity_notes:    list[str] = field(default_factory=list)
     jira_key:           str | None = None
     created_at:         datetime = field(default_factory=datetime.now)
 
@@ -156,6 +170,14 @@ class DebugAgent:
             elif any(k in _name for k in ["smoke", "login", "auth"]):
                 _sev = "P1"
 
+        failure_classification = data.get("failure_classification", "unknown")
+        confidence = float(data.get("confidence", 0.0) or 0.0)
+        auto_fix_allowed = bool(data.get("auto_fix_allowed", False))
+        if failure_classification not in {"test_bug", "locator_issue", "flaky_sync"}:
+            auto_fix_allowed = False
+        if confidence < 0.8:
+            auto_fix_allowed = False
+
         report = BugReport(
             root_cause=data.get("root_cause", "Unknown"),
             bug_type=data.get("bug_type", "ui_bug"),
@@ -172,6 +194,11 @@ class DebugAgent:
             suggested_fix=data.get("suggested_fix", ""),
             needs_dev_attention=data.get("needs_dev_attention", True),
             labels=data.get("labels", ["ai-detected", "qa-automation"]),
+            failure_classification=failure_classification,
+            confidence=confidence,
+            recommended_action=data.get("recommended_action", "ask_human_triage"),
+            auto_fix_allowed=auto_fix_allowed,
+            integrity_notes=data.get("integrity_notes", []) or [],
         )
 
         logger.info(

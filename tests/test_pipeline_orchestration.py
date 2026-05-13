@@ -519,7 +519,41 @@ def test_testcase_export_uses_approved_testcase_output(monkeypatch, tmp_path):
         "excel": str(excel_path),
     }
     assert calls == [output]
-    assert pipeline.route_after_testcase_export(state) == "codegen"
+    assert pipeline.route_after_testcase_export(state) == "automation_readiness_gate"
+
+
+def test_automation_readiness_blocks_codegen_without_execution_evidence():
+    state = pipeline.node_automation_readiness({
+        "feature": "Profile Posts Tab Android",
+        "platforms": ["android"],
+        "testcase_exports": {"csv": "reports/test.csv"},
+    })
+
+    assert state["automation_readiness"]["status"] == "blocked"
+    assert state["automation_readiness"]["codegen_allowed"] is False
+    assert state["generated_files"] == {}
+    assert state["error"]["phase"] == "automation_readiness"
+    assert pipeline.route_after_automation_readiness(state) == "report"
+
+
+def test_automation_readiness_allows_codegen_with_execution_evidence():
+    state = pipeline.node_automation_readiness({
+        "feature": "Profile Posts Tab Android",
+        "platforms": ["android"],
+        "testcase_exports": {"csv": "reports/test.csv"},
+        "automation_evidence": {
+            "android": {
+                "flow_steps": ["Open profile", "Tap Posts tab"],
+                "accessibility_ids": ["Profile", "Posts"],
+                "test_data": {"user": "synthetic approved user"},
+            }
+        },
+    })
+
+    assert state["automation_readiness"]["status"] == "ready"
+    assert state["automation_readiness"]["codegen_allowed"] is True
+    assert state["error"] is None
+    assert pipeline.route_after_automation_readiness(state) == "codegen"
 
 
 def test_execute_reads_generated_file_dict_values(monkeypatch, tmp_path):
