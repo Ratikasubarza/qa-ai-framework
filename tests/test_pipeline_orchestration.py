@@ -198,6 +198,21 @@ def test_source_intake_blocks_when_prd_url_unreadable_without_manual_fallback(mo
     assert pipeline.route_after_source_intake(state) == "report"
 
 
+def test_source_intake_ignores_placeholder_prd_url():
+    state = pipeline.node_source_intake({
+        "feature": "Post Management",
+        "platforms": ["android"],
+        "story_text": "Focus only Android Posts tab behavior.",
+        "prd_url": "...",
+    })
+
+    bundle = state["source_bundle"]
+    assert state["error"] is None
+    assert bundle["prd_source"] == {}
+    assert bundle["intake_quality"]["has_prd_url"] is False
+    assert not any(ref["type"] == "confluence" for ref in bundle["source_refs"])
+
+
 def test_build_pipeline_compiles_without_state_key_node_collisions():
     compiled = pipeline.build_pipeline()
     assert compiled is not None

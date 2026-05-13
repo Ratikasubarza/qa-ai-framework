@@ -39,6 +39,58 @@ PROMPT_VERSION = "2.0.0"
 MAX_AC_PER_BATCH = 8
 
 
+def _extract_json_object(raw: str) -> str:
+    json_start = raw.find("{")
+    json_end = raw.rfind("}")
+    if json_start != -1 and json_end != -1 and json_end > json_start:
+        return raw[json_start:json_end + 1].strip()
+    if json_start != -1:
+        return raw[json_start:].strip()
+    return raw.strip()
+
+
+def _salvage_scenarios_from_truncated_json(raw: str, feature: str) -> dict:
+    scenarios_key = re.search(r'"(?:scenarios|test_cases|cases|testcases)"\s*:\s*\[', raw)
+    if not scenarios_key:
+        return {
+            "feature": feature,
+            "scenarios": [],
+            "coverage_summary": "JSON truncated — retry",
+        }
+
+    decoder = json.JSONDecoder()
+    index = scenarios_key.end()
+    scenarios = []
+
+    while index < len(raw):
+        while index < len(raw) and raw[index] in " \n\r\t,":
+            index += 1
+        if index >= len(raw) or raw[index] == "]":
+            break
+        if raw[index] != "{":
+            index += 1
+            continue
+
+        try:
+            scenario, next_index = decoder.raw_decode(raw, index)
+        except json.JSONDecodeError:
+            break
+        if isinstance(scenario, dict):
+            scenarios.append(scenario)
+        index = next_index
+
+    return {
+        "feature": feature,
+        "scenarios": scenarios,
+        "coverage_summary": (
+            "Recovered complete scenarios from truncated JSON."
+            if scenarios
+            else "JSON truncated — retry"
+        ),
+        "parse_warnings": ["json_truncated"],
+    }
+
+
 class TestCaseAgent:
     def __init__(self):
         self.breaker = get_breaker(AGENT_NAME)
@@ -222,11 +274,7 @@ class TestCaseAgent:
         raw = raw_json.strip()
         raw = re.sub(r"^```(?:json)?", "", raw).strip()
         raw = re.sub(r"```$", "", raw).strip()
-        json_start = raw.find("{")
-        json_end = raw.rfind("}")
-        if json_start != -1 and json_end != -1 and json_end > json_start:
-            raw = raw[json_start:json_end + 1]
-        raw = raw.strip()
+        raw = _extract_json_object(raw)
 
         try:
             data = json.loads(raw)
@@ -240,9 +288,9 @@ class TestCaseAgent:
                     data = json.loads(raw)
                 except json.JSONDecodeError:
                     logger.warning("test_case_parse_salvage_failed", raw_preview=raw[:500])
-                    data = {"feature": input_data.feature, "scenarios": [], "coverage_summary": "JSON truncated — retry"}
+                    data = _salvage_scenarios_from_truncated_json(raw, input_data.feature)
             else:
-                data = {"feature": input_data.feature, "scenarios": [], "coverage_summary": "JSON truncated — retry"}
+                data = _salvage_scenarios_from_truncated_json(raw, input_data.feature)
 
         scenario_items = (
             data.get("scenarios")

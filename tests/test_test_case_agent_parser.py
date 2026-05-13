@@ -118,6 +118,50 @@ def test_parse_output_marks_regression_candidates_with_risk_area():
     assert scenario.regression_risk_area == ["profile media grid"]
 
 
+def test_parse_output_recovers_complete_scenarios_from_truncated_json():
+    agent = TestCaseAgent()
+    input_data = TestCaseAgentInput(
+        feature="Post Management",
+        description="Posts tab pagination.",
+        platforms=[Platform.ANDROID],
+        acceptance_criteria=["Posts tab loads paginated results."],
+    )
+    raw = """
+    {
+      "feature": "Post Management",
+      "scenarios": [
+        {
+          "case_id": "TC-001",
+          "title": "Load first page",
+          "preconditions": "User is logged in.",
+          "steps": "Given user opens Posts tab\\nWhen first page loads\\nThen posts are visible",
+          "expected_result": "First page is displayed.",
+          "priority": "P1",
+          "platform": "android"
+        },
+        {
+          "case_id": "TC-002",
+          "title": "Load next page",
+          "preconditions": "User is logged in.",
+          "steps": "Given user is on Posts tab\\nWhen user scrolls near bottom\\nThen more posts load",
+          "expected_result": "Next page is appended.",
+          "priority": "P1",
+          "platform": "android"
+        },
+        {
+          "case_id": "TC-003",
+          "title": "Incomplete final case",
+          "preconditions": "User is logged in.",
+          "steps": "Given
+    """
+
+    output = agent._parse_output(raw, input_data, "fake-model")
+
+    assert output.total_scenarios == 2
+    assert [scenario.scenario_id for scenario in output.scenarios] == ["TC-001", "TC-002"]
+    assert output.coverage_summary == "Recovered complete scenarios from truncated JSON."
+
+
 def test_chunked_generation_merges_and_renumbers_scenarios(monkeypatch):
     agent = TestCaseAgent()
     input_data = TestCaseAgentInput(

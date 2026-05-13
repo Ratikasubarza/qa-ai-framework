@@ -170,6 +170,11 @@ def _format_jira_issue_context(issue: dict, include_subtasks: bool = False) -> s
     return "\n".join(str(line) for line in lines if line is not None).strip()
 
 
+def _is_placeholder_url(value: str) -> bool:
+    normalized = value.strip().lower()
+    return normalized in {"", "...", "…", "n/a", "na", "none", "null", "-"}
+
+
 # ── Node: Source Intake ─────────────────────────────────────────────────────
 def node_source_intake(state: AgentState) -> AgentState:
     logger.info("node_start", node="source_intake", feature=state.get("feature"))
@@ -183,11 +188,12 @@ def node_source_intake(state: AgentState) -> AgentState:
     jira_source: dict[str, Any] = {}
     intake_error: dict[str, Any] | None = None
     context_parts: list[str] = []
+    should_fetch_prd = bool(prd_url) and not _is_placeholder_url(prd_url)
 
     source_refs = []
     if ticket_id:
         source_refs.append({"type": "jira", "ref": ticket_id})
-    if prd_url:
+    if should_fetch_prd:
         source_refs.append({"type": "confluence", "ref": prd_url})
     if story_text:
         source_refs.append({"type": "manual_story", "ref": "story_text"})
@@ -230,7 +236,10 @@ def node_source_intake(state: AgentState) -> AgentState:
                 "error": str(e),
             }
 
-    if prd_url:
+    if prd_url and not should_fetch_prd:
+        logger.warning("prd_url_placeholder_ignored", prd_url=prd_url)
+
+    if should_fetch_prd:
         try:
             from mcp_tools.confluence_client.confluence_client import confluence_client
 
@@ -290,7 +299,7 @@ def node_source_intake(state: AgentState) -> AgentState:
             "jira_fetched": bool(jira_source.get("fetched")),
             "subtasks_included": include_subtasks,
             "has_prd_content": bool(story_text.strip()),
-            "has_prd_url": bool(prd_url),
+            "has_prd_url": should_fetch_prd,
             "prd_fetched": bool(prd_source.get("fetched")),
             "has_feature_url": bool(feature_url),
         },

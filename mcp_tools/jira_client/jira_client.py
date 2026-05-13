@@ -333,8 +333,6 @@ class JiraClient:
             comment += f"\nRun: {run_url}"
         return self.add_comment(issue_key, comment)
 
-
-jira_client = JiraClient()
     def create_qa_subtask(self, parent_key: str, test_cases: list,
                           feature: str, assignee_email: str = None) -> str:
         """
@@ -402,3 +400,6 @@ jira_client = JiraClient()
         else:
             logger.error("qa_subtask_failed", status=r.status_code, response=r.text[:200])
             return ""
+
+
+jira_client = JiraClient()
