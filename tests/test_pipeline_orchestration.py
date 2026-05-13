@@ -319,3 +319,28 @@ def test_report_handles_string_error_payload(monkeypatch):
 
     assert state["current_phase"] == "report"
     assert state["notifications"][-1]["status"] == "FAILED"
+
+
+def test_report_uses_case_review_coverage_when_skill_gap_did_not_run(monkeypatch):
+    messages = []
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("TELEGRAM_QA_OPS_CHAT_ID", "chat")
+
+    def fake_post(url, json, timeout):
+        messages.append(json["text"])
+
+    monkeypatch.setattr(pipeline.httpx, "post", fake_post)
+
+    state = pipeline.node_report({
+        "feature": "Post Management",
+        "coverage_percentage": None,
+        "case_review": {
+            "status": "needs_revision",
+            "coverage_percentage": 72.5,
+            "findings": {"critical": 1, "major": 2, "minor": 3},
+        },
+        "error": {"phase": "case_review", "message": "Needs revision"},
+    })
+
+    assert state["notifications"][-1]["status"] == "FAILED"
+    assert "*Coverage:* 72%" in messages[0]

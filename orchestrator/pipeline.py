@@ -624,7 +624,12 @@ def node_report(state: AgentState) -> AgentState:
     test_cases = state.get("test_cases") or []
     testcase_exports = state.get("testcase_exports") or {}
     generated_files = state.get("generated_files") or {}
-    coverage = _as_float(state.get("coverage_percentage"), 0.0)
+    coverage = _as_float(
+        state.get("coverage_percentage")
+        if state.get("coverage_percentage") is not None
+        else case_review.get("coverage_percentage"),
+        0.0,
+    )
     status = "PASSED" if not failures and not state.get("error") else "FAILED"
 
     bug_lines = "\n".join(f"  - [{b['severity']}] {b['title'][:60]}" for b in bugs[:5])

@@ -400,13 +400,37 @@ async def cmd_pipeline(args):
     )
 
     console.print(f"\n[bold]Pipeline Complete[/]")
+    case_review = final.get("case_review") or {}
     try:
-        coverage = float(final.get("coverage_percentage") or 0.0)
+        coverage = float(
+            final.get("coverage_percentage")
+            if final.get("coverage_percentage") is not None
+            else case_review.get("coverage_percentage") or 0.0
+        )
     except (TypeError, ValueError):
         coverage = 0.0
     console.print(f"  Coverage:   [cyan]{coverage:.0f}%[/]")
     console.print(f"  Test cases: {len(final.get('test_cases') or [])}")
-    console.print(f"  Case review: {final.get('case_review', {}).get('status', 'N/A')}")
+    console.print(f"  Case review: {case_review.get('status', 'N/A')}")
+    if case_review:
+        findings = case_review.get("findings") or {}
+        console.print(f"  Review score: [cyan]{case_review.get('quality_score', 'N/A')}[/]")
+        console.print(
+            "  Findings:    "
+            f"critical={findings.get('critical', 'N/A')}, "
+            f"major={findings.get('major', 'N/A')}, "
+            f"minor={findings.get('minor', 'N/A')}"
+        )
+        missing_cases = case_review.get("missing_test_cases") or []
+        if missing_cases:
+            console.print("  Missing cases:")
+            for item in missing_cases[:5]:
+                console.print(f"    - {str(item)[:120]}")
+        clarifications = case_review.get("prd_clarifications") or []
+        if clarifications:
+            console.print("  PRD clarifications:")
+            for item in clarifications[:3]:
+                console.print(f"    - {str(item)[:120]}")
     console.print(f"  Bugs found: {len(final.get('bug_reports') or [])}")
     console.print(f"  Gaps:       {len(final.get('coverage_gaps') or [])}")
     if final.get('testcase_exports'):
