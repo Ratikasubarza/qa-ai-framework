@@ -92,6 +92,10 @@ around the QA pipeline. This framework should implement that guidance with local
 Python adapters and existing project conventions, not by forcing credentialed
 external links or MCP servers during local runs.
 
+Team-facing agent and MCP setup is documented in `docs/mcp_setup.md`. Manual AI
+IDE profiles live in `.github/agents/`; runtime orchestration remains in
+`orchestrator/pipeline.py`.
+
 Target end-to-end operating model:
 
 ```text
