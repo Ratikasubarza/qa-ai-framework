@@ -23,6 +23,7 @@ import httpx
 import structlog
 
 from core.agent_state import AgentState
+from core.case_review import normalize_review_scope
 from core.source_intake import build_source_intake_state
 
 logger = structlog.get_logger(__name__)
@@ -255,33 +256,46 @@ def node_case_review(state: AgentState) -> AgentState:
 
         source_bundle = state.get("source_bundle") or {}
         prd_content = source_bundle.get("prd_content") or state.get("story_text", "")
+        platforms = state.get("platforms") or source_bundle.get("platforms") or ["web"]
         report = reviewer_agent.review(
             prd_content=prd_content,
             test_cases_json=test_cases,
             feature=state.get("feature", "Feature"),
+            target_platforms=platforms,
         )
 
         quality_score, raw_quality_score = _normalize_review_score(
             report.overall_quality_score
         )
+        scope_review = normalize_review_scope(
+            missing_test_cases=report.missing_test_cases,
+            detailed_findings=report.detailed_findings,
+            target_platforms=platforms,
+        )
+        scope_summary = scope_review["summary"]
         review = {
             "status": "passed",
             "quality_score": quality_score,
             "quality_score_raw": raw_quality_score,
             "coverage_percentage": report.coverage_percentage,
+            "target_platforms": platforms,
             "findings": {
                 "critical": report.findings_critical,
                 "major": report.findings_major,
                 "minor": report.findings_minor,
             },
-            "missing_test_cases": report.missing_test_cases,
+            "scope_summary": scope_summary,
+            "missing_test_cases": scope_review["missing_test_cases"],
+            "detailed_findings": scope_review["detailed_findings"],
             "prd_clarifications": report.prd_clarifications,
             "recommendation": report.recommendation,
             "traceability_matrix": report.traceability_matrix,
         }
 
         if (
-            report.findings_critical > 0
+            scope_summary["blocking_critical_count"] > 0
+            or scope_summary["blocking_missing_count"] > 0
+            or scope_summary["security_blocker_count"] > 0
             or quality_score < CASE_REVIEW_MIN_SCORE
         ):
             review["status"] = "needs_revision"
@@ -296,7 +310,9 @@ def node_case_review(state: AgentState) -> AgentState:
                     "message": (
                         "AI case review did not pass quality gate: "
                         f"score={quality_score}, "
-                        f"critical={report.findings_critical}"
+                        f"blocking_critical={scope_summary['blocking_critical_count']}, "
+                        f"blocking_missing={scope_summary['blocking_missing_count']}, "
+                        f"security_blockers={scope_summary['security_blocker_count']}"
                     ),
                 },
             }

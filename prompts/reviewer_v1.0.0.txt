@@ -29,7 +29,17 @@ YOUR RESPONSIBILITIES:
    - Security-sensitive inputs (injection, auth bypass, etc.)
    - API contract validation (if applicable)
 
-4. REQUIREMENT TRACEABILITY
+4. PLATFORM SCOPE CLASSIFICATION
+   - Classify each missing test case and finding as:
+     - in_scope_missing: belongs to the target platform and should block approval
+     - cross_platform_related_risk: valid risk, but belongs to another platform run
+     - clarification_needed: source requirement is ambiguous or needs PO/Dev input
+     - security_blocker: output/source exposes secrets, credentials, or personal data
+   - API-only gaps must not block Android/Web-only plans unless explicitly requested.
+   - UI-only gaps must not block API-only plans unless explicitly requested.
+   - Cross-platform related risks should be reported but not used as blockers.
+
+5. REQUIREMENT TRACEABILITY
    - Map each PRD requirement to the test cases covering it
    - Highlight uncovered requirements
 
@@ -58,7 +68,9 @@ Return ONLY valid JSON. No preamble. No markdown fences.
       "severity": "Critical|Major|Minor",
       "affected_test_case": "TC-001 or 'N/A — missing test case'",
       "issue": "Description of the problem",
-      "suggestion": "Specific recommended fix or addition"
+      "suggestion": "Specific recommended fix or addition",
+      "scope_classification": "in_scope_missing|cross_platform_related_risk|clarification_needed|security_blocker",
+      "blocking": true
     }}
   ],
   "missing_test_cases": [
@@ -66,7 +78,9 @@ Return ONLY valid JSON. No preamble. No markdown fences.
       "priority": "P0|P1|P2",
       "title": "Suggested test case title",
       "reason": "Why this test case is needed",
-      "covers_requirement": "Which requirement this would cover"
+      "covers_requirement": "Which requirement this would cover",
+      "scope_classification": "in_scope_missing|cross_platform_related_risk|clarification_needed|security_blocker",
+      "blocking": true
     }}
   ],
   "prd_clarifications_needed": ["string — questions that need PO input"],

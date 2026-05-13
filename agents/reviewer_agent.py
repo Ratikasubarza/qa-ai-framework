@@ -51,6 +51,7 @@ class ReviewerAgent:
         test_cases_path: str | None = None,
         test_cases_json: list | None = None,
         feature:       str = "Feature",
+        target_platforms: list[str] | None = None,
     ) -> ReviewReport:
         """
         Review test cases against PRD.
@@ -76,6 +77,16 @@ class ReviewerAgent:
             prd_content=clean_prd.content,
             test_cases=clean_tc.content,
         )
+        platforms_text = ", ".join(target_platforms or [])
+        if platforms_text:
+            system += (
+                "\n\nTARGET PLATFORM SCOPE:\n"
+                f"{platforms_text}\n"
+                "Classify missing cases/findings as one of: "
+                "in_scope_missing, cross_platform_related_risk, "
+                "clarification_needed, security_blocker. "
+                "Only in_scope_missing and security_blocker should block this platform's plan."
+            )
 
         # ── LLM call ──────────────────────────────────────────
         def _call():

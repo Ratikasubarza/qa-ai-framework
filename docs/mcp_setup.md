@@ -106,6 +106,13 @@ For parent tickets with BE, FE, and Mobile subtasks:
 If no platform-specific subtask can be detected, the pipeline keeps all subtasks
 as fallback context.
 
+The case-review gate is also platform-aware. Missing cases and findings are
+classified as:
+- `in_scope_missing`: blocks the current platform plan
+- `cross_platform_related_risk`: reported, but does not block this platform
+- `clarification_needed`: reported for PO/Dev follow-up
+- `security_blocker`: always blocks until redacted or removed
+
 ## When To Start External MCP
 
 Start or configure external MCP when:

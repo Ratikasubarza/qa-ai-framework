@@ -317,14 +317,15 @@ def test_case_review_quality_gate_passes(monkeypatch):
     calls = []
 
     class FakeReviewer:
-        def review(self, prd_content, test_cases_json, feature):
-            calls.append((prd_content, test_cases_json, feature))
+        def review(self, prd_content, test_cases_json, feature, target_platforms=None):
+            calls.append((prd_content, test_cases_json, feature, target_platforms))
             return SimpleNamespace(
                 overall_quality_score=8.5,
                 coverage_percentage=90.0,
                 findings_critical=0,
                 findings_major=1,
                 findings_minor=2,
+                detailed_findings=[],
                 missing_test_cases=[],
                 prd_clarifications=[],
                 recommendation="approve",
@@ -348,19 +349,21 @@ def test_case_review_quality_gate_passes(monkeypatch):
             "Users can log in.",
             [{"scenario_id": "TC-001", "name": "Valid login"}],
             "Login",
+            ["web"],
         )
     ]
 
 
 def test_case_review_quality_gate_blocks_low_score(monkeypatch):
     class FakeReviewer:
-        def review(self, prd_content, test_cases_json, feature):
+        def review(self, prd_content, test_cases_json, feature, target_platforms=None):
             return SimpleNamespace(
                 overall_quality_score=5.5,
                 coverage_percentage=60.0,
                 findings_critical=1,
                 findings_major=2,
                 findings_minor=0,
+                detailed_findings=[{"severity": "Critical", "issue": "Missing invalid password test"}],
                 missing_test_cases=["Missing invalid password test"],
                 prd_clarifications=[],
                 recommendation="revise",
@@ -381,15 +384,58 @@ def test_case_review_quality_gate_blocks_low_score(monkeypatch):
     assert pipeline.route_after_case_review(state) == "report"
 
 
+def test_case_review_does_not_block_android_plan_for_api_only_critical(monkeypatch):
+    class FakeReviewer:
+        def review(self, prd_content, test_cases_json, feature, target_platforms=None):
+            assert target_platforms == ["android"]
+            return SimpleNamespace(
+                overall_quality_score=8.0,
+                coverage_percentage=88.0,
+                findings_critical=1,
+                findings_major=0,
+                findings_minor=0,
+                missing_test_cases=[{
+                    "priority": "P0",
+                    "title": "Verify API payload excludes muted user IDs",
+                    "reason": "Backend API contract should filter muted users.",
+                }],
+                prd_clarifications=[],
+                recommendation="revise",
+                traceability_matrix=[],
+                detailed_findings=[{
+                    "severity": "Critical",
+                    "issue": "API response body schema coverage is missing.",
+                }],
+            )
+
+    fake_module = SimpleNamespace(reviewer_agent=FakeReviewer())
+    monkeypatch.setitem(sys.modules, "agents.reviewer_agent", fake_module)
+
+    state = pipeline.node_case_review({
+        "feature": "Profile Posts Tab Android",
+        "platforms": ["android"],
+        "source_bundle": {"prd_content": "Android Posts tab behavior."},
+        "test_cases": [{"scenario_id": "TC-001", "name": "Open Posts tab"}],
+    })
+
+    assert state["case_review"]["status"] == "passed"
+    assert state["case_review"]["scope_summary"]["blocking_critical_count"] == 0
+    assert state["case_review"]["scope_summary"]["blocking_missing_count"] == 0
+    assert state["case_review"]["scope_summary"]["cross_platform_risk_count"] == 2
+    assert state["case_review"]["missing_test_cases"][0]["blocking"] is False
+    assert pipeline.route_after_case_review(state) == "approval_gate"
+
+
 def test_case_review_normalizes_0_to_100_score_and_exports_draft(monkeypatch, tmp_path):
     class FakeReviewer:
-        def review(self, prd_content, test_cases_json, feature):
+        def review(self, prd_content, test_cases_json, feature, target_platforms=None):
             return SimpleNamespace(
                 overall_quality_score=71,
                 coverage_percentage=68.0,
                 findings_critical=1,
                 findings_major=2,
                 findings_minor=3,
+                detailed_findings=[{"severity": "Critical", "issue": "Missing search block"}],
                 missing_test_cases=[{"priority": "P0", "title": "Missing search block"}],
                 prd_clarifications=[],
                 recommendation="revise",

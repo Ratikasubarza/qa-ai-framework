@@ -35,6 +35,20 @@ core/source_intake/
 `orchestrator/pipeline.py` remains responsible for graph flow and calls source
 intake as a contract boundary.
 
+Case review uses a dedicated scope classifier:
+
+```text
+core/case_review/
+  scope.py  # in-scope vs cross-platform risk vs clarification vs security blocker
+```
+
+Review gate rule:
+- block on in-scope missing cases
+- block on in-scope critical findings
+- block on security blockers
+- block on quality score below threshold
+- report cross-platform related risks without failing the current platform plan
+
 ## Team Operating Model
 
 | Role | Owns | Uses |
