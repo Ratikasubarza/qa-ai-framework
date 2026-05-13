@@ -23,6 +23,18 @@ Recommended layers:
 Hard rule: agents do not call each other to recreate upstream artifacts inside
 the full pipeline. They receive approved state from the orchestrator.
 
+Source intake is implemented as a dedicated module, not embedded in the graph:
+
+```text
+core/source_intake/
+  intake.py          # normalize Jira, Confluence, manual story, and URL inputs
+  subtask_filter.py  # platform-aware BE/FE/Mobile subtask selection
+  security.py        # redaction before source text is sent to LLM agents
+```
+
+`orchestrator/pipeline.py` remains responsible for graph flow and calls source
+intake as a contract boundary.
+
 ## Team Operating Model
 
 | Role | Owns | Uses |
