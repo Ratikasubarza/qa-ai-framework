@@ -130,3 +130,99 @@ The CLI pipeline already uses the Python adapters in `mcp_tools/`.
 - Keep generated official exports separate from drafts:
   - drafts: `reports/drafts/`
   - approved exports: generated after case review and approval pass
+
+## Internal Data Security Criteria
+
+AI agents may read internal Jira, Confluence, PRD, API, and subtask context only
+to produce QA artifacts for this repository. Treat all credentialed source data
+as internal by default.
+
+### Data Classification
+
+| Class | Examples | Allowed In Outputs |
+| --- | --- | --- |
+| Public | public docs, public package names, public API standards | yes |
+| Internal | Jira summaries, PRD behavior, acceptance criteria, non-secret API contracts | yes, summarized and scoped |
+| Confidential | unreleased roadmap, partner/customer names, internal URLs, private architecture notes | only if required, minimized |
+| Secret | tokens, passwords, cookies, API keys, auth headers, private certs, DB credentials | never |
+| Personal Data | emails, phone numbers, names tied to users, screenshots with identifiable data | avoid; redact unless explicitly required for a test |
+
+### Do
+
+- Use the current user's authorized Jira/Confluence access only.
+- Fetch only the ticket, PRD, subtask, or URL required for the current task.
+- Prefer summaries over copying full internal documents into prompts or outputs.
+- Keep test cases focused on behavior, not secret implementation detail.
+- Redact tokens, cookies, auth headers, passwords, personal emails, private IDs,
+  and raw customer/user data.
+- Use synthetic test data in generated cases and automation.
+- Store credentials only in `.env`, local keychains, or the IDE MCP credential
+  store.
+- Mention internal API contracts at the level needed for QA, such as endpoint,
+  method, expected schema shape, status code, and validation behavior.
+- Record source references by key or title, for example `HM-516` or PRD title,
+  instead of pasting entire confidential source text into reports.
+
+### Don't
+
+- Do not paste Atlassian API tokens, cookies, bearer tokens, session IDs, DB
+  passwords, or `.env` contents into prompts, agent files, reports, screenshots,
+  CSV, Excel, logs, or commits.
+- Do not fetch or summarize unrelated tickets, PRDs, users, customer records, or
+  private pages outside the requested scope.
+- Do not bypass permissions, use another person's credentials, or force-open
+  credentialed resources the current user cannot access.
+- Do not include raw internal implementation notes in public-facing artifacts.
+- Do not generate test data using real users, real customer names, real phone
+  numbers, real emails, or production identifiers.
+- Do not expose full request/response bodies when they contain secrets or
+  personal data. Keep only the fields needed for QA validation.
+- Do not commit generated reports if they contain confidential source text,
+  screenshots, tokens, or personal data.
+- Do not ask an external model or external MCP to process data that violates the
+  team's access or retention policy.
+
+### API/Subtask Handling
+
+When fetching API subtasks:
+- include endpoint names, methods, schema expectations, validation rules, and
+  status codes when they are needed for tests
+- omit credentials, auth token values, private headers, database credentials,
+  raw production payloads, and internal-only operational notes
+- convert examples into synthetic payloads before writing test cases
+- separate API-only risks from Android/Web UI test plans
+
+Example safe output:
+
+```text
+Validate POST /posts rejects an empty content field with 400 and a structured
+validation error.
+```
+
+Unsafe output:
+
+```text
+Use Bearer eyJ... from the Jira comment and call the staging endpoint with the
+real user email shown in the screenshot.
+```
+
+### Agent Stop Conditions
+
+An agent must stop and ask for human review when:
+- a source contains tokens, cookies, private keys, DB credentials, or production
+  personal data
+- the requested artifact requires data outside the current user's permission
+- the output would need to include confidential implementation details not
+  required for QA validation
+- a screenshot or attachment contains visible personal or customer data
+
+### Review Checklist Before Commit or Share
+
+- [ ] No `.env` content
+- [ ] No access tokens, cookies, passwords, or API keys
+- [ ] No real customer/user personal data
+- [ ] No unrelated Jira/Confluence content
+- [ ] No full confidential PRD pasted into generated artifacts
+- [ ] Synthetic test data only
+- [ ] Source references are traceable but minimal
+- [ ] Draft artifacts with sensitive content stay local

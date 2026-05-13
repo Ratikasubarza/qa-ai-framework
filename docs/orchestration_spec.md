@@ -96,6 +96,11 @@ Team-facing agent and MCP setup is documented in `docs/mcp_setup.md`. Manual AI
 IDE profiles live in `.github/agents/`; runtime orchestration remains in
 `orchestrator/pipeline.py`.
 
+Security rule: credentialed Jira, Confluence, PRD, API subtask, screenshot, and
+implementation data is internal by default. Agents must minimize fetched scope,
+redact secrets/personal data, and use synthetic test data in generated QA
+artifacts. See `docs/mcp_setup.md` for the full Do/Don't criteria.
+
 Target end-to-end operating model:
 
 ```text

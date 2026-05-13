@@ -68,6 +68,10 @@ Do not duplicate existing utilities.
 - Never hardcode credentials.
 - Never hardcode app URLs; use config.
 - Do not commit `.env`.
+- Never paste tokens, cookies, auth headers, DB credentials, or private keys into tests, logs, reports, or comments.
+- Use synthetic test users and payloads instead of real customer/user data.
+- Redact personal data from screenshots, logs, and generated artifacts.
+- Keep internal API implementation notes out of public or shareable outputs unless they are required for QA validation.
 - Keep generated tests platform-specific.
 - Do not mix API assertions into UI tests unless they are explicitly part of the test design.
 - Keep generated automation readable for future QA engineers.

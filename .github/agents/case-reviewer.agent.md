@@ -28,6 +28,22 @@ Before reviewing, confirm you have:
 
 If the platform is missing, infer it from the request only when obvious. Otherwise ask for clarification.
 
+## Internal Data Security
+
+Treat Jira, Confluence, PRD, API subtasks, screenshots, and generated test cases as internal by default.
+
+Do:
+- check whether generated cases expose tokens, cookies, credentials, raw private payloads, or personal data
+- recommend redaction when source details are too sensitive for CSV/Excel/report output
+- allow endpoint names, methods, schema shape, status code, and validation behavior when needed for QA
+- require synthetic test data instead of real users, customers, emails, phone numbers, or production IDs
+
+Don't:
+- approve a test plan containing secrets, `.env` values, bearer tokens, cookies, passwords, or DB credentials
+- approve unrelated Jira/Confluence content copied into artifacts
+- approve full confidential PRD text pasted into a report when a source reference is enough
+- treat cross-platform internal API risks as blockers for Android/Web-only plans unless explicitly in scope
+
 ## Review Rules
 
 Evaluate:

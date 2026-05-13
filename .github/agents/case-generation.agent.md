@@ -34,6 +34,26 @@ Use the requested platform as the primary scope:
 
 When a parent Jira ticket has BE, FE, and Mobile subtasks, include only the subtasks relevant to the requested platform. Mention excluded subtasks as related risks only when they affect this platform.
 
+## Internal Data Security
+
+Treat Jira, Confluence, API subtasks, screenshots, and implementation notes as internal by default.
+
+Do:
+- use only source data the current user is authorized to access
+- fetch only the requested ticket, PRD, subtask, or feature URL
+- summarize internal requirements instead of copying whole documents
+- turn API examples into synthetic test data
+- redact tokens, cookies, passwords, auth headers, private IDs, emails, phone numbers, and personal data
+
+Don't:
+- expose `.env`, API tokens, bearer tokens, cookies, DB credentials, or passwords
+- use real customer/user data in generated test cases
+- fetch unrelated internal pages or tickets
+- include raw confidential implementation notes unless required for QA validation
+- mix API secrets or private payloads into CSV/Excel-ready output
+
+If a source contains secrets or personal data, stop and ask for human review before generating output.
+
 ## Regression Policy
 
 Do not label new-feature scenarios as regression by default.
