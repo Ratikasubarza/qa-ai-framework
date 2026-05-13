@@ -503,7 +503,11 @@ def node_codegen(state: AgentState) -> AgentState:
             output = TestCaseAgentOutput.model_validate(output)
 
         platforms = [Platform(p) for p in (state.get("platforms") or ["web"])]
-        saved = code_generator_agent.run(output, platforms[0])
+        saved = code_generator_agent.run(
+            output,
+            platforms[0],
+            automation_evidence=state.get("automation_evidence") or {},
+        )
 
         return {
             **state,

@@ -472,8 +472,8 @@ def test_codegen_uses_existing_testcase_output(monkeypatch):
     calls = []
 
     class FakeCodeGenerator:
-        def run(self, testcase_output, platform):
-            calls.append((testcase_output, platform))
+        def run(self, testcase_output, platform, automation_evidence=None):
+            calls.append((testcase_output, platform, automation_evidence))
             return {"features/login/test_login.py": "/tmp/test_login.py"}
 
     fake_module = SimpleNamespace(
@@ -491,7 +491,7 @@ def test_codegen_uses_existing_testcase_output(monkeypatch):
     assert state["generated_files"] == {
         "features/login/test_login.py": "/tmp/test_login.py"
     }
-    assert calls == [(output, Platform.WEB)]
+    assert calls == [(output, Platform.WEB, {})]
 
 
 def test_testcase_export_uses_approved_testcase_output(monkeypatch, tmp_path):

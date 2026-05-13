@@ -1,6 +1,7 @@
 """
 Self Healer — orchestrates locator healing pipeline.
 """
+import ast
 import re
 import shutil
 import structlog
@@ -102,10 +103,65 @@ class SelfHealer:
             return f'[data-testid="{m.group(1)}"]'
         return locator
 
+    def _resolve_playwright_locator(self, page: Page, locator: str):
+        """
+        Resolve a limited set of Playwright locator expressions without eval.
+
+        The locator agent may suggest strings like
+        page.get_by_role("button", name="Continue"). We parse only known
+        get_by_* calls and reject anything else so LLM output cannot execute
+        arbitrary Python.
+        """
+        match = re.fullmatch(r"page\.(get_by_[a-z_]+)\((.*)\)", locator.strip())
+        if not match:
+            return None
+
+        method_name, args_source = match.groups()
+        allowed_methods = {
+            "get_by_alt_text",
+            "get_by_label",
+            "get_by_placeholder",
+            "get_by_role",
+            "get_by_test_id",
+            "get_by_text",
+            "get_by_title",
+        }
+        if method_name not in allowed_methods or not hasattr(page, method_name):
+            return None
+
+        try:
+            parsed = ast.parse(f"f({args_source})", mode="eval")
+        except SyntaxError:
+            return None
+
+        call = parsed.body
+        if not isinstance(call, ast.Call):
+            return None
+
+        args = []
+        kwargs = {}
+        allowed_kwarg_names = {"checked", "disabled", "exact", "expanded", "include_hidden", "level", "name", "pressed", "selected"}
+        for arg in call.args:
+            try:
+                args.append(ast.literal_eval(arg))
+            except (ValueError, SyntaxError):
+                return None
+        for keyword in call.keywords:
+            if keyword.arg not in allowed_kwarg_names:
+                return None
+            try:
+                kwargs[keyword.arg] = ast.literal_eval(keyword.value)
+            except (ValueError, SyntaxError):
+                return None
+
+        return getattr(page, method_name)(*args, **kwargs)
+
     def _try_locator(self, page, locator, timeout=3000):
         try:
             if locator.startswith("page.get_by"):
-                el = eval(locator, {"page": page})
+                el = self._resolve_playwright_locator(page, locator)
+                if el is None:
+                    return False
                 el.wait_for(timeout=timeout)
             elif locator.startswith("[") or locator.startswith("input") or locator.startswith("button"):
                 page.wait_for_selector(locator, timeout=timeout)
@@ -120,7 +176,9 @@ class SelfHealer:
     def _smoke_test(self, page, locator):
         try:
             if locator.startswith("page.get_by"):
-                el = eval(locator, {"page": page})
+                el = self._resolve_playwright_locator(page, locator)
+                if el is None:
+                    return False
                 return el.is_visible()
             elif "=" in locator and not locator.startswith("[") and not locator.startswith("input") and not locator.startswith("button"):
                 return page.is_visible(f"[{locator}]")

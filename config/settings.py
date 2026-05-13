@@ -37,11 +37,11 @@ class Settings(BaseSettings):
     hono_api_url:     str = "https://api-dev.thehono.com"
     hono_web_url:     str = "https://dev.thehono.com"
     hono_cms_url:     str = "https://cms-dev.thehono.com"
-    hono_api_key:     str = "0bfed01c5f99a690dd49a017d88d220c5fa6d2267153911fc4494b7301a340ea"
-    staging_email:    str = "testingHonoB@mailinator.com"
-    staging_password: str = "9E@AyFmy*S!uUW"
-    staging_cms_email: str = "ops@hono.app"
-    staging_cms_password: str = "password"
+    hono_api_key:     str = Field("", description="Hono API key from environment")
+    staging_email:    str = Field("", description="Staging account email from environment")
+    staging_password: str = Field("", description="Staging account password from environment")
+    staging_cms_email: str = Field("", description="CMS account email from environment")
+    staging_cms_password: str = Field("", description="CMS account password from environment")
     chroma_persist_dir: str = "./knowledge_base/vector_store"
 
     @property
@@ -60,12 +60,3 @@ class Settings(BaseSettings):
 
 # Singleton — import this everywhere
 settings = Settings()
-
-
-# Patch untuk tambah API fields ke Settings yang sudah ada
-from pydantic_settings import BaseSettings
-_orig_settings = settings
-
-import os
-from dotenv import load_dotenv
-load_dotenv(dotenv_path='.env')

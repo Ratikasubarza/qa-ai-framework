@@ -2,8 +2,17 @@
 # Sync .env values to GitHub Actions secrets
 # Run: bash ci_cd/sync_secrets.sh
 
-set -e
-source .env
+set -euo pipefail
+
+ENV_FILE="${ENV_FILE:-.env}"
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Missing $ENV_FILE. Create it locally before syncing secrets." >&2
+  exit 1
+fi
+
+set -a
+source "$ENV_FILE"
+set +a
 
 echo "Syncing secrets to GitHub..."
 gh secret set OPENROUTER_API_KEY     --body "$OPENROUTER_API_KEY"
@@ -20,6 +29,14 @@ gh secret set TELEGRAM_QA_LEADS_CHAT_ID  --body "$TELEGRAM_QA_LEADS_CHAT_ID"
 gh secret set TELEGRAM_QA_TEAM_CHAT_ID   --body "$TELEGRAM_QA_TEAM_CHAT_ID"
 gh secret set TELEGRAM_QA_OPS_CHAT_ID    --body "$TELEGRAM_QA_OPS_CHAT_ID"
 gh secret set TELEGRAM_QA_BUGS_CHAT_ID   --body "$TELEGRAM_QA_BUGS_CHAT_ID"
-gh secret set VPN_CONFIG --body "$(cat /Users/ratikasubarza/Documents/VPN/Hono_Ratika_hono-vpn.ovpn)"
+if [[ -n "${VPN_CONFIG_PATH:-}" ]]; then
+  if [[ ! -f "$VPN_CONFIG_PATH" ]]; then
+    echo "VPN_CONFIG_PATH is set but file does not exist: $VPN_CONFIG_PATH" >&2
+    exit 1
+  fi
+  gh secret set VPN_CONFIG --body-file "$VPN_CONFIG_PATH"
+else
+  echo "Skipping VPN_CONFIG. Set VPN_CONFIG_PATH to sync it."
+fi
 
-echo "✓ All secrets synced"
+echo "All configured secrets synced"

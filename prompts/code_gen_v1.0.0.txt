@@ -28,14 +28,16 @@ INSTRUCTIONS:
 10. For login flows: always navigate to base URL first.
 11. Add conftest.py with base_url fixture.
 12. Handle both positive and negative test cases properly.
+13. Use only explicit executable evidence from LOCATORS CONTEXT for locators, selectors, API payloads, routes, assertions, and navigation steps.
+14. If evidence is missing or ambiguous, fail fast with a clear pytest failure message that names the missing evidence. Do not invent a locator, selector, payload, route, or step from naming conventions.
+15. Do not weaken assertions, skip tests, catch-and-ignore failures, or change user steps just to make the test pass.
 
 LOCATOR STRATEGY (priority order):
-1. data-testid attribute: [data-testid="login-button"]
-2. role: page.get_by_role("button", name="Login")
-3. label: page.get_by_label("Email")
-4. placeholder: page.get_by_placeholder("Enter email")
-5. text: page.get_by_text("Login")
-6. CSS/XPath: last resort only
+1. Use validated locators/selectors from LOCATORS CONTEXT first.
+2. data-testid attribute only if present in LOCATORS CONTEXT.
+3. role/label/placeholder/text only if present in DOM/accessibility evidence.
+4. CSS/XPath only if explicitly provided in evidence.
+5. Never create a locator from a guessed button label or assumed UI text.
 
 OUTPUT FORMAT:
 Return ONLY valid Python code — two files separated by:

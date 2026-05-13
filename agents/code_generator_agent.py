@@ -3,6 +3,7 @@ Code Generator Agent — converts TestCaseAgentOutput into runnable Playwright P
 Output: pytest files saved to features/{feature}/steps/
 """
 import re
+import json
 import structlog
 from pathlib import Path
 from core.llm_client import llm_client, ModelTier
@@ -27,7 +28,12 @@ class CodeGeneratorAgent:
     def __init__(self):
         self.breaker = get_breaker(AGENT_NAME)
 
-    def run(self, test_output: TestCaseAgentOutput, platform: Platform = Platform.WEB) -> dict[str, str]:
+    def run(
+        self,
+        test_output: TestCaseAgentOutput,
+        platform: Platform = Platform.WEB,
+        automation_evidence: dict | None = None,
+    ) -> dict[str, str]:
         """
         Generate Playwright code from test case output.
         Returns dict of {filename: code_content}
@@ -46,13 +52,17 @@ class CodeGeneratorAgent:
         base_url     = BASE_URLS.get(platform, BASE_URLS[Platform.WEB])
         feature_low  = test_output.feature.lower().replace(" ", "_")
 
+        locators_context = self._format_automation_evidence(
+            automation_evidence=automation_evidence or {},
+            platform=platform,
+        )
         system_prompt = template.format(
             base_url=base_url,
             feature=test_output.feature,
             feature_lower=feature_low,
             platform=platform.value,
             test_cases=tc_text,
-            locators_context="No existing locators — generate based on best practices.",
+            locators_context=locators_context,
         )
 
         # LLM call
@@ -97,6 +107,18 @@ class CodeGeneratorAgent:
                 lines.append(f"Regression Risk Area: {', '.join(s.regression_risk_area)}")
             lines.append("")
         return "\n".join(lines)
+
+    def _format_automation_evidence(self, automation_evidence: dict, platform: Platform) -> str:
+        """Format explicit execution evidence for codegen prompts."""
+        data = automation_evidence.get(platform.value) or {}
+        if platform in {Platform.ANDROID, Platform.IOS}:
+            data = data or automation_evidence.get("mobile") or {}
+        if not data:
+            return (
+                "NO EXECUTION EVIDENCE PROVIDED. Do not invent locators, selectors, "
+                "API payloads, assertions, or navigation steps."
+            )
+        return json.dumps(data, indent=2, ensure_ascii=False, default=str)
 
     def _parse_files(self, raw: str, feature_low: str) -> dict[str, str]:
         """Parse LLM output into {filename: content} dict."""
