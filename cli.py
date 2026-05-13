@@ -385,6 +385,7 @@ async def cmd_pipeline(args):
         f"[bold cyan]Platforms:[/] {args.platform}\n"
         f"[bold cyan]Ticket:[/] {args.ticket or 'N/A'}\n"
         f"[bold cyan]PRD:[/] {args.prd_url or 'N/A'}\n"
+        f"[bold cyan]Subtasks:[/] {'included' if args.include_subtasks else 'not included'}\n"
         f"[bold cyan]URL:[/] {args.url or 'N/A'}",
         title="[bold]QA Pipeline — Phase 9", border_style="cyan",
     ))
@@ -397,6 +398,7 @@ async def cmd_pipeline(args):
         story_text=args.story or args.feature,
         feature_url=args.url or None,
         prd_url=args.prd_url or None,
+        include_subtasks=args.include_subtasks,
     )
 
     console.print(f"\n[bold]Pipeline Complete[/]")
@@ -516,6 +518,7 @@ def build_parser():
     pip.add_argument("--ticket",   default=None, help="Jira ticket ID")
     pip.add_argument("--story",    default=None, help="Raw story text")
     pip.add_argument("--prd-url",  default=None, help="Confluence PRD URL")
+    pip.add_argument("--include-subtasks", action="store_true", help="Include Jira subtasks/developer details in source intake")
     pip.add_argument("--url",      default=None, help="Implemented feature URL")
 
     return parser

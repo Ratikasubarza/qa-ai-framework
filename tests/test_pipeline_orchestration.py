@@ -110,6 +110,71 @@ def test_source_intake_fetches_confluence_prd(monkeypatch):
     assert bundle["intake_quality"]["prd_fetched"] is True
 
 
+def test_source_intake_composes_jira_prd_and_subtasks(monkeypatch):
+    class FakeJiraClient:
+        def get_issue(self, issue_key):
+            assert issue_key == "HM-123"
+            return {
+                "key": "HM-123",
+                "summary": "Create post API",
+                "status": "In Progress",
+                "priority": "High",
+                "issue_type": "Story",
+                "description": "API allows an authenticated user to create a post.",
+                "acceptance_criteria": ["POST /posts creates a visible post."],
+                "subtasks": [{
+                    "key": "HM-124",
+                    "summary": "Implement API contract",
+                    "status": "Done",
+                    "description": "Payload includes content, audience, and image IDs.",
+                }],
+            }
+
+    class FakeConfluenceClient:
+        def fetch_page(self, prd_url):
+            assert prd_url == "https://thehono.atlassian.net/wiki/spaces/H/pages/37847042/PRD"
+            return {
+                "id": "37847042",
+                "title": "PRD - Sprint 3 - Post Management",
+                "space_key": "H",
+                "source_url": prd_url,
+                "body_text": "Post Management product behavior.",
+                "version": 7,
+            }
+
+    monkeypatch.setitem(
+        sys.modules,
+        "mcp_tools.jira_client.jira_client",
+        SimpleNamespace(jira_client=FakeJiraClient()),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "mcp_tools.confluence_client.confluence_client",
+        SimpleNamespace(confluence_client=FakeConfluenceClient()),
+    )
+
+    state = pipeline.node_source_intake({
+        "feature": "Post Composer API",
+        "platforms": ["api"],
+        "ticket_id": "HM-123",
+        "story_text": "Check validation for API payload.",
+        "prd_url": "https://thehono.atlassian.net/wiki/spaces/H/pages/37847042/PRD",
+        "include_subtasks": True,
+    })
+
+    bundle = state["source_bundle"]
+    assert "=== JIRA STORY / TICKET ===" in bundle["prd_content"]
+    assert "=== PRODUCT PRD CONTEXT ===" in bundle["prd_content"]
+    assert "=== MANUAL STORY CONTEXT ===" in bundle["prd_content"]
+    assert "Implement API contract" in bundle["prd_content"]
+    assert "Payload includes content, audience, and image IDs." in bundle["prd_content"]
+    assert bundle["jira_source"]["fetched"] is True
+    assert bundle["jira_source"]["subtasks_included"] is True
+    assert bundle["jira_source"]["subtask_count"] == 1
+    assert bundle["intake_quality"]["jira_fetched"] is True
+    assert bundle["intake_quality"]["subtasks_included"] is True
+
+
 def test_source_intake_blocks_when_prd_url_unreadable_without_manual_fallback(monkeypatch):
     class FakeConfluenceClient:
         def fetch_page(self, prd_url):
@@ -136,6 +201,43 @@ def test_source_intake_blocks_when_prd_url_unreadable_without_manual_fallback(mo
 def test_build_pipeline_compiles_without_state_key_node_collisions():
     compiled = pipeline.build_pipeline()
     assert compiled is not None
+
+
+def test_requirements_uses_normalized_source_bundle_when_jira_was_fetched(monkeypatch):
+    calls = []
+
+    class FakeRequirementsAgent:
+        def run_from_text(self, feature, story_text, parent_key):
+            calls.append(("text", feature, story_text, parent_key))
+            return {"criteria": []}
+
+        def run_from_jira(self, ticket_id):
+            calls.append(("jira", ticket_id))
+            return {"criteria": []}
+
+    monkeypatch.setitem(
+        sys.modules,
+        "agents.requirements_agent",
+        SimpleNamespace(requirements_agent=FakeRequirementsAgent()),
+    )
+
+    state = pipeline.node_requirements({
+        "feature": "Post Composer API",
+        "ticket_id": "HM-123",
+        "source_bundle": {
+            "prd_content": "Combined Jira, subtask, and PRD context.",
+            "jira_source": {"fetched": True},
+            "prd_source": {},
+        },
+    })
+
+    assert state["error"] is None
+    assert calls == [(
+        "text",
+        "Post Composer API",
+        "Combined Jira, subtask, and PRD context.",
+        "HM-123",
+    )]
 
 
 def test_case_review_quality_gate_passes(monkeypatch):

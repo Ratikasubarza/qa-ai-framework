@@ -14,6 +14,7 @@ class AgentState(TypedDict, total=False):
     story_text:           str           # Raw requirements text
     feature_url:          str           # Optional implemented feature URL
     prd_url:              str           # Optional Confluence/PRD URL
+    include_subtasks:     bool          # Include Jira subtasks in intake context
 
     # ── Source intake phase ─────────────────────────────────────────
     source_bundle:        dict          # Normalized Jira/PRD/URL/context bundle

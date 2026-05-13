@@ -140,6 +140,36 @@ def _write_case_review_draft_exports(state: AgentState, review: dict) -> dict[st
     return {"json": str(json_path), "csv": str(csv_path)}
 
 
+def _format_jira_issue_context(issue: dict, include_subtasks: bool = False) -> str:
+    lines = [
+        f"Jira Issue: {issue.get('key', '')}",
+        f"Summary: {issue.get('summary', '')}",
+        f"Status: {issue.get('status', '')}",
+        f"Priority: {issue.get('priority', '')}",
+        f"Issue Type: {issue.get('issue_type', '')}",
+        "",
+        "Description:",
+        issue.get("description", ""),
+    ]
+
+    acceptance_criteria = issue.get("acceptance_criteria") or []
+    if acceptance_criteria:
+        lines.extend(["", "Acceptance Criteria:"])
+        lines.extend(f"- {item}" for item in acceptance_criteria)
+
+    if include_subtasks and issue.get("subtasks"):
+        lines.extend(["", "Developer Subtasks / Implementation Details:"])
+        for subtask in issue["subtasks"]:
+            lines.extend([
+                f"- {subtask.get('key', '')}: {subtask.get('summary', '')}",
+                f"  Status: {subtask.get('status', '')}",
+            ])
+            if subtask.get("description"):
+                lines.append(f"  Details: {subtask['description']}")
+
+    return "\n".join(str(line) for line in lines if line is not None).strip()
+
+
 # ── Node: Source Intake ─────────────────────────────────────────────────────
 def node_source_intake(state: AgentState) -> AgentState:
     logger.info("node_start", node="source_intake", feature=state.get("feature"))
@@ -148,8 +178,11 @@ def node_source_intake(state: AgentState) -> AgentState:
     ticket_id = state.get("ticket_id") or ""
     feature_url = state.get("feature_url") or ""
     prd_url = state.get("prd_url") or ""
+    include_subtasks = bool(state.get("include_subtasks"))
     prd_source: dict[str, Any] = {}
+    jira_source: dict[str, Any] = {}
     intake_error: dict[str, Any] | None = None
+    context_parts: list[str] = []
 
     source_refs = []
     if ticket_id:
@@ -161,17 +194,54 @@ def node_source_intake(state: AgentState) -> AgentState:
     if feature_url:
         source_refs.append({"type": "feature_url", "ref": feature_url})
 
+    if ticket_id:
+        try:
+            from mcp_tools.jira_client.jira_client import jira_client
+
+            issue = jira_client.get_issue(ticket_id)
+            jira_text = _format_jira_issue_context(
+                issue,
+                include_subtasks=include_subtasks,
+            )
+            if jira_text:
+                context_parts.append(f"=== JIRA STORY / TICKET ===\n{jira_text}")
+            jira_source = {
+                "type": "jira",
+                "key": issue.get("key", ticket_id),
+                "summary": issue.get("summary", ""),
+                "status": issue.get("status", ""),
+                "priority": issue.get("priority", ""),
+                "subtasks_included": include_subtasks,
+                "subtask_count": len(issue.get("subtasks") or []),
+                "fetched": True,
+            }
+            logger.info(
+                "jira_issue_fetched_for_intake",
+                key=ticket_id,
+                subtasks=jira_source["subtask_count"],
+                include_subtasks=include_subtasks,
+            )
+        except Exception as e:
+            logger.warning("jira_intake_fetch_failed", ticket=ticket_id, error=str(e))
+            jira_source = {
+                "type": "jira",
+                "key": ticket_id,
+                "fetched": False,
+                "error": str(e),
+            }
+
     if prd_url:
         try:
             from mcp_tools.confluence_client.confluence_client import confluence_client
 
             page = confluence_client.fetch_page(prd_url)
-            story_text = (
+            prd_text = (
                 f"Source: {page['source_url']}\n"
                 f"Title: {page['title']}\n"
                 f"Space: {page['space_key']}\n\n"
                 f"{page['body_text']}"
             ).strip()
+            context_parts.append(f"=== PRODUCT PRD CONTEXT ===\n{prd_text}")
             prd_source = {
                 "type": "confluence",
                 "url": prd_url,
@@ -196,6 +266,13 @@ def node_source_intake(state: AgentState) -> AgentState:
                     "message": f"Could not fetch Confluence PRD: {e}",
                 }
 
+    manual_story_is_real = bool(story_text.strip()) and story_text.strip() != state.get("feature", "")
+    if manual_story_is_real:
+        context_parts.append(f"=== MANUAL STORY CONTEXT ===\n{story_text.strip()}")
+
+    if context_parts:
+        story_text = "\n\n".join(context_parts)
+
     source_bundle = {
         "feature": state.get("feature", ""),
         "platforms": state.get("platforms") or ["web"],
@@ -203,11 +280,15 @@ def node_source_intake(state: AgentState) -> AgentState:
         "prd_url": prd_url,
         "prd_content": story_text,
         "prd_source": prd_source,
+        "jira_source": jira_source,
+        "include_subtasks": include_subtasks,
         "feature_url": feature_url,
         "existing_test_cases": state.get("existing_test_cases") or [],
         "source_refs": source_refs,
         "intake_quality": {
             "has_ticket": bool(ticket_id),
+            "jira_fetched": bool(jira_source.get("fetched")),
+            "subtasks_included": include_subtasks,
             "has_prd_content": bool(story_text.strip()),
             "has_prd_url": bool(prd_url),
             "prd_fetched": bool(prd_source.get("fetched")),
@@ -232,12 +313,19 @@ def node_requirements(state: AgentState) -> AgentState:
         from agents.requirements_agent import requirements_agent
 
         source_bundle = state.get("source_bundle") or {}
-        if state.get("ticket_id"):
+        source_text = source_bundle.get("prd_content") or state.get("story_text", "")
+        if source_bundle.get("jira_source", {}).get("fetched") or source_bundle.get("prd_source", {}).get("fetched"):
+            result = requirements_agent.run_from_text(
+                feature=state.get("feature", ""),
+                story_text=source_text,
+                parent_key=state.get("ticket_id", ""),
+            )
+        elif state.get("ticket_id"):
             result = requirements_agent.run_from_jira(state["ticket_id"])
         else:
             result = requirements_agent.run_from_text(
                 feature=state.get("feature", ""),
-                story_text=source_bundle.get("prd_content") or state.get("story_text", ""),
+                story_text=source_text,
                 parent_key="",
             )
 
@@ -834,6 +922,7 @@ async def run_pipeline(
     story_text: str | None = None,
     feature_url: str | None = None,
     prd_url: str | None = None,
+    include_subtasks: bool = False,
     existing_test_cases: list[dict] | None = None,
 ) -> AgentState:
     pipeline = build_pipeline()
@@ -844,6 +933,7 @@ async def run_pipeline(
         "story_text": story_text or feature,
         "feature_url": feature_url or "",
         "prd_url": prd_url or "",
+        "include_subtasks": include_subtasks,
         "existing_test_cases": existing_test_cases or [],
         "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "approved": False,

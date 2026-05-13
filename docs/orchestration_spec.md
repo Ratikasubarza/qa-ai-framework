@@ -169,12 +169,32 @@ Optional source types:
 - Confluence/PRD text pasted by the user
 - Confluence PRD URL via `--prd-url`
 - Jira ticket text or key when the current user has access
+- Jira subtasks/developer implementation notes via `--include-subtasks`
 - implemented feature URL
 - existing CSV/Excel/manual test cases
 - screenshots or observed behavior notes
 
 If a source requires unavailable credentials, the pipeline records it as
 `not_accessible` and continues with the sources that were provided.
+
+Recommended scope rule:
+- Use Jira story/ticket as the execution scope for generation.
+- Use Confluence PRD as parent product context, not as the only source for a
+  broad end-to-end test plan.
+- Use subtasks when the ticket has API, mobile, or implementation details that
+  are more precise than the PRD.
+- Prefer one focused run per Jira story/substory for maintainable TDD output.
+
+Preferred Jira + PRD command:
+
+```bash
+PYTHONPATH=. ./venv/bin/python3.11 cli.py pipeline \
+  --feature "Post Composer API" \
+  --platform api \
+  --ticket "HM-123" \
+  --prd-url "https://thehono.atlassian.net/wiki/spaces/H/pages/37847042/PRD+-+Sprint+3+-+Post+Management" \
+  --include-subtasks
+```
 
 Preferred Confluence PRD command:
 
