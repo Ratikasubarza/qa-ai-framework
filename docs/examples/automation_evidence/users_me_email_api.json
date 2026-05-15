@@ -28,13 +28,41 @@
             "message": "email already exists",
             "data": null
           }
+        },
+        {
+          "title": "Expired verification code",
+          "method": "GET",
+          "endpoint": "/v1/users/verify-email",
+          "query": {
+            "code": "expired-code"
+          },
+          "expected_status": 410,
+          "expected_response": {
+            "code": "EXPIRED",
+            "message": "Verification link has expired",
+            "data": null
+          }
         }
       ],
+      "verify_email": {
+        "method": "GET",
+        "endpoint": "/v1/users/verify-email",
+        "query": {
+          "code": "[REDACTED_VERIFICATION_CODE]"
+        },
+        "success_response": {
+          "code": "OK",
+          "message": "Email updated successfully",
+          "data": null
+        }
+      },
       "security_notes": [
         "Use synthetic users only because this endpoint starts an email-change flow.",
         "Do not store real bearer tokens or API keys in evidence files.",
+        "Do not store raw verification codes in docs or reports.",
         "Live staging currently returns Data saved with null data for successful requests.",
-        "Live staging currently returns 422 NOKUNPROC for duplicate email requests."
+        "Live staging currently returns 422 NOKUNPROC for duplicate email requests.",
+        "Live staging currently returns plain 404 for GET /v1/users/verify-email even though the API evidence defines it."
       ]
     }
   }

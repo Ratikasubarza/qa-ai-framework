@@ -80,6 +80,34 @@ class DBClient:
         user = self.get_user_by_email(email)
         return user.get("status") if user else None
 
+    def get_latest_user_verification(self, email: str) -> dict | None:
+        """Get the latest verification code for a synthetic user's email flow."""
+        with self._conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    uv.unique_code,
+                    uv.expired_at,
+                    uv.created_at
+                FROM user_verifications uv
+                INNER JOIN users u ON uv.user_id = u.id
+                WHERE u.email = %s
+                ORDER BY uv.created_at DESC
+                LIMIT 1
+            """, (email,))
+            return cur.fetchone()
+
+    def expire_user_verification_code(self, unique_code: str) -> bool:
+        """Force a synthetic verification code to be expired for negative tests."""
+        with self._conn.cursor() as cur:
+            cur.execute("""
+                UPDATE user_verifications
+                SET expired_at = DATE_SUB(NOW(), INTERVAL 1 MINUTE)
+                WHERE unique_code = %s
+            """, (unique_code,))
+            affected = cur.rowcount
+            logger.info("db_verification_expired", affected=affected)
+            return affected > 0
+
     def set_verified(self, email: str) -> bool:
         """Simulate email verification — set verified_at timestamp."""
         with self._conn.cursor() as cur:

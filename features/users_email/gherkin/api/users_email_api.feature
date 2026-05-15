@@ -24,3 +24,18 @@ Feature: User email API
     When I PUT "/v1/users/me/email" using the other user's email
     Then the API returns a validation error
     And the response says the email already exists
+
+  @api @smoke
+  Scenario: Verify email change with a valid code
+    Given an authenticated user requested an email change
+    When I GET "/v1/users/verify-email" with the latest verification code
+    Then the API returns 200
+    And the response says the email was updated successfully
+
+  @api @negative
+  Scenario: Verify email change with an expired code
+    Given an authenticated user requested an email change
+    And the latest verification code is expired
+    When I GET "/v1/users/verify-email" with the expired verification code
+    Then the API returns 410
+    And the response says the verification link has expired

@@ -5,13 +5,18 @@ import re
 
 class UsersEmailTestData:
     EMAIL_PATH = "/v1/users/me/email"
+    VERIFY_EMAIL_PATH = "/v1/users/verify-email"
     MAX_RESPONSE_MS = 3000
 
     SUCCESS_CODE = "OK"
     SAVED_MESSAGE = "Data saved"
+    EMAIL_UPDATED_MESSAGE = "Email updated successfully"
     EXISTING_EMAIL_STATUS = 422
     EXISTING_EMAIL_CODE = "NOKUNPROC"
     EXISTING_EMAIL_MESSAGE = "email already exists"
+    EXPIRED_STATUS = 410
+    EXPIRED_CODE = "EXPIRED"
+    EXPIRED_MESSAGE = "Verification link has expired"
 
     REQUIRED_BODY_KEYS = {"code", "message", "data"}
 

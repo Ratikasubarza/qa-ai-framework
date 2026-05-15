@@ -247,6 +247,35 @@ paths:
         '401': { description: Unauthorized }
         '422': { description: Invalid email payload or email already exists }
 
+  /v1/users/verify-email:
+    get:
+      summary: Verify requested user email change
+      tags: [User]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Email verification code from the verification link.
+      responses:
+        '200':
+          description: Email updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: string, example: OK }
+                  message: { type: string, example: Email updated successfully }
+                  data:
+                    type: object
+                    nullable: true
+        '410': { description: Verification link has expired }
+        '422': { description: Invalid verification code }
+
   /v1/users/me/password:
     put:
       summary: Change current user password
