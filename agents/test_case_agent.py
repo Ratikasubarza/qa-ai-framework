@@ -29,6 +29,8 @@ from core.prompt_manager import prompt_manager
 from knowledge_base.rag_engine import rag_engine
 from core.workflows.approval_workflow import review_queue
 from config.settings import settings
+from mcp_tools.jira_client.jira_client import jira_client
+from mcp_tools.confluence_client.confluence_client import ConfluenceClient
 import asyncio
 
 logger = structlog.get_logger(__name__)
@@ -126,11 +128,76 @@ class TestCaseAgent:
             for ac in input_data.acceptance_criteria
         ]
 
+        # ── Step 1b: Enrich from Jira (if issue key provided) ─
+        jira_context_parts: list[str] = []
+        if input_data.jira_story_key:
+            try:
+                issue = jira_client.get_issue(input_data.jira_story_key)
+                logger.info("jira_issue_fetched", key=input_data.jira_story_key)
+
+                # Merge acceptance criteria from Jira description if not supplied
+                if not clean_ac and issue.get("acceptance_criteria"):
+                    clean_ac = [
+                        input_sanitizer.sanitize(ac, source="jira_ac").content
+                        for ac in issue["acceptance_criteria"]
+                    ]
+
+                # Build Jira context block
+                jira_ctx_lines = [
+                    f"JIRA STORY: {issue['key']} — {issue['summary']}",
+                    f"Status: {issue.get('status', '')}  Priority: {issue.get('priority', '')}",
+                ]
+                if issue.get("description"):
+                    jira_ctx_lines.append(f"Description:\n{issue['description'][:600]}")
+
+                # Include existing QA subtasks to avoid duplicating already-generated cases
+                existing_subtasks = [
+                    st for st in issue.get("subtasks", [])
+                    if "QA" in st.get("summary", "").upper() or "qa-automation" in st.get("summary", "").lower()
+                ]
+                if existing_subtasks:
+                    jira_ctx_lines.append("\nExisting QA subtasks (avoid duplicating these):")
+                    for st in existing_subtasks:
+                        jira_ctx_lines.append(
+                            f"  [{st['key']}] {st['summary']} ({st['status']})"
+                            + (f"\n    {st['description'][:200]}" if st.get("description") else "")
+                        )
+
+                jira_context_parts.append("\n".join(jira_ctx_lines))
+            except Exception as e:
+                logger.warning("jira_fetch_failed", key=input_data.jira_story_key, error=str(e))
+
+        # ── Step 1c: Fetch PRD from Confluence (if URL provided) ─
+        if input_data.confluence_page_url:
+            try:
+                confluence = ConfluenceClient()
+                prd_text = confluence.fetch_page(input_data.confluence_page_url)
+                if prd_text:
+                    jira_context_parts.append(
+                        f"CONFLUENCE PRD:\n{prd_text[:1500]}"
+                    )
+                    logger.info("confluence_prd_fetched", url=input_data.confluence_page_url)
+            except PermissionError:
+                logger.warning("confluence_permission_denied", url=input_data.confluence_page_url)
+            except FileNotFoundError:
+                logger.warning("confluence_page_not_found", url=input_data.confluence_page_url)
+            except Exception as e:
+                logger.warning("confluence_fetch_failed", url=input_data.confluence_page_url, error=str(e))
+
+        # Merge any extra context provided by caller
+        extra_context_parts = []
+        if input_data.context:
+            extra_context_parts.append(input_data.context)
+        extra_context_parts.extend(jira_context_parts)
+        enriched_context = "\n\n---\n".join(extra_context_parts) if extra_context_parts else ""
+
         # ── Step 2: RAG retrieval ─────────────────────────────
         past_context = rag_engine.retrieve(
             query=f"{input_data.feature} {input_data.description}",
             top_k=5,
         )
+        if enriched_context:
+            past_context = f"{enriched_context}\n\n---\n{past_context}" if past_context else enriched_context
 
         # ── Step 3: Format prompt ─────────────────────────────
         if len(clean_ac) > MAX_AC_PER_BATCH:

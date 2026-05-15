@@ -1,0 +1,48 @@
+[project]
+name = "qa-ai-framework"
+version = "1.0.0"
+description = "AI-powered QA automation framework for Hono app"
+requires-python = ">=3.11"
+
+# ── Ruff (linter + formatter) ─────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"]          # errors, warnings, pyflakes, isort
+ignore = ["E501", "E402"]              # line-length handled above; module-level imports OK
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*"      = ["F811"]              # pytest fixtures can shadow outer names
+"conftest*.py" = ["F811", "F401"]
+
+# ── Pytest ────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+timeout = 30                           # per-test timeout in seconds (requires pytest-timeout)
+addopts = [
+    "--alluredir=reports/allure/results",
+    "--tb=short",
+    "-q",
+]
+markers = [
+    "smoke:       happy-path end-to-end — run first",
+    "security:    auth, RBAC, and access-control assertions",
+    "negative:    expected rejection and error cases",
+    "boundary:    edge values, limits, overflow",
+    "performance: response time SLA assertions",
+    "agent:       LLM agent quality gates (evals)",
+    "mobile:      Appium Android — requires connected device",
+    "web:         Playwright — requires browser",
+    "db:          tests that write to staging DB",
+]
+
+# ── Coverage ──────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["agents", "core", "skills", "platforms", "mcp_tools"]
+omit   = ["*/test*", "*/venv/*", "*/conftest*"]
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true

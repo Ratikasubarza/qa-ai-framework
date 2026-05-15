@@ -1,0 +1,46 @@
+repos:
+  # ── Ruff: linting + formatting (replaces flake8 + black) ──────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--select, "E,W,F,I", --ignore, "E501,E402", --fix]
+      - id: ruff-format
+
+  # ── Secret detection — blocks .env content and API keys from being committed
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: |
+          (?x)^(
+            \.env\.example|
+            tests/.*|
+            knowledge_base/sources/.*
+          )$
+
+  # ── Prevent committing .env directly ──────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: end-of-file-fixer
+        exclude: reports/
+      - id: trailing-whitespace
+        exclude: reports/
+      - id: check-json
+      - id: check-yaml
+      - id: no-commit-to-branch
+        args: [--branch, main]          # force PR workflow — no direct push to main
+
+  # ── Conventional commit message format ────────────────────────────────────
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.2.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, ci, test, refactor, docs, chore, perf]

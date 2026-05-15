@@ -73,8 +73,9 @@ class TestCaseAgentInput(BaseModel):
     description:     str
     acceptance_criteria: list[str] = Field(default_factory=list)
     platforms:       list[Platform]
-    jira_story_key:  Optional[str] = None
-    context:         Optional[str] = None  # Extra context for the agent
+    jira_story_key:      Optional[str] = None
+    confluence_page_url: Optional[str] = None
+    context:             Optional[str] = None  # Extra context for the agent
 
 
 class TestCaseAgentOutput(BaseModel):
