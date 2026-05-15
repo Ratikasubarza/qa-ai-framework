@@ -1,0 +1,31 @@
+{
+  "feature": "User Account API",
+  "evidence": {
+    "api": {
+      "method": "GET",
+      "endpoint": "/v1/users/me/account",
+      "headers": {
+        "x-api-key": "[REDACTED_API_KEY]",
+        "Authorization": "Bearer [REDACTED_TOKEN]"
+      },
+      "expected_status": 200,
+      "response_contract": {
+        "required_keys": ["code", "message", "data"],
+        "data_required_keys": [
+          "email",
+          "phone_number",
+          "phone_code",
+          "phone_country_iso",
+          "nationality"
+        ],
+        "nullable_fields": ["phone_country_iso", "nationality"],
+        "nationality_required_keys_when_present": ["id", "name", "iso2"]
+      },
+      "security_notes": [
+        "Do not store real bearer tokens or API keys in evidence files.",
+        "Use synthetic approved users for automated tests.",
+        "Keep legacy nullable fields explicit so tests do not force fake data."
+      ]
+    }
+  }
+}
