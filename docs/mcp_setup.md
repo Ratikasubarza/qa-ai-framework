@@ -55,9 +55,9 @@ Agent profiles live in:
 
 | Agent | Purpose |
 | --- | --- |
-| `.github/agents/case-generation.agent.md` | Generate scoped test cases |
-| `.github/agents/case-reviewer.agent.md` | Review test cases against source requirements |
-| `.github/agents/tdd-automation.agent.md` | Convert approved cases into automation with TDD |
+| `.github/agents/test-case-generation.agent.md` | Generate scoped test cases |
+| `.github/agents/test-case-review.agent.md` | Review test cases against source requirements |
+| `.github/agents/test-code-generation.agent.md` | Convert approved cases into automation code with TDD |
 
 Recommended external MCP configuration:
 

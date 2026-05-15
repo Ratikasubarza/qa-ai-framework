@@ -1,5 +1,5 @@
 ---
-name: case-generation
+name: test-case-generation
 description: Generate scoped QA test cases from Jira, Confluence PRD, story text, or implemented feature notes.
 tools:
   - search

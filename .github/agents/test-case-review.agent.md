@@ -1,5 +1,5 @@
 ---
-name: case-reviewer
+name: test-case-review
 description: Review generated QA test cases against Jira, PRD, and platform scope before approval/export.
 tools:
   - search
