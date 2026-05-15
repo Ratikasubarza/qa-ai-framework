@@ -1,6 +1,6 @@
 Feature: User account API
   As an authenticated user
-  I want to retrieve my account information
+  I want to retrieve and update my account information
   So that account identity and phone metadata can be shown safely
 
   Background:
@@ -24,3 +24,21 @@ Feature: User account API
     When I GET "/v1/users/me/account"
     Then phone_country_iso may be null for legacy users
     And nationality may be null for legacy users
+
+  @api @smoke
+  Scenario: Update account information with valid country metadata
+    When I PUT "/v1/users/me/account" with phone number, phone code, and nationality id
+    Then the API returns 200
+    And the response confirms account data is saved
+    And the updated account phone metadata can be retrieved
+
+  @api @security @negative
+  Scenario: Update account information without bearer token
+    When I PUT "/v1/users/me/account" without an Authorization header
+    Then the API returns 401
+
+  @api @negative
+  Scenario: Update account information with invalid phone code
+    When I PUT "/v1/users/me/account" with an invalid phone code
+    Then the API returns a validation error
+    And the response explains that the phone code is unknown

@@ -1,0 +1,46 @@
+{
+  "feature": "Update User Account API",
+  "evidence": {
+    "api": {
+      "method": "PUT",
+      "endpoint": "/v1/users/me/account",
+      "headers": {
+        "x-api-key": "[REDACTED_API_KEY]",
+        "Authorization": "Bearer [REDACTED_TOKEN]"
+      },
+      "valid_payload": {
+        "email": "synthetic.user@example.com",
+        "phone_number": "812345678",
+        "phone_code": "+62",
+        "nationality_id": 101
+      },
+      "success_response": {
+        "code": "OK",
+        "message": "Data saved",
+        "data": null
+      },
+      "negative_cases": [
+        {
+          "title": "Invalid phone code",
+          "payload": {
+            "email": "synthetic.user@example.com",
+            "phone_number": "812345678",
+            "phone_code": "XX"
+          },
+          "expected_status": 422,
+          "expected_response": {
+            "code": "NOKUNPROC",
+            "message": "unknown country phone code",
+            "data": null
+          }
+        }
+      ],
+      "security_notes": [
+        "Use synthetic users only because this endpoint mutates account metadata.",
+        "Do not store real bearer tokens or API keys in evidence files.",
+        "Live staging currently validates phone_code, not phone_country_code.",
+        "Verify failures as product/API behavior; do not weaken tests to force a pass."
+      ]
+    }
+  }
+}

@@ -163,6 +163,52 @@ paths:
                           name: { type: string }
                           iso2: { type: string }
         '401': { description: Unauthorized }
+    put:
+      summary: Update current user account information
+      tags: [User]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, phone_number, phone_code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Current account email address.
+                phone_number:
+                  type: string
+                  description: Phone number without country code.
+                  example: "812345678"
+                phone_code:
+                  type: string
+                  description: Phone dial code.
+                  example: "+62"
+                nationality_id:
+                  type: integer
+                  description: Country ID from the countries table.
+                  example: 101
+      responses:
+        '200':
+          description: Account information saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: string, example: OK }
+                  message: { type: string, example: Data saved }
+                  data:
+                    type: object
+                    nullable: true
+        '400': { description: Invalid account payload }
+        '401': { description: Unauthorized }
+        '422': { description: Invalid phone code or unprocessable account payload }
 
   /v1/users/me/password:
     put:
