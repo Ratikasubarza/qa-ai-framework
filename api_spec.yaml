@@ -121,6 +121,37 @@ paths:
                       onboarding_completed_at: { type: string, nullable: true }
         '401': { description: Unauthorized }
 
+  /v1/users/me/password:
+    put:
+      summary: Change current user password
+      tags: [User]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                new_password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessResponse' }
+        '400': { description: Validation error or invalid current password }
+        '401': { description: Unauthorized }
+        '422': { description: Invalid password payload }
+
   /v1/users:
     get:
       summary: CMS — List users
