@@ -119,6 +119,17 @@ flow evidence before codegen:
 - Android/iOS: actual app steps, locator/app-source/accessibility evidence, test data
 - Web: URL/route, actual web steps, selector/DOM/accessibility evidence
 
+Pass evidence with:
+
+```bash
+PYTHONPATH=. ./venv/bin/python3.11 cli.py pipeline \
+  --feature "HM-516 Profile Posts Tab Android" \
+  --platform android \
+  --ticket "HM-557" \
+  --include-subtasks \
+  --automation-evidence reports/evidence/HM-516_android.json
+```
+
 If evidence is missing, the framework reports what is missing and does not
 generate code. This prevents fake steps, fake locators, fake payloads, weak
 assertions, and automation that only passes because the AI changed the truth of

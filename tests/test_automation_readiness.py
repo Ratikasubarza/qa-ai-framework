@@ -1,4 +1,12 @@
-from core.automation_readiness import check_automation_readiness
+import json
+
+import pytest
+
+from core.automation_readiness import (
+    check_automation_readiness,
+    load_automation_evidence,
+    normalize_automation_evidence,
+)
 
 
 def test_api_readiness_blocks_without_contract_evidence():
@@ -75,3 +83,46 @@ def test_web_readiness_blocks_without_selector_evidence():
 
     assert result["status"] == "blocked"
     assert any(item["type"] == "selector" for item in result["missing_evidence"])
+
+
+def test_load_automation_evidence_accepts_platform_map_and_redacts_secrets(tmp_path):
+    evidence_path = tmp_path / "hm_516_api.json"
+    evidence_path.write_text(json.dumps({
+        "api": {
+            "curl": "curl -H 'Authorization: Bearer secret-token' https://api-dev.thehono.com/v1/posts",
+            "method": "GET",
+            "expected_status": 200,
+        }
+    }))
+
+    evidence = load_automation_evidence(evidence_path)
+
+    assert evidence["api"]["method"] == "GET"
+    assert "secret-token" not in evidence["api"]["curl"]
+    assert "[REDACTED_AUTH_HEADER]" in evidence["api"]["curl"]
+
+
+def test_normalize_automation_evidence_accepts_evidence_envelope():
+    evidence = normalize_automation_evidence({
+        "feature": "HM-516",
+        "evidence": {
+            "android": {
+                "flow_steps": ["Open profile", "Tap Posts tab"],
+                "accessibility_ids": ["Profile", "Posts"],
+                "test_data": {"user": "synthetic approved user"},
+            }
+        },
+    })
+
+    assert evidence == {
+        "android": {
+            "flow_steps": ["Open profile", "Tap Posts tab"],
+            "accessibility_ids": ["Profile", "Posts"],
+            "test_data": {"user": "synthetic approved user"},
+        }
+    }
+
+
+def test_normalize_automation_evidence_rejects_unknown_shape():
+    with pytest.raises(ValueError, match="platform key"):
+        normalize_automation_evidence({"feature": "HM-516"})

@@ -440,6 +440,47 @@ Required evidence:
 | `android`/`ios` | actual navigation steps, locator/app-source/accessibility evidence, test data/preconditions |
 | `web` | URL/route, actual navigation steps, selector/DOM/accessibility evidence |
 
+Evidence is supplied through a local JSON file:
+
+```bash
+PYTHONPATH=. ./venv/bin/python3.11 cli.py pipeline \
+  --feature "HM-516 Posts Tab Android" \
+  --platform android \
+  --ticket "HM-557" \
+  --include-subtasks \
+  --automation-evidence reports/evidence/HM-516_android.json
+```
+
+Supported JSON shapes:
+
+```json
+{
+  "android": {
+    "flow_steps": ["Open profile", "Tap Posts tab"],
+    "accessibility_ids": ["Profile", "Posts"],
+    "test_data": {"user": "synthetic approved user"}
+  }
+}
+```
+
+or:
+
+```json
+{
+  "feature": "HM-516",
+  "evidence": {
+    "api": {
+      "curl": "curl -X GET https://api-dev.thehono.com/v1/posts",
+      "method": "GET",
+      "expected_status": 200
+    }
+  }
+}
+```
+
+The evidence loader redacts tokens, auth headers, cookies, passwords, and
+personal data before passing evidence to code generation.
+
 If evidence is missing:
 - do not generate automation code
 - do not invent steps, locators, payloads, or assertions

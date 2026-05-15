@@ -556,6 +556,38 @@ def test_automation_readiness_allows_codegen_with_execution_evidence():
     assert pipeline.route_after_automation_readiness(state) == "codegen"
 
 
+def test_run_pipeline_initializes_automation_evidence(monkeypatch):
+    captured_state = {}
+
+    class FakePipeline:
+        async def ainvoke(self, init_state):
+            captured_state.update(init_state)
+            return init_state
+
+    monkeypatch.setattr(pipeline, "build_pipeline", lambda: FakePipeline())
+
+    result = asyncio.run(pipeline.run_pipeline(
+        feature="Profile Posts Tab Android",
+        platforms=["android"],
+        automation_evidence={
+            "android": {
+                "flow_steps": ["Open profile", "Tap Posts tab"],
+                "accessibility_ids": ["Profile", "Posts"],
+                "test_data": {"user": "synthetic approved user"},
+            }
+        },
+    ))
+
+    assert result["automation_evidence"] == {
+        "android": {
+            "flow_steps": ["Open profile", "Tap Posts tab"],
+            "accessibility_ids": ["Profile", "Posts"],
+            "test_data": {"user": "synthetic approved user"},
+        }
+    }
+    assert captured_state["automation_evidence"] == result["automation_evidence"]
+
+
 def test_execute_reads_generated_file_dict_values(monkeypatch, tmp_path):
     test_file = tmp_path / "test_login.py"
     test_file.write_text("def test_login():\n    assert True\n")

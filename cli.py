@@ -104,7 +104,13 @@ def _print_testcase_output(output):
 def cmd_generate_code(args):
     from agents.test_case_agent import test_case_agent
     from agents.code_generator_agent import code_generator_agent
+    from core.automation_readiness import load_automation_evidence
     from core.agent_contracts import TestCaseAgentInput, Platform
+    try:
+        automation_evidence = load_automation_evidence(args.automation_evidence)
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[red]Automation evidence error:[/] {e}")
+        sys.exit(1)
     platforms  = [Platform(p.strip()) for p in args.platform.split(",")]
     input_data = TestCaseAgentInput(
         feature=args.feature,
@@ -117,7 +123,11 @@ def cmd_generate_code(args):
         title="[bold]Code Generator", border_style="cyan",
     ))
     tc_output   = asyncio.run(test_case_agent.run(input_data))
-    saved_files = code_generator_agent.run(tc_output, platforms[0])
+    saved_files = code_generator_agent.run(
+        tc_output,
+        platforms[0],
+        automation_evidence=automation_evidence,
+    )
     console.print(f"\n[green]✓ Playwright code generated:[/]")
     for f in saved_files:
         console.print(f"  [dim]→[/] {f}")
@@ -378,7 +388,14 @@ async def cmd_bot_start(args):
 
 
 async def cmd_pipeline(args):
+    from core.automation_readiness import load_automation_evidence
     from orchestrator.pipeline import run_pipeline
+
+    try:
+        automation_evidence = load_automation_evidence(args.automation_evidence)
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[red]Automation evidence error:[/] {e}")
+        sys.exit(1)
 
     console.print(Panel(
         f"[bold cyan]Feature:[/] {args.feature}\n"
@@ -386,6 +403,7 @@ async def cmd_pipeline(args):
         f"[bold cyan]Ticket:[/] {args.ticket or 'N/A'}\n"
         f"[bold cyan]PRD:[/] {args.prd_url or 'N/A'}\n"
         f"[bold cyan]Subtasks:[/] {'included' if args.include_subtasks else 'not included'}\n"
+        f"[bold cyan]Evidence:[/] {args.automation_evidence or 'N/A'}\n"
         f"[bold cyan]URL:[/] {args.url or 'N/A'}",
         title="[bold]QA Pipeline — Phase 9", border_style="cyan",
     ))
@@ -399,6 +417,7 @@ async def cmd_pipeline(args):
         feature_url=args.url or None,
         prd_url=args.prd_url or None,
         include_subtasks=args.include_subtasks,
+        automation_evidence=automation_evidence,
     )
 
     console.print(f"\n[bold]Pipeline Complete[/]")
@@ -489,6 +508,7 @@ def build_parser():
     code.add_argument("--description", default="")
     code.add_argument("--platform",    default="web")
     code.add_argument("--ac",          nargs="*")
+    code.add_argument("--automation-evidence", default=None, help="Path to JSON file with actual execution evidence for code generation")
 
     exp = sub.add_parser("export")
     exp.add_argument("--feature",     required=True)
@@ -529,6 +549,7 @@ def build_parser():
     pip.add_argument("--story",    default=None, help="Raw story text")
     pip.add_argument("--prd-url",  default=None, help="Confluence PRD URL")
     pip.add_argument("--include-subtasks", action="store_true", help="Include Jira subtasks/developer details in source intake")
+    pip.add_argument("--automation-evidence", default=None, help="Path to JSON file with actual API/web/mobile execution evidence for codegen")
     pip.add_argument("--url",      default=None, help="Implemented feature URL")
 
     return parser

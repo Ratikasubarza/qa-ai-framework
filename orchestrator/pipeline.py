@@ -829,6 +829,7 @@ async def run_pipeline(
     prd_url: str | None = None,
     include_subtasks: bool = False,
     existing_test_cases: list[dict] | None = None,
+    automation_evidence: dict[str, Any] | None = None,
 ) -> AgentState:
     pipeline = build_pipeline()
     init_state: AgentState = {
@@ -840,6 +841,7 @@ async def run_pipeline(
         "prd_url": prd_url or "",
         "include_subtasks": include_subtasks,
         "existing_test_cases": existing_test_cases or [],
+        "automation_evidence": automation_evidence or {},
         "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "approved": False,
         "approval": _approval_payload("not_started", attempt=0),
