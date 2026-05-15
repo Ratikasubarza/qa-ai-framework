@@ -1,0 +1,41 @@
+{
+  "feature": "Request User Email Change API",
+  "evidence": {
+    "api": {
+      "method": "PUT",
+      "endpoint": "/v1/users/me/email",
+      "headers": {
+        "x-api-key": "[REDACTED_API_KEY]",
+        "Authorization": "Bearer [REDACTED_TOKEN]"
+      },
+      "valid_payload": {
+        "new_email": "testemailchange+1234567890@mailinator.com"
+      },
+      "success_response": {
+        "code": "OK",
+        "message": "Data saved",
+        "data": null
+      },
+      "negative_cases": [
+        {
+          "title": "Email already taken",
+          "payload": {
+            "new_email": "existing@example.com"
+          },
+          "expected_status": 422,
+          "expected_response": {
+            "code": "NOKUNPROC",
+            "message": "email already exists",
+            "data": null
+          }
+        }
+      ],
+      "security_notes": [
+        "Use synthetic users only because this endpoint starts an email-change flow.",
+        "Do not store real bearer tokens or API keys in evidence files.",
+        "Live staging currently returns Data saved with null data for successful requests.",
+        "Live staging currently returns 422 NOKUNPROC for duplicate email requests."
+      ]
+    }
+  }
+}

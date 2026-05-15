@@ -210,6 +210,43 @@ paths:
         '401': { description: Unauthorized }
         '422': { description: Invalid phone code or unprocessable account payload }
 
+  /v1/users/me/email:
+    put:
+      summary: Request current user email change
+      tags: [User]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [new_email]
+              properties:
+                new_email:
+                  type: string
+                  format: email
+                  description: New email address to verify before applying the change.
+      responses:
+        '200':
+          description: Email change request saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: string, example: OK }
+                  message:
+                    type: string
+                    example: Data saved
+                  data:
+                    type: object
+                    nullable: true
+        '401': { description: Unauthorized }
+        '422': { description: Invalid email payload or email already exists }
+
   /v1/users/me/password:
     put:
       summary: Change current user password
