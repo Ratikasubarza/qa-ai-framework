@@ -23,11 +23,12 @@ logger = structlog.get_logger(__name__)
 class QATelegramBot:
     def __init__(self):
         token = secret_manager.get("telegram_bot_token")
-        self.bot      = Bot(token=token)
-        self.channels = settings.telegram_channels
-        self.app      = Application.builder().token(token).build()
+        self.bot             = Bot(token=token)
+        self.channels        = settings.telegram_channels
+        self.app             = Application.builder().token(token).build()
         self._register_handlers()
-        self._review_queue = None  # Injected after init to avoid circular import
+        self._review_queue   = None   # Injected via set_review_queue()
+        self._polling_active = False  # Guard against double-start
 
     def set_review_queue(self, queue):
         self._review_queue = queue
@@ -221,12 +222,36 @@ class QATelegramBot:
             webhook_url=f"{webhook_url}/telegram/webhook",
         )
 
-    async def start_polling(self):
-        """Polling mode — simpler for local dev without ngrok."""
-        logger.info("telegram_polling_started")
+    async def start_polling(self) -> None:
+        """Start the callback handler — non-blocking; polling runs as background asyncio tasks.
+
+        Must be called in the same event loop as the agent that awaits ReviewItem.wait(),
+        because review_queue uses asyncio.Event which is event-loop-bound.
+        Call stop_polling() when done.
+        """
+        if self._polling_active:
+            logger.debug("telegram_already_polling")
+            return
         await self.app.initialize()
         await self.app.start()
-        await self.app.updater.start_polling()
+        # drop_pending_updates avoids stale callbacks from a previous run firing immediately
+        await self.app.updater.start_polling(drop_pending_updates=True)
+        self._polling_active = True
+        logger.info("telegram_polling_started")
+
+    async def stop_polling(self) -> None:
+        """Gracefully stop polling and release the httpx session."""
+        if not self._polling_active:
+            return
+        try:
+            await self.app.updater.stop()
+            await self.app.stop()
+            await self.app.shutdown()
+        except Exception as e:
+            logger.error("telegram_stop_failed", error=str(e))
+        finally:
+            self._polling_active = False
+        logger.info("telegram_polling_stopped")
 
 
 telegram_bot = QATelegramBot()

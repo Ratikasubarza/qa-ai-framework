@@ -211,22 +211,27 @@ jobs:
               try:
                   tree = ET.parse(f)
                   root = tree.getroot()
-                  tests   = int(root.get("tests", 0))
-                  failures = int(root.get("failures", 0))
-                  errors   = int(root.get("errors", 0))
-                  p = tests - failures - errors
+                  # Handle both <testsuite> and <testsuites> roots
+                  if root.tag == "testsuites":
+                      tests    = sum(int(s.get("tests", 0))    for s in root)
+                      failures = sum(int(s.get("failures", 0)) for s in root)
+                      errors   = sum(int(s.get("errors", 0))   for s in root)
+                  else:
+                      tests    = int(root.get("tests", 0))
+                      failures = int(root.get("failures", 0))
+                      errors   = int(root.get("errors", 0))
+                  p  = tests - failures - errors
                   fa = failures + errors
 
                   total_passed += p
                   total_failed += fa
 
-                  # Auto-format suite name from filename
                   fname = os.path.splitext(os.path.basename(f))[0]
                   suite = format_suite_name(fname)
                   icon = "✅" if fa == 0 else "❌"
                   suite_results.append(f"{icon} {suite}: {p}/{tests}")
               except Exception as e:
-                  suite_results.append(f"⚠️ {os.path.basename(f)}: parse error")
+                  suite_results.append(f"⚠️ {os.path.basename(f)}: parse error — {e}")
 
           overall = "✅ ALL PASSED" if total_failed == 0 else f"❌ {total_failed} FAILED"
           branch  = os.getenv("GITHUB_REF_NAME", "unknown")
@@ -250,5 +255,5 @@ jobs:
                   f"https://api.telegram.org/bot{token}/sendMessage",
                   json={"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"},
               )
-              print(f"✓ Telegram notified: {status}")
+              print(f"✓ Telegram notified: {overall} — {total_passed}p/{total_failed}f")
           PYEOF

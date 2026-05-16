@@ -1,10 +1,54 @@
 """
 Register Test Data — single source of truth untuk semua test data register.
+
+Two interfaces:
+  1. RegisterTestData (class methods) — legacy, backward compatible
+  2. RegisterPayload  (dataclass)     — Builder pattern untuk test baru
 """
 import os
 import time
+from dataclasses import dataclass, field
 from dotenv import load_dotenv
+from core.test_data.base_builder import PayloadBuilder
+
 load_dotenv(dotenv_path=".env")
+
+
+# ── Builder — for new tests ───────────────────────────────────────────────────
+
+@dataclass
+class RegisterPayload(PayloadBuilder):
+    fullname:           str = field(default_factory=lambda: f"Test User {int(time.time())}")
+    email:              str = field(default_factory=lambda: f"qa+{int(time.time())}@mailinator.com")
+    phone_number:       str = field(default_factory=lambda: str(int(time.time()))[-9:])
+    phone_country_code: str = "ID"
+    linkedin:           str = "https://linkedin.com/in/Ratikasaubarza"
+
+    # ── Named constructors for common cases ──────────────────────────────
+
+    @classmethod
+    def valid(cls) -> "RegisterPayload":
+        return cls()
+
+    @classmethod
+    def with_invalid_email(cls) -> "RegisterPayload":
+        return cls(email="not-an-email")
+
+    @classmethod
+    def with_sql_injection(cls) -> "RegisterPayload":
+        return cls(fullname="'; DROP TABLE users; --")
+
+    @classmethod
+    def with_xss(cls) -> "RegisterPayload":
+        return cls(fullname="<script>alert('xss')</script>")
+
+    @classmethod
+    def with_long_name(cls, length: int = 501) -> "RegisterPayload":
+        return cls(fullname="A" * length)
+
+    @classmethod
+    def with_invalid_phone_code(cls) -> "RegisterPayload":
+        return cls(phone_country_code="XX")
 
 
 class RegisterTestData:

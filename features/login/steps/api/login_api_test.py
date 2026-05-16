@@ -1,3 +1,4 @@
+import allure
 import pytest
 import pytest_asyncio
 import os
@@ -8,6 +9,8 @@ from skills.api.schema_validator import SchemaValidator
 load_dotenv(dotenv_path=".env")
 EMAIL    = os.getenv("STAGING_EMAIL", "testingHonoA@mailinator.com")
 PASSWORD = os.getenv("STAGING_PASSWORD", "P@ssTika1234#26")
+
+pytestmark = allure.feature("Login")
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -118,3 +121,108 @@ async def test_TC_API_011_get_profile_unauthenticated(unauth_client):
     response = await unauth_client.get("/v1/users/me")
     validator = SchemaValidator(response)
     assert response.status_code == 401, f'Expected 401, got: {response.status_code}'
+
+
+# ── Extended Login Tests ──────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_TC_API_012_login_without_api_key():
+    """TC-API-012 | Security | Login without x-api-key header returns 401"""
+    import httpx
+    async with httpx.AsyncClient(
+        base_url=os.getenv("HONO_API_URL"),
+        timeout=30,
+    ) as client:
+        response = await client.post(
+            "/v1/users/login",
+            json={"email": EMAIL, "password": PASSWORD},
+        )
+    assert response.status_code in [401, 403], \
+        f"Expected 401/403 without API key, got: {response.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_TC_API_013_login_empty_email():
+    """TC-API-013 | Negative | Login with empty email string returns 400"""
+    async with HonoAPIClient() as client:
+        response = await client.post(
+            "/v1/users/login",
+            json={"email": "", "password": PASSWORD},
+        )
+    assert response.status_code in [400, 422], \
+        f"Expected 400/422 for empty email, got: {response.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_TC_API_014_login_empty_password():
+    """TC-API-014 | Negative | Login with empty password string returns 4xx"""
+    async with HonoAPIClient() as client:
+        response = await client.post(
+            "/v1/users/login",
+            json={"email": EMAIL, "password": ""},
+        )
+    assert response.status_code in [400, 401, 422], \
+        f"Expected 4xx for empty password, got: {response.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_TC_API_016_login_response_time():
+    """TC-API-016 | Performance | Login response time under 3s"""
+    async with HonoAPIClient() as client:
+        response = await client.post(
+            "/v1/users/login",
+            json={"email": EMAIL, "password": PASSWORD},
+        )
+    SchemaValidator(response).response_time_under(3000)
+
+
+@pytest.mark.asyncio
+async def test_TC_API_017_login_sql_injection_email():
+    """TC-API-017 | Security | SQL injection in email is blocked"""
+    async with HonoAPIClient() as client:
+        response = await client.post(
+            "/v1/users/login",
+            json={"email": "' OR 1=1 --", "password": PASSWORD},
+        )
+    assert response.status_code in [400, 401, 422], \
+        f"Expected 4xx for SQL injection email, got: {response.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_TC_API_018_login_very_long_email():
+    """TC-API-018 | Boundary | 500-char email is handled gracefully"""
+    long_email = "a" * 490 + "@test.com"
+    async with HonoAPIClient() as client:
+        response = await client.post(
+            "/v1/users/login",
+            json={"email": long_email, "password": PASSWORD},
+        )
+    assert response.status_code in [400, 401, 422], \
+        f"Expected 4xx for very long email, got: {response.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_TC_API_019_login_email_case_sensitivity():
+    """TC-API-019 | Boundary | Uppercase email — documents case sensitivity behavior"""
+    async with HonoAPIClient() as client:
+        response = await client.post(
+            "/v1/users/login",
+            json={"email": EMAIL.upper(), "password": PASSWORD},
+        )
+    assert response.status_code in [200, 400, 401], \
+        f"Unexpected status for uppercase email: {response.status_code}"
+    print(f"\n  Case sensitivity: {EMAIL.upper()} → {response.status_code}")
+
+
+@pytest.mark.asyncio
+async def test_TC_API_020_login_multiple_failed_attempts():
+    """TC-API-020 | Security | Three consecutive wrong-password attempts all return 401"""
+    async with HonoAPIClient() as client:
+        for attempt in range(3):
+            response = await client.post(
+                "/v1/users/login",
+                json={"email": EMAIL, "password": "WrongPass!"},
+            )
+            assert response.status_code == 401, \
+                f"Attempt {attempt + 1}: expected 401, got {response.status_code}"
+    print("\n✓ 3 failed login attempts all returned 401")

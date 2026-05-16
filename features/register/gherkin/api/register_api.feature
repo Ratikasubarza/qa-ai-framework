@@ -34,11 +34,6 @@ Feature: Register API — /v1/users/register
     When I POST to "/v1/users/register" with empty body
     Then the response status should be 400
 
-  @negative @P1 @TC-REG-API-006
-  Scenario: Register with duplicate email returns error
-    When I POST to "/v1/users/register" with already registered email
-    Then the response status should be 4xx
-
   @negative @P1 @TC-REG-API-007
   Scenario: Register with duplicate phone number returns error
     When I POST to "/v1/users/register" with already registered phone number

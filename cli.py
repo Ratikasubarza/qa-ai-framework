@@ -418,6 +418,7 @@ async def cmd_pipeline(args):
         prd_url=args.prd_url or None,
         include_subtasks=args.include_subtasks,
         automation_evidence=automation_evidence,
+        github_pr_number=getattr(args, "github_pr", None),
     )
 
     console.print(f"\n[bold]Pipeline Complete[/]")
@@ -551,6 +552,7 @@ def build_parser():
     pip.add_argument("--include-subtasks", action="store_true", help="Include Jira subtasks/developer details in source intake")
     pip.add_argument("--automation-evidence", default=None, help="Path to JSON file with actual API/web/mobile execution evidence for codegen")
     pip.add_argument("--url",      default=None, help="Implemented feature URL")
+    pip.add_argument("--github-pr", default=None, type=int, help="GitHub PR number — post QA summary as PR comment")
 
     return parser
 

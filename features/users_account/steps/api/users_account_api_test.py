@@ -1,5 +1,5 @@
 """User account API tests — GET and PUT /v1/users/me/account."""
-
+import allure
 import pytest
 import pytest_asyncio
 
@@ -9,11 +9,9 @@ from features.users_account.test_data.users_account_test_data import (
 )
 from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator
+from skills.testing.helpers import assert_required_keys
 
-
-def assert_required_keys(payload: dict, required_keys: set[str], label: str) -> None:
-    missing = required_keys - set(payload.keys())
-    assert not missing, f"Missing {label} field(s): {sorted(missing)}"
+pytestmark = allure.feature("Users - Account")
 
 
 def get_account_payload(response) -> tuple[dict, dict]:
@@ -42,6 +40,8 @@ async def auth_client(approved_account_user):
         yield client
 
 
+@allure.story("TC-USERS-ACCOUNT-001: Get account information success")
+@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_001_get_account_information_success(
     approved_account_user,
@@ -65,6 +65,8 @@ async def test_TC_USERS_ACCOUNT_001_get_account_information_success(
     assert data.get("email") == approved_account_user["email"]
 
 
+@allure.story("TC-USERS-ACCOUNT-002: Get account without token")
+@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_002_get_account_without_token():
     """
@@ -79,6 +81,8 @@ async def test_TC_USERS_ACCOUNT_002_get_account_without_token():
     SchemaValidator(response).status_unauthorized()
 
 
+@allure.story("TC-USERS-ACCOUNT-003: Optional fields allow legacy nulls")
+@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
@@ -120,6 +124,8 @@ async def test_TC_USERS_ACCOUNT_003_account_optional_fields_allow_legacy_nulls(
         )
 
 
+@allure.story("TC-USERS-ACCOUNT-004: Update account information success")
+@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_004_update_account_information_success(
     approved_account_user,
@@ -155,6 +161,8 @@ async def test_TC_USERS_ACCOUNT_004_update_account_information_success(
     assert data.get("phone_code") == update_payload["phone_code"]
 
 
+@allure.story("TC-USERS-ACCOUNT-005: Update account without token")
+@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_005_update_account_without_token():
     """
@@ -172,6 +180,8 @@ async def test_TC_USERS_ACCOUNT_005_update_account_without_token():
     SchemaValidator(response).status_unauthorized()
 
 
+@allure.story("TC-USERS-ACCOUNT-006: Update account rejects invalid phone code")
+@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_006_update_account_rejects_invalid_phone_code(
     approved_account_user,

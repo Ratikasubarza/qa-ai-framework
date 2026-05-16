@@ -151,14 +151,30 @@ def node_source_intake(state: AgentState) -> AgentState:
 
 # ── Node: Requirements ───────────────────────────────────────────────────────
 def node_requirements(state: AgentState) -> AgentState:
-    logger.info("node_start", node="requirements", ticket=state.get("ticket_id"))
+    include_subtasks = bool(state.get("include_subtasks"))
+    logger.info(
+        "node_start",
+        node="requirements",
+        ticket=state.get("ticket_id"),
+        include_subtasks=include_subtasks,
+        confluence_url=state.get("prd_url") or None,
+    )
 
     try:
         from agents.requirements_agent import requirements_agent
 
         source_bundle = state.get("source_bundle") or {}
+        # prd_content already has Confluence text merged in by source_intake when prd_url is set
+        # subtask details are merged in when include_subtasks=True
         source_text = source_bundle.get("prd_content") or state.get("story_text", "")
+
         if source_bundle.get("jira_source", {}).get("fetched") or source_bundle.get("prd_source", {}).get("fetched"):
+            logger.info(
+                "requirements_source",
+                jira_fetched=bool(source_bundle.get("jira_source", {}).get("fetched")),
+                confluence_fetched=bool(source_bundle.get("prd_source", {}).get("fetched")),
+                subtasks_included=include_subtasks,
+            )
             result = requirements_agent.run_from_text(
                 feature=state.get("feature", ""),
                 story_text=source_text,
@@ -214,6 +230,8 @@ async def node_testcase(state: AgentState) -> AgentState:
             description=state.get("story_text", state.get("feature", "")),
             platforms=platforms,
             acceptance_criteria=state.get("acceptance_criteria", []),
+            jira_story_key=state.get("ticket_id") or None,
+            confluence_page_url=state.get("prd_url") or None,
         )
         output = await test_case_agent.run(inp, require_approval=False)
         if not output.scenarios:
@@ -377,7 +395,11 @@ async def node_approval(state: AgentState) -> AgentState:
         from core.telegram_bot import telegram_bot
         from core.workflows.approval_workflow import review_queue
 
+        # Bot MUST run in this event loop — it shares review_queue (in-memory asyncio.Event).
+        # start_polling() is idempotent; stop_polling() is called in finally.
         telegram_bot.set_review_queue(review_queue)
+        await telegram_bot.start_polling()
+
         item = review_queue.enqueue(
             agent_name="orchestrator.testcase_approval",
             payload={
@@ -427,6 +449,14 @@ async def node_approval(state: AgentState) -> AgentState:
             "approval": _approval_payload("failed", attempt=attempt, message=str(e)),
             "error": {"phase": "approval", "message": str(e)},
         }
+    finally:
+        # Always stop polling so the httpx session is released and the Application
+        # can be restarted cleanly on the next pipeline run.
+        try:
+            from core.telegram_bot import telegram_bot as _tb
+            await _tb.stop_polling()
+        except Exception:
+            pass
 
 
 # ── Node: Test Case Export ──────────────────────────────────────────────────
@@ -728,6 +758,23 @@ def node_report(state: AgentState) -> AgentState:
         except Exception as e:
             logger.error("telegram_failed", error=str(e))
 
+    # Post QA summary to GitHub PR if PR number is in state
+    pr_number = state.get("github_pr_number")
+    if pr_number:
+        try:
+            from mcp_tools.github_client import github_client as gh
+            gh.post_qa_summary(
+                pr_number=int(pr_number),
+                passed=len(test_cases) - len(failures),
+                failed=len(failures),
+                coverage_pct=coverage,
+                suite_lines=[f"{state.get('feature', '')} — {len(test_cases)} scenarios"],
+                run_url=os.getenv("GITHUB_RUN_URL", ""),
+            )
+            logger.info("github_pr_comment_sent", pr=pr_number)
+        except Exception as e:
+            logger.error("github_pr_comment_failed", error=str(e))
+
     notifications = [
         *(state.get("notifications") or []),
         {"channel": "qa_ops", "status": status, "sent": bool(token and chat_id)},
@@ -830,6 +877,7 @@ async def run_pipeline(
     include_subtasks: bool = False,
     existing_test_cases: list[dict] | None = None,
     automation_evidence: dict[str, Any] | None = None,
+    github_pr_number: int | None = None,
 ) -> AgentState:
     pipeline = build_pipeline()
     init_state: AgentState = {
@@ -842,6 +890,7 @@ async def run_pipeline(
         "include_subtasks": include_subtasks,
         "existing_test_cases": existing_test_cases or [],
         "automation_evidence": automation_evidence or {},
+        "github_pr_number": github_pr_number,
         "run_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
         "approved": False,
         "approval": _approval_payload("not_started", attempt=0),
