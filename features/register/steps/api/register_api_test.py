@@ -6,10 +6,14 @@ from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator
 from skills.testing.helpers import skip_on_email_quota
 from features.register.test_data.register_test_data import RegisterTestData
+from config.test_config import APIEndpoints, Timeouts
+from config.test_data import BoundaryValues, KnownAccounts
 
 pytestmark = allure.feature("Register")
 
 
+@pytest.mark.smoke
+@pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_REG_API_001_register_valid_data():
     """
@@ -17,7 +21,7 @@ async def test_TC_REG_API_001_register_valid_data():
     """
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/register",
+            APIEndpoints.REGISTER,
             json=RegisterTestData.valid_payload()
         )
     skip_on_email_quota(response)
@@ -28,6 +32,8 @@ async def test_TC_REG_API_001_register_valid_data():
     print(f"\n✓ Register success: {data.get('message')}")
 
 
+@pytest.mark.sanity
+@pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_REG_API_002_register_duplicate_email():
     """
@@ -37,13 +43,15 @@ async def test_TC_REG_API_002_register_duplicate_email():
     payload["email"] = RegisterTestData.EXISTING_EMAIL
 
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json=payload)
+        response = await client.post(APIEndpoints.REGISTER, json=payload)
 
     assert response.status_code in [400, 409, 422], \
         f"Expected 4xx for duplicate email, got: {response.status_code}"
     print(f"\n✓ Duplicate email blocked: {response.status_code}")
 
 
+@pytest.mark.sanity
+@pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_REG_API_003_register_missing_required_fields():
     """
@@ -51,7 +59,7 @@ async def test_TC_REG_API_003_register_missing_required_fields():
     """
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/register",
+            APIEndpoints.REGISTER,
             json=RegisterTestData.MISSING_FIELDS_PAYLOAD
         )
     assert response.status_code in [400, 422], \
@@ -59,6 +67,8 @@ async def test_TC_REG_API_003_register_missing_required_fields():
     print(f"\n✓ Missing fields blocked: {response.status_code}")
 
 
+@pytest.mark.sanity
+@pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_REG_API_004_register_invalid_email_format():
     """
@@ -66,7 +76,7 @@ async def test_TC_REG_API_004_register_invalid_email_format():
     """
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/register",
+            APIEndpoints.REGISTER,
             json=RegisterTestData.INVALID_EMAIL_PAYLOAD
         )
     assert response.status_code in [400, 422], \
@@ -81,7 +91,7 @@ async def test_TC_REG_API_005_register_empty_body():
     """
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/register",
+            APIEndpoints.REGISTER,
             json=RegisterTestData.EMPTY_PAYLOAD
         )
     assert response.status_code in [400, 422], \
@@ -95,9 +105,9 @@ async def test_TC_REG_API_005_register_empty_body():
 async def test_TC_REG_API_006_duplicate_email():
     """TC-REG-API-006 | Negative | Duplicate email returns error"""
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": "Test Duplicate Email",
-            "email": "testingHonoA@mailinator.com",  # Already registered
+            "email": KnownAccounts.EXISTING_EMAIL_A,  # Already registered
             "phone_number": RegisterTestData.valid_payload()["phone_number"],
             "phone_country_code": "ID",
             "linkedin": "https://linkedin.com/in/testduplicate"
@@ -113,10 +123,10 @@ async def test_TC_REG_API_007_duplicate_phone():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": f"Test Duplicate Phone {ts}",
             "email": f"uniqueemail+{ts}@mailinator.com",
-            "phone_number": "81234567104",  # Already registered (HonoA)
+            "phone_number": KnownAccounts.EXISTING_PHONE_A,  # Already registered (HonoA)
             "phone_country_code": "ID",
             "linkedin": f"https://linkedin.com/in/testphone{ts}"
         })
@@ -130,9 +140,9 @@ async def test_TC_REG_API_008_duplicate_email_valid_phone():
     """TC-REG-API-008 | Combination | Duplicate email + valid phone → blocked"""
     payload = RegisterTestData.valid_payload()
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": "Test Combo 1",
-            "email": "testingHonoA@mailinator.com",  # duplicate email
+            "email": KnownAccounts.EXISTING_EMAIL_A,  # duplicate email
             "phone_number": payload["phone_number"],  # unique phone
             "phone_country_code": "ID",
             "linkedin": "https://linkedin.com/in/testcombo1"
@@ -148,10 +158,10 @@ async def test_TC_REG_API_009_valid_email_duplicate_phone():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": "Test Combo 2",
             "email": f"uniquecombo+{ts}@mailinator.com",  # unique email
-            "phone_number": "81234567105",  # duplicate phone (HonoB)
+            "phone_number": KnownAccounts.EXISTING_PHONE_B,  # duplicate phone (HonoB)
             "phone_country_code": "ID",
             "linkedin": f"https://linkedin.com/in/testcombo2{ts}"
         })
@@ -165,7 +175,7 @@ async def test_TC_REG_API_010_invalid_email_format():
     """TC-REG-API-010 | Negative | Invalid email format"""
     for invalid_email in ["notanemail", "missing@", "@nodomain.com", "spaces in@email.com"]:
         async with HonoAPIClient() as client:
-            response = await client.post("/v1/users/register", json={
+            response = await client.post(APIEndpoints.REGISTER, json={
                 "fullname": "Test Invalid Email",
                 "email": invalid_email,
                 "phone_number": "81234567999",
@@ -183,7 +193,7 @@ async def test_TC_REG_API_011_phone_non_numeric():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": "Test Phone Format",
             "email": f"testphone+{ts}@mailinator.com",
             "phone_number": "abc-invalid",
@@ -195,15 +205,17 @@ async def test_TC_REG_API_011_phone_non_numeric():
     print(f"\n✓ Non-numeric phone blocked: {response.status_code}")
 
 
+@pytest.mark.security
+@pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_REG_API_012_missing_api_key():
     """TC-REG-API-012 | Security | Missing x-api-key header returns 401"""
     import httpx, os
     async with httpx.AsyncClient(
         base_url=os.getenv("HONO_API_URL"),
-        timeout=30
+        timeout=Timeouts.API_REQUEST
     ) as client:  # No API key
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": "Test No API Key",
             "email": "noapikey@mailinator.com",
             "phone_number": "81234567888",
@@ -215,13 +227,15 @@ async def test_TC_REG_API_012_missing_api_key():
     print(f"\n✓ Missing API key blocked: {response.status_code}")
 
 
+@pytest.mark.security
+@pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_REG_API_013_sql_injection_fullname():
     """TC-REG-API-013 | Security | SQL injection in fullname is sanitized"""
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": "'; DROP TABLE users; --",
             "email": f"sqlinject+{ts}@mailinator.com",
             "phone_number": str(ts)[-9:],
@@ -240,9 +254,9 @@ async def test_TC_REG_API_014_very_long_fullname():
     """TC-REG-API-014 | Boundary | Very long fullname (500+ chars)"""
     import time
     ts = int(time.time())
-    long_name = "A" * 501
+    long_name = "A" * BoundaryValues.LONG_NAME_LENGTH
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": long_name,
             "email": f"longname+{ts}@mailinator.com",
             "phone_number": str(ts)[-9:],
@@ -256,10 +270,10 @@ async def test_TC_REG_API_014_very_long_fullname():
 async def test_TC_REG_API_015_both_email_and_phone_duplicate():
     """TC-REG-API-015 | Combination | Both email AND phone duplicate → blocked"""
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": "Test Both Duplicate",
-            "email": "testingHonoA@mailinator.com",    # duplicate
-            "phone_number": "81234567104",              # duplicate
+            "email": KnownAccounts.EXISTING_EMAIL_A,    # duplicate
+            "phone_number": KnownAccounts.EXISTING_PHONE_A,  # duplicate
             "phone_country_code": "ID",
             "linkedin": "https://linkedin.com/in/bothduplicate"
         })
@@ -274,7 +288,7 @@ async def test_TC_REG_API_015_both_email_and_phone_duplicate():
 async def test_TC_REG_API_016_minimum_valid_data():
     """TC-REG-API-016 | Boundary | Register with minimum required fields returns 200"""
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json=RegisterTestData.valid_payload())
+        response = await client.post(APIEndpoints.REGISTER, json=RegisterTestData.valid_payload())
     skip_on_email_quota(response)
     assert response.status_code == 200, \
         f"Expected 200 for minimum valid payload, got: {response.status_code} {response.text[:200]}"
@@ -286,7 +300,7 @@ async def test_TC_REG_API_017_special_chars_fullname():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "fullname": "Test !@#$% User",
         })
@@ -304,7 +318,7 @@ async def test_TC_REG_API_018_missing_fullname():
     payload = RegisterTestData.valid_payload(str(ts))
     del payload["fullname"]
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json=payload)
+        response = await client.post(APIEndpoints.REGISTER, json=payload)
     assert response.status_code in [400, 422], \
         f"Expected 400/422 for missing fullname, got: {response.status_code}"
 
@@ -317,7 +331,7 @@ async def test_TC_REG_API_019_missing_linkedin():
     payload = RegisterTestData.valid_payload(str(ts))
     del payload["linkedin"]
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json=payload)
+        response = await client.post(APIEndpoints.REGISTER, json=payload)
     assert response.status_code in [200, 400, 422], \
         f"Unexpected status for missing linkedin: {response.status_code}"
     print(f"\n  Missing linkedin → {response.status_code}")
@@ -329,7 +343,7 @@ async def test_TC_REG_API_020_invalid_phone_country_code():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "phone_country_code": RegisterTestData.INVALID_COUNTRY_CODE,
         })
@@ -343,7 +357,7 @@ async def test_TC_REG_API_021_phone_too_short():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "phone_number": "123",
         })
@@ -357,7 +371,7 @@ async def test_TC_REG_API_022_phone_too_long():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "phone_number": "1" * 21,
         })
@@ -366,13 +380,15 @@ async def test_TC_REG_API_022_phone_too_long():
     print(f"\n  21-digit phone → {response.status_code}")
 
 
+@pytest.mark.security
+@pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_REG_API_023_xss_in_fullname():
     """TC-REG-API-023 | Security | XSS payload in fullname is handled safely"""
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "fullname": RegisterTestData.XSS_NAME,
         })
@@ -388,7 +404,7 @@ async def test_TC_REG_API_024_valid_linkedin_url():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "linkedin": "https://linkedin.com/in/Ratikasaubarza",
         })
@@ -403,7 +419,7 @@ async def test_TC_REG_API_025_invalid_linkedin_url():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "linkedin": "not-a-url",
         })
@@ -413,13 +429,15 @@ async def test_TC_REG_API_025_invalid_linkedin_url():
     print(f"\n  Invalid linkedin URL → {response.status_code}")
 
 
+@pytest.mark.performance
+@pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_REG_API_026_response_time():
     """TC-REG-API-026 | Performance | Register response time under 3s"""
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json=RegisterTestData.valid_payload())
+        response = await client.post(APIEndpoints.REGISTER, json=RegisterTestData.valid_payload())
     skip_on_email_quota(response)
-    SchemaValidator(response).response_time_under(3000)
+    SchemaValidator(response).response_time_under(Timeouts.API_SLA_MS)
 
 
 @pytest.mark.asyncio
@@ -428,7 +446,7 @@ async def test_TC_REG_API_027_empty_string_fullname():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "fullname": "",
         })
@@ -442,7 +460,7 @@ async def test_TC_REG_API_028_whitespace_only_fullname():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             **RegisterTestData.valid_payload(str(ts)),
             "fullname": "   ",
         })
@@ -457,11 +475,11 @@ async def test_TC_REG_API_029_register_same_user_twice():
     """TC-REG-API-029 | Combination | Register same user twice — second attempt blocked"""
     payload = RegisterTestData.valid_payload()
     async with HonoAPIClient() as client:
-        first = await client.post("/v1/users/register", json=payload)
+        first = await client.post(APIEndpoints.REGISTER, json=payload)
         skip_on_email_quota(first)
         assert first.status_code == 200, \
             f"First registration should succeed, got: {first.status_code}"
-        second = await client.post("/v1/users/register", json=payload)
+        second = await client.post(APIEndpoints.REGISTER, json=payload)
     assert second.status_code in [400, 409, 422], \
         f"Second registration should be blocked, got: {second.status_code}"
     print(f"\n✓ Duplicate registration blocked on second attempt: {second.status_code}")
@@ -473,7 +491,7 @@ async def test_TC_REG_API_030_null_values_in_required_fields():
     import time
     ts = int(time.time())
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json={
+        response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": None,
             "email": None,
             "phone_number": str(ts)[-9:],

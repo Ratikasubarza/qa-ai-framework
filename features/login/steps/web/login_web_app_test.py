@@ -20,7 +20,7 @@ from features.login.locators.web.login_web_locators import (
 load_dotenv(dotenv_path=".env")
 
 from features.login.test_data.login_test_data import LoginTestData
-from config.test_config import TestConfig
+from config.test_config import TestConfig, Timeouts
 EMAIL    = LoginTestData.VALID_EMAIL
 PASSWORD = LoginTestData.VALID_PASSWORD
 BASE_URL = TestConfig.WEB_APP_URL
@@ -36,7 +36,7 @@ def safe_interact(page: Page, locator: str, element_name: str, action: str, valu
     ws   = WaitStrategy(page)
 
     try:
-        ws.for_element(locator, timeout=8000)
+        ws.for_element(locator, timeout=Timeouts.PAGE_LOAD_MS)
     except AssertionError:
         # Locator broken — trigger self-healing
         result = self_healer.heal(
@@ -70,7 +70,7 @@ def safe_interact(page: Page, locator: str, element_name: str, action: str, valu
 
 def _go_to_login(page: Page):
     page.goto(f"{BASE_URL}/login")
-    page.wait_for_selector(EMAIL_FIELD, timeout=15000)
+    page.wait_for_selector(EMAIL_FIELD, timeout=Timeouts.PAGE_LOAD_MS)
 
 
 def test_TC_WEB_001_login_button_disabled_when_empty(page: Page):

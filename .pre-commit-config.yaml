@@ -1,4 +1,56 @@
 repos:
+  # ── Python syntax check ────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-ast
+        name: python-syntax-check
+
+  # ── Hardcoded credential pattern check ────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: no-hardcoded-credentials
+        name: Check for hardcoded credentials
+        language: python
+        entry: python
+        args:
+          - -c
+          - |
+            import sys, re
+            patterns = [
+              r'(?i)(password|token|api_key|secret)\s*=\s*["\'][^"\']{4,}["\']',
+            ]
+            exceptions = ['os.getenv', 'os.environ', 'secret_manager', 'TestConfig',
+                          'LoginTestData', 'CmsLoginTestData', 'Field(', 'default=']
+            found = []
+            for path in sys.argv[1:]:
+              try:
+                lines = open(path).readlines()
+              except Exception:
+                continue
+              for i, line in enumerate(lines, 1):
+                stripped = line.strip()
+                if stripped.startswith('#'):
+                  continue
+                if any(exc in line for exc in exceptions):
+                  continue
+                for p in patterns:
+                  if re.search(p, line):
+                    found.append(f'{path}:{i}: {stripped[:80]}')
+            if found:
+              print('Hardcoded credential patterns found:')
+              for f in found:
+                print(f'  {f}')
+              sys.exit(1)
+        types: [python]
+        exclude: |
+          (?x)^(
+            \.env.*|
+            tests/.*|
+            knowledge_base/sources/.*|
+            AGENTS\.md
+          )$
+
   # ── Ruff: linting + formatting (replaces flake8 + black) ──────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.4

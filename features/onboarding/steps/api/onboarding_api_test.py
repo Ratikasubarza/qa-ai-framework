@@ -14,12 +14,14 @@ from skills.api.schema_validator import SchemaValidator
 from features.onboarding.test_data.onboarding_test_data import OnboardingTestData
 from core.db.test_user_helper import create_approved_user_sync
 from core.db.db_client import DBClient
+from config.test_config import APIEndpoints, Timeouts
+from config.test_data import BoundaryValues
 
 
 async def get_user_token(email: str, password: str) -> str:
     """Login and get user access token."""
     async with HonoAPIClient() as client:
-        resp = await client.post("/v1/users/login", json={
+        resp = await client.post(APIEndpoints.LOGIN, json={
             "email": email,
             "password": password
         })
@@ -54,7 +56,7 @@ async def test_TC_ONB_API_001_complete_onboarding_valid_data(approved_user):
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
         response = await client.put(
-            "/v1/users/onboarding",
+            APIEndpoints.ONBOARDING,
             json=OnboardingTestData.valid_payload()
         )
 
@@ -77,7 +79,7 @@ async def test_TC_ONB_API_002_onboarding_without_token():
     """
     async with HonoAPIClient() as client:
         response = await client.put(
-            "/v1/users/onboarding",
+            APIEndpoints.ONBOARDING,
             json=OnboardingTestData.valid_payload()
         )
     assert response.status_code == 401, \
@@ -93,7 +95,7 @@ async def test_TC_ONB_API_003_onboarding_invalid_token():
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = "Bearer invalid_token_12345"
         response = await client.put(
-            "/v1/users/onboarding",
+            APIEndpoints.ONBOARDING,
             json=OnboardingTestData.valid_payload()
         )
     assert response.status_code == 401, \
@@ -112,7 +114,7 @@ async def test_TC_ONB_API_004_onboarding_missing_full_name(approved_user):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
 
     # [DEV-BUG] API does not validate missing full_name — returns 200
     print(f"\n[DEV-BUG] Missing full_name: {response.status_code} {response.json()}")
@@ -130,7 +132,7 @@ async def test_TC_ONB_API_005_onboarding_missing_city(approved_user):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
 
     # [DEV-BUG] API does not validate missing city_id — returns 200
     print(f"\n[DEV-BUG] Missing city_id: {response.status_code} {response.json()}")
@@ -148,7 +150,7 @@ async def test_TC_ONB_API_006_onboarding_invalid_city_id(approved_user):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
 
     # [DEV-BUG] Invalid city_id returns 500 with raw DB foreign key error
     # Should return 400/422 with proper error message
@@ -168,7 +170,7 @@ async def test_TC_ONB_API_007_onboarding_over_max_industries(approved_user):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
 
     print(f"\n[DEV-BUG?] 3 industries: {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], \
@@ -189,7 +191,7 @@ async def test_TC_ONB_API_008_onboarding_empty_arrays(approved_user):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
 
     print(f"\n✓ Empty arrays: {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], \
@@ -207,7 +209,7 @@ async def test_TC_ONB_API_009_onboarding_invalid_industry_ids(approved_user):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
 
     print(f"\n✓ Invalid industry IDs: {response.status_code} {response.json()}")
     # [DEV-BUG] API may return 500 for invalid industry IDs (foreign key constraint)
@@ -226,13 +228,13 @@ async def test_TC_ONB_API_010_onboarding_twice_same_user(approved_user):
     # First time
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        r1 = await client.put("/v1/users/onboarding", json=payload)
+        r1 = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n  First onboarding: {r1.status_code}")
 
     # Second time
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        r2 = await client.put("/v1/users/onboarding", json=payload)
+        r2 = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"  Second onboarding: {r2.status_code} {r2.json()}")
 
     assert r1.status_code == 200, f"First onboarding failed: {r1.status_code}"
@@ -251,7 +253,7 @@ async def test_TC_ONB_API_011_onboarding_empty_body(approved_user):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json={})
+        response = await client.put(APIEndpoints.ONBOARDING, json={})
 
     # [DEV-BUG] API accepts empty body and returns 200
     print(f"\n[DEV-BUG] Empty body: {response.status_code} {response.json()}")
@@ -269,12 +271,12 @@ async def test_TC_ONB_API_012_onboarding_response_time(approved_user):
         client._client.headers["Authorization"] = f"Bearer {token}"
         start = time.time()
         response = await client.put(
-            "/v1/users/onboarding",
+            APIEndpoints.ONBOARDING,
             json=OnboardingTestData.valid_payload()
         )
         elapsed_ms = (time.time() - start) * 1000
 
-    assert elapsed_ms < 3000, f"Too slow: {elapsed_ms:.0f}ms"
+    assert elapsed_ms < Timeouts.API_SLA_MS, f"Too slow: {elapsed_ms:.0f}ms"
     print(f"\n✓ Response time: {elapsed_ms:.0f}ms")
 
 
@@ -288,7 +290,7 @@ async def test_TC_ONB_API_013_industry_min_1(approved_user):
     payload["industry_ids"] = [1]  # min = 1
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n✓ industry_ids min(1): {response.status_code} {response.json()}")
     assert response.status_code == 200, f"Min 1 industry should pass: {response.status_code}"
 
@@ -301,7 +303,7 @@ async def test_TC_ONB_API_014_industry_max_2(approved_user):
     payload["industry_ids"] = [1, 2]  # max = 2
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n✓ industry_ids max(2): {response.status_code}")
     assert response.status_code == 200, f"Max 2 industries should pass: {response.status_code}"
 
@@ -312,10 +314,10 @@ async def test_TC_ONB_API_015_industry_over_max_3(approved_user):
     [DEV-BUG] If API accepts 3 industries, validation is missing"""
     token = await get_user_token(approved_user["email"], approved_user["password"])
     payload = OnboardingTestData.valid_payload()
-    payload["industry_ids"] = [1, 2, 3]  # over max
+    payload["industry_ids"] = list(range(1, BoundaryValues.OVER_MAX_INDUSTRIES + 1))  # over max
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n[DEV-BUG?] industry_ids over max(3): {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], f"Unexpected: {response.status_code}"
 
@@ -329,7 +331,7 @@ async def test_TC_ONB_API_016_industry_zero(approved_user):
     payload["industry_ids"] = []  # below min
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n[DEV-BUG?] industry_ids zero: {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], f"Unexpected: {response.status_code}"
 
@@ -342,7 +344,7 @@ async def test_TC_ONB_API_017_business_area_min_2(approved_user):
     payload["business_area_ids"] = [1, 2]  # min = 2
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n✓ business_area_ids min(2): {response.status_code}")
     assert response.status_code == 200, f"Min 2 business areas should pass: {response.status_code}"
 
@@ -355,7 +357,7 @@ async def test_TC_ONB_API_018_business_area_max_5(approved_user):
     payload["business_area_ids"] = [1, 2, 3, 4, 5]  # max = 5
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n✓ business_area_ids max(5): {response.status_code}")
     assert response.status_code == 200, f"Max 5 business areas should pass: {response.status_code}"
 
@@ -369,7 +371,7 @@ async def test_TC_ONB_API_019_business_area_over_max_6(approved_user):
     payload["business_area_ids"] = [1, 2, 3, 4, 5, 6]  # over max
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n[DEV-BUG?] business_area_ids over max(6): {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], f"Unexpected: {response.status_code}"
 
@@ -383,7 +385,7 @@ async def test_TC_ONB_API_020_business_area_below_min_1(approved_user):
     payload["business_area_ids"] = [1]  # below min
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n[DEV-BUG?] business_area_ids below min(1): {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], f"Unexpected: {response.status_code}"
 
@@ -396,7 +398,7 @@ async def test_TC_ONB_API_021_personal_interests_min_2(approved_user):
     payload["personal_interest_ids"] = [1, 2]  # min = 2
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n✓ personal_interest_ids min(2): {response.status_code}")
     assert response.status_code == 200, f"Min 2 interests should pass: {response.status_code}"
 
@@ -409,7 +411,7 @@ async def test_TC_ONB_API_022_personal_interests_max_5(approved_user):
     payload["personal_interest_ids"] = [1, 2, 3, 4, 5]  # max = 5
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n✓ personal_interest_ids max(5): {response.status_code}")
     assert response.status_code == 200, f"Max 5 interests should pass: {response.status_code}"
 
@@ -423,7 +425,7 @@ async def test_TC_ONB_API_023_personal_interests_over_max_6(approved_user):
     payload["personal_interest_ids"] = [1, 2, 3, 4, 5, 6]  # over max
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n[DEV-BUG?] personal_interest_ids over max(6): {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], f"Unexpected: {response.status_code}"
 
@@ -437,7 +439,7 @@ async def test_TC_ONB_API_024_personal_interests_below_min_1(approved_user):
     payload["personal_interest_ids"] = [1]  # below min
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n[DEV-BUG?] personal_interest_ids below min(1): {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], f"Unexpected: {response.status_code}"
 
@@ -450,7 +452,7 @@ async def test_TC_ONB_API_025_social_causes_min_2(approved_user):
     payload["social_cause_ids"] = [1, 2]  # min = 2
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n✓ social_cause_ids min(2): {response.status_code}")
     assert response.status_code == 200, f"Min 2 causes should pass: {response.status_code}"
 
@@ -463,7 +465,7 @@ async def test_TC_ONB_API_026_social_causes_max_5(approved_user):
     payload["social_cause_ids"] = [1, 2, 3, 4, 5]  # max = 5
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n✓ social_cause_ids max(5): {response.status_code}")
     assert response.status_code == 200, f"Max 5 causes should pass: {response.status_code}"
 
@@ -477,7 +479,7 @@ async def test_TC_ONB_API_027_social_causes_over_max_6(approved_user):
     payload["social_cause_ids"] = [1, 2, 3, 4, 5, 6]  # over max
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n[DEV-BUG?] social_cause_ids over max(6): {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], f"Unexpected: {response.status_code}"
 
@@ -491,6 +493,6 @@ async def test_TC_ONB_API_028_social_causes_below_min_1(approved_user):
     payload["social_cause_ids"] = [1]  # below min
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {token}"
-        response = await client.put("/v1/users/onboarding", json=payload)
+        response = await client.put(APIEndpoints.ONBOARDING, json=payload)
     print(f"\n[DEV-BUG?] social_cause_ids below min(1): {response.status_code} {response.json()}")
     assert response.status_code in [200, 400, 422], f"Unexpected: {response.status_code}"
