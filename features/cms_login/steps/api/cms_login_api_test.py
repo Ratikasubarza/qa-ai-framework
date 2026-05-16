@@ -5,7 +5,7 @@ import pytest
 from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator
 from features.cms_login.test_data.cms_login_test_data import CmsLoginTestData
-from config.test_config import TestConfig
+from config.test_config import TestConfig, APIEndpoints
 
 pytestmark = allure.feature("CMS Login")
 
@@ -20,7 +20,7 @@ async def test_TC_CMS_API_001_login_valid_credentials():
     """
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/login",
+            APIEndpoints.LOGIN,
             json=CmsLoginTestData.valid_payload()
         )
     SchemaValidator(response).status_ok()
@@ -38,7 +38,7 @@ async def test_TC_CMS_API_002_login_wrong_password():
     """
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/login",
+            APIEndpoints.LOGIN,
             json=CmsLoginTestData.wrong_password_payload()
         )
     assert response.status_code in [401, 400], \
@@ -55,7 +55,7 @@ async def test_TC_CMS_API_003_login_missing_resource():
     """
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/login",
+            APIEndpoints.LOGIN,
             json=CmsLoginTestData.missing_resource_payload()
         )
     assert response.status_code in [400, 401, 422], \
@@ -72,7 +72,7 @@ async def test_TC_CMS_API_004_login_wrong_resource():
     """
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/login",
+            APIEndpoints.LOGIN,
             json=CmsLoginTestData.wrong_resource_payload()
         )
     assert response.status_code in [400, 401, 422], \
@@ -89,7 +89,7 @@ async def test_TC_CMS_API_005_login_response_time():
     async with HonoAPIClient() as client:
         start = time.time()
         response = await client.post(
-            "/v1/users/login",
+            APIEndpoints.LOGIN,
             json=CmsLoginTestData.valid_payload()
         )
         elapsed_ms = (time.time() - start) * 1000
@@ -110,7 +110,7 @@ async def test_TC_CMS_API_006_login_without_api_key():
         timeout=30,
     ) as client:
         response = await client.post(
-            "/v1/users/login",
+            APIEndpoints.LOGIN,
             json=CmsLoginTestData.valid_payload(),
         )
     assert response.status_code in [401, 403], \
@@ -121,7 +121,7 @@ async def test_TC_CMS_API_006_login_without_api_key():
 async def test_TC_CMS_API_007_login_invalid_email_format():
     """TC-CMS-API-007 | Negative | CMS login with invalid email format returns 400"""
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/login", json={
+        response = await client.post(APIEndpoints.LOGIN, json={
             "email":    CmsLoginTestData.INVALID_EMAIL,
             "password": CmsLoginTestData.VALID_PASSWORD,
             "resource": CmsLoginTestData.RESOURCE,
@@ -134,7 +134,7 @@ async def test_TC_CMS_API_007_login_invalid_email_format():
 async def test_TC_CMS_API_008_login_empty_email():
     """TC-CMS-API-008 | Negative | CMS login with empty email returns 400"""
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/login", json={
+        response = await client.post(APIEndpoints.LOGIN, json={
             "email":    CmsLoginTestData.EMPTY_STRING,
             "password": CmsLoginTestData.VALID_PASSWORD,
             "resource": CmsLoginTestData.RESOURCE,
@@ -147,7 +147,7 @@ async def test_TC_CMS_API_008_login_empty_email():
 async def test_TC_CMS_API_009_login_empty_password():
     """TC-CMS-API-009 | Negative | CMS login with empty password returns 4xx"""
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/login", json={
+        response = await client.post(APIEndpoints.LOGIN, json={
             "email":    CmsLoginTestData.VALID_EMAIL,
             "password": CmsLoginTestData.EMPTY_STRING,
             "resource": CmsLoginTestData.RESOURCE,
@@ -162,7 +162,7 @@ async def test_TC_CMS_API_010_login_multiple_failed_attempts():
     async with HonoAPIClient() as client:
         for attempt in range(3):
             response = await client.post(
-                "/v1/users/login",
+                APIEndpoints.LOGIN,
                 json=CmsLoginTestData.wrong_password_payload(),
             )
             assert response.status_code in [400, 401], \

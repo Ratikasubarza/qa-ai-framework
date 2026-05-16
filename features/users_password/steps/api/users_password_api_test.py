@@ -10,8 +10,9 @@ from features.users_password.test_data.users_password_test_data import (
 from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator
 from skills.testing.helpers import skip_on_email_quota
+from config.test_config import APIEndpoints
 
-CHANGE_PASSWORD_PATH = "/v1/users/me/password"
+CHANGE_PASSWORD_PATH = APIEndpoints.ME_PASSWORD
 
 pytestmark = allure.feature("Users - Password")
 
@@ -22,7 +23,7 @@ async def login_status(email: str, password: str) -> int:
     """Return the HTTP status code of a login attempt."""
     async with HonoAPIClient() as client:
         response = await client.post(
-            "/v1/users/login",
+            APIEndpoints.LOGIN,
             json={"email": email, "password": password},
         )
     return response.status_code

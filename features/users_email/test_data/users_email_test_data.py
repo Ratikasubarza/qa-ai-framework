@@ -1,12 +1,14 @@
 """Email API test data and response contract helpers."""
 
 import re
+from config.test_config import APIEndpoints
+from config.test_data import BoundaryValues
 
 
 class UsersEmailTestData:
-    EMAIL_PATH = "/v1/users/me/email"
-    VERIFY_EMAIL_PATH = "/v1/users/verify-email"
-    MAX_RESPONSE_MS = 3000
+    EMAIL_PATH = APIEndpoints.ME_EMAIL
+    VERIFY_EMAIL_PATH = APIEndpoints.VERIFY_EMAIL
+    MAX_RESPONSE_MS = BoundaryValues.MAX_RESPONSE_MS
 
     SUCCESS_CODE = "OK"
     SAVED_MESSAGE = "Data saved"

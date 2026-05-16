@@ -14,6 +14,7 @@ from platforms.api.httpx_client import HonoAPIClient
 from skills.testing.helpers import skip_on_email_quota
 from features.register.test_data.register_test_data import RegisterTestData
 from core.db.db_client import DBClient
+from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("CMS Reject User")
 
@@ -22,7 +23,7 @@ async def _register_and_verify() -> dict:
     """Register new user + set_verified in DB. Ready for approve/reject."""
     payload = RegisterTestData.valid_payload()
     async with HonoAPIClient() as client:
-        resp = await client.post("/v1/users/register", json=payload)
+        resp = await client.post(APIEndpoints.REGISTER, json=payload)
     skip_on_email_quota(resp)
     assert resp.status_code == 200, f"Register failed: {resp.json()}"
     time.sleep(1)
@@ -44,7 +45,7 @@ async def test_TC_CMS_REJECT_001_reject_verified_user(cms_token):
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
         response = await client.post(
-            f"/v1/users/{user['user_id']}/reject",
+            APIEndpoints.reject(user['user_id']),
             json={"reason": "Does not meet community standards"},
         )
     assert response.status_code == 200, \
@@ -63,7 +64,7 @@ async def test_TC_CMS_REJECT_002_reject_without_reason(cms_token):
     user = await _register_and_verify()
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
-        response = await client.post(f"/v1/users/{user['user_id']}/reject", json={})
+        response = await client.post(APIEndpoints.reject(user['user_id']), json={})
     assert response.status_code in [200, 400, 422]
 
 
@@ -76,7 +77,7 @@ async def test_TC_CMS_REJECT_003_reject_with_empty_reason(cms_token):
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
         response = await client.post(
-            f"/v1/users/{user['user_id']}/reject",
+            APIEndpoints.reject(user['user_id']),
             json={"reason": ""},
         )
     assert response.status_code in [200, 400, 422]
@@ -90,7 +91,7 @@ async def test_TC_CMS_REJECT_004_reject_without_token():
     user = await _register_and_verify()
     async with HonoAPIClient() as client:
         response = await client.post(
-            f"/v1/users/{user['user_id']}/reject",
+            APIEndpoints.reject(user['user_id']),
             json={"reason": "Test reject no auth"},
         )
     assert response.status_code == 401
@@ -105,7 +106,7 @@ async def test_TC_CMS_REJECT_005_reject_nonexistent_user(cms_token):
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
         response = await client.post(
-            f"/v1/users/{fake_id}/reject",
+            APIEndpoints.reject(fake_id),
             json={"reason": "Test invalid ID"},
         )
     assert response.status_code in [404, 400]
@@ -132,7 +133,7 @@ async def test_TC_CMS_REJECT_006_reject_already_approved_user(cms_token):
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
         response = await client.post(
-            f"/v1/users/{user['id']}/reject",
+            APIEndpoints.reject(user['id']),
             json={"reason": "Test reject approved user"},
         )
     assert response.status_code in [200, 400, 409, 422]
@@ -149,10 +150,10 @@ async def test_TC_CMS_REJECT_007_reject_already_rejected_user(cms_token):
     user = await _register_and_verify()
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
-        await client.post(f"/v1/users/{user['user_id']}/reject", json={"reason": "First reject"})
+        await client.post(APIEndpoints.reject(user['user_id']), json={"reason": "First reject"})
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
-        r2 = await client.post(f"/v1/users/{user['user_id']}/reject", json={"reason": "Second reject"})
+        r2 = await client.post(APIEndpoints.reject(user['user_id']), json={"reason": "Second reject"})
     assert r2.status_code in [200, 400, 409]
 
 
@@ -166,7 +167,7 @@ async def test_TC_CMS_REJECT_008_reject_pending_unverified_user(cms_token):
     """
     payload = RegisterTestData.valid_payload()
     async with HonoAPIClient() as client:
-        resp = await client.post("/v1/users/register", json=payload)
+        resp = await client.post(APIEndpoints.REGISTER, json=payload)
     skip_on_email_quota(resp)
     assert resp.status_code == 200
     time.sleep(1)
@@ -175,7 +176,7 @@ async def test_TC_CMS_REJECT_008_reject_pending_unverified_user(cms_token):
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
         response = await client.post(
-            f"/v1/users/{user['id']}/reject",
+            APIEndpoints.reject(user['id']),
             json={"reason": "Reject unverified user"},
         )
     assert response.status_code in [200, 400, 422]
@@ -191,7 +192,7 @@ async def test_TC_CMS_REJECT_009_reject_with_very_long_reason(cms_token):
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
         response = await client.post(
-            f"/v1/users/{user['user_id']}/reject",
+            APIEndpoints.reject(user['user_id']),
             json={"reason": long_reason},
         )
     assert response.status_code in [200, 400, 422]
@@ -209,10 +210,10 @@ async def test_TC_CMS_REJECT_010_reject_then_approve(cms_token):
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
         await client.post(
-            f"/v1/users/{user['user_id']}/reject",
+            APIEndpoints.reject(user['user_id']),
             json={"reason": "Test reject then approve"},
         )
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
-        r2 = await client.post(f"/v1/users/{user['user_id']}/approve")
+        r2 = await client.post(APIEndpoints.approve(user['user_id']))
     assert r2.status_code in [200, 400, 409]

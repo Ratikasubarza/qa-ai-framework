@@ -8,6 +8,7 @@ from skills.api.schema_validator import SchemaValidator
 from skills.testing.helpers import skip_on_email_quota
 from features.register.test_data.register_test_data import RegisterTestData
 from core.db.db_client import DBClient
+from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("CMS Approve User")
 
@@ -15,7 +16,7 @@ pytestmark = allure.feature("CMS Approve User")
 async def _register_new_user() -> dict:
     payload = RegisterTestData.valid_payload()
     async with HonoAPIClient() as client:
-        response = await client.post("/v1/users/register", json=payload)
+        response = await client.post(APIEndpoints.REGISTER, json=payload)
     skip_on_email_quota(response)
     assert response.status_code == 200, \
         f"Register failed: {response.status_code} {response.json()}"
@@ -45,7 +46,7 @@ async def test_TC_CMS_APPROVE_001_full_flow_register_verify_approve(cms_token):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
-        response = await client.post(f"/v1/users/{user_id}/approve")
+        response = await client.post(APIEndpoints.approve(user_id))
     assert response.status_code == 200, \
         f"Approve failed: {response.status_code} {response.json()}"
 
@@ -71,7 +72,7 @@ async def test_TC_CMS_APPROVE_002_approve_without_verification(cms_token):
 
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
-        response = await client.post(f"/v1/users/{user['id']}/approve")
+        response = await client.post(APIEndpoints.approve(user['id']))
     assert response.status_code in [200, 400, 422]
 
 
@@ -83,7 +84,7 @@ async def test_TC_CMS_APPROVE_003_approve_nonexistent_user(cms_token):
     fake_id = "00000000-0000-0000-0000-000000000000"
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
-        response = await client.post(f"/v1/users/{fake_id}/approve")
+        response = await client.post(APIEndpoints.approve(fake_id))
     assert response.status_code in [404, 400]
 
 
@@ -97,7 +98,7 @@ async def test_TC_CMS_APPROVE_004_approve_without_token():
     if not user:
         pytest.skip("No pending users in DB")
     async with HonoAPIClient() as client:
-        response = await client.post(f"/v1/users/{user['id']}/approve")
+        response = await client.post(APIEndpoints.approve(user['id']))
     assert response.status_code == 401
 
 
@@ -118,5 +119,5 @@ async def test_TC_CMS_APPROVE_005_approve_already_approved(cms_token):
         pytest.skip("No approved users in DB")
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
-        response = await client.post(f"/v1/users/{user['id']}/approve")
+        response = await client.post(APIEndpoints.approve(user['id']))
     assert response.status_code in [200, 400, 409]

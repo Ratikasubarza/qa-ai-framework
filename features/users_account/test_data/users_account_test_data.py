@@ -1,11 +1,13 @@
 """Account API test data and response contract helpers."""
 
 import re
+from config.test_config import APIEndpoints
+from config.test_data import BoundaryValues
 
 
 class UsersAccountTestData:
-    ACCOUNT_PATH = "/v1/users/me/account"
-    MAX_RESPONSE_MS = 3000
+    ACCOUNT_PATH = APIEndpoints.ME_ACCOUNT
+    MAX_RESPONSE_MS = BoundaryValues.MAX_RESPONSE_MS
 
     REQUIRED_BODY_KEYS = {"code", "message", "data"}
     REQUIRED_CORE_DATA_KEYS = {

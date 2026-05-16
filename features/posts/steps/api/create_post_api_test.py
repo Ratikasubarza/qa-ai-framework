@@ -8,10 +8,11 @@ from skills.testing.helpers import skip_on_email_quota
 from features.posts.test_data.create_post_test_data import (
     CreatePostPayload, CreatePostTestData,
 )
+from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("Posts")
 
-ENDPOINT = "/v1/posts"
+ENDPOINT = APIEndpoints.POSTS
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

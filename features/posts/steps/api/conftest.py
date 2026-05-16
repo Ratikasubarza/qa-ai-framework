@@ -7,6 +7,7 @@ import pytest_asyncio
 from core.db.test_user_helper import create_approved_user_sync
 from platforms.api.httpx_client import HonoAPIClient
 from skills.testing.helpers import skip_on_email_quota
+from config.test_config import APIEndpoints
 
 
 @pytest.fixture(scope="module")
@@ -23,7 +24,7 @@ def post_user():
 async def post_token(post_user) -> str:
     """Login once per module and return bearer token."""
     async with HonoAPIClient() as client:
-        resp = await client.post("/v1/users/login", json={
+        resp = await client.post(APIEndpoints.LOGIN, json={
             "email":    post_user["email"],
             "password": post_user["password"],
         })
