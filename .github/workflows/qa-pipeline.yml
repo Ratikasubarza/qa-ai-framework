@@ -1,26 +1,9 @@
 name: QA AI Framework — Automated Test Pipeline
 
 on:
-  push:
-    branches: [main, develop, staging]
-  pull_request:
-    branches: [main, develop]
+  workflow_dispatch:      # Manual trigger from GitHub UI or gh CLI
   schedule:
-    # Run every day at 08:00 WIB (01:00 UTC)
-    - cron: '0 1 * * *'
-  workflow_dispatch:
-    inputs:
-      test_suite:
-        description: 'Test suite to run'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - web
-          - api
-          - self-healing
-          - debug-agent
+    - cron: '0 17 * * *'  # Daily at 1AM SGT (UTC+8 = 17:00 UTC)
 
 env:
   PYTHON_VERSION: '3.11'
