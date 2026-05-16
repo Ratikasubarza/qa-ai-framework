@@ -391,6 +391,20 @@ async def cmd_pipeline(args):
     from core.automation_readiness import load_automation_evidence
     from orchestrator.pipeline import run_pipeline
 
+    # Auto-derive feature from Jira ticket when --feature not given
+    if not args.feature and args.ticket:
+        try:
+            from mcp_tools.jira_client.jira_client import jira_client
+            issue = jira_client.get_issue(args.ticket)
+            args.feature = f"{issue['key']}: {issue['summary']}"
+            console.print(f"[green]✓ Jira:[/] {args.feature}")
+        except Exception as e:
+            args.feature = args.ticket
+            console.print(f"[yellow]⚠ Jira fetch failed, using ticket as feature:[/] {e}")
+    elif not args.feature:
+        console.print("[red]Provide --feature or --ticket[/]")
+        sys.exit(1)
+
     try:
         automation_evidence = load_automation_evidence(args.automation_evidence)
     except (FileNotFoundError, ValueError) as e:
@@ -544,7 +558,7 @@ def build_parser():
     sub.add_parser("smoke", help="Verify LLM connection")
 
     pip = sub.add_parser("pipeline", help="Run full Phase 9 orchestrated pipeline")
-    pip.add_argument("--feature",  required=True)
+    pip.add_argument("--feature",  default=None, help="Feature name (auto-derived from --ticket if omitted)")
     pip.add_argument("--platform", default="web")
     pip.add_argument("--ticket",   default=None, help="Jira ticket ID")
     pip.add_argument("--story",    default=None, help="Raw story text")
