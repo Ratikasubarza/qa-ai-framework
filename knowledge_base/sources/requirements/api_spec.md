@@ -1,6 +1,29 @@
-# Hono API Spec — Staging (api-dev.thehono.com)
+# Hono API Spec — Staging (api-dev.thehono.com) — Updated 2026-05-16
 
+Source: api_spec.yaml (OpenAPI 3.0.3)
 Auth: every request needs `x-api-key` header. Authenticated endpoints also need `Authorization: Bearer <token>`.
+
+## Endpoints Summary
+- POST /v1/users/register — Register new user (fullname, email, phone_number, phone_country_code, linkedin)
+- POST /v1/users/login — Login user or admin (email, password, resource=admin for CMS)
+- GET /v1/users/me — Get current user profile (requires Bearer)
+- GET /v1/users/me/account — Get account info: email, phone_number, phone_code, phone_country_iso, nationality
+- PUT /v1/users/me/account — Update account: email, phone_number, phone_code, nationality_id
+- PUT /v1/users/me/email — Request email change (new_email)
+- GET /v1/users/verify-email?code=... — Verify email change (returns 410 if expired)
+- PUT /v1/users/me/password — Change password (current_password, new_password)
+- GET /v1/users — CMS list users (page, size, orderBy, order, status=1|2|3)
+- POST /v1/users/:id/approve — CMS approve user
+- POST /v1/users/:id/reject — CMS reject user (reason optional)
+- PUT /v1/users/onboarding — Complete onboarding (full_name, current_role, company, nationality_id, city_id, industry_ids[1-2], business_area_ids[2-5], personal_interest_ids[2-5], social_cause_ids[2-5])
+- POST /v1/posts — Create post (content, topic_ids, is_anonymous, visibility, media_urls)
+- GET /v1/search/posts?q=... — Search posts (requires Bearer)
+
+## Standard response
+- Success: {"code": "OK", "message": "...", "data": {...}}
+- Error: {"code": "NOKUNPROC"|"EXPIRED"|..., "message": "...", "data": null}
+- 401: Unauthorized (missing/invalid token or API key)
+- 422: Unprocessable (NOKUNPROC) — duplicate email, invalid phone code, etc.
 
 ## POST /v1/users/register
 Required: fullname, email, phone_number, phone_country_code, linkedin

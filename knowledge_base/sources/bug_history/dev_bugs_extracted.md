@@ -1,4 +1,8 @@
-# DEV-BUG Comments — Extracted from Test Files
+# DEV-BUG Comments — Extracted from Test Files (Updated 2026-05-16)
+
+## Summary
+Total DEV-BUG entries: 30+ across 5 files.
+These represent known API behavioral issues discovered during QA testing.
 
 ## Onboarding API [PUT /v1/users/onboarding]
 

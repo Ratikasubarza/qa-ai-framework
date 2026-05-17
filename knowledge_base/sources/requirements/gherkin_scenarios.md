@@ -1,4 +1,15 @@
-# Hono App — Gherkin BDD Scenarios (all features)
+# Hono App — Gherkin BDD Scenarios — Updated 2026-05-16
+
+## Feature files indexed (17 total)
+- login/api, login/web, login/mobile (android, ios, cms)
+- register/api, register/mobile
+- cms_login/api
+- cms_users/api (approve, reject, list)
+- onboarding/api, onboarding/mobile
+- posts/api
+- users_account/api
+- users_email/api
+- users_password/api
 
 ## Feature: Login API — POST /v1/users/login
 Tags: @api @login
