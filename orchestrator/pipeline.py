@@ -678,6 +678,44 @@ def node_skill_gap(state: AgentState) -> AgentState:
     }
 
 
+# ── Node: Jira Update ───────────────────────────────────────────────────────
+def node_jira_update(state: AgentState) -> AgentState:
+    """Transition Jira ticket status after test execution completes."""
+    ticket_id = state.get("ticket_id")
+    if not ticket_id:
+        logger.info("jira_update_skipped", reason="no ticket_id")
+        return state
+
+    failures = state.get("failures") or []
+
+    try:
+        from mcp_tools.jira_client.jira_client import jira_client
+
+        if not failures:
+            ok = jira_client.transition_issue(ticket_id, "DONE")
+            if ok:
+                logger.info("jira_transitioned", ticket=ticket_id, status="DONE")
+            else:
+                logger.warning("jira_transition_failed", ticket=ticket_id, status="DONE")
+        else:
+            ok = jira_client.transition_issue(ticket_id, "IN TEST")
+            if ok:
+                logger.info("jira_transitioned", ticket=ticket_id, status="IN TEST")
+            else:
+                logger.warning("jira_transition_failed", ticket=ticket_id, status="IN TEST")
+
+            comment = (
+                f"QA Pipeline completed with {len(failures)} failure(s).\n"
+                f"Run ID: {state.get('run_id', 'N/A')}\n"
+                f"Feature: {state.get('feature', 'N/A')}"
+            )
+            jira_client.add_comment(ticket_id, comment)
+    except Exception as e:
+        logger.warning("jira_update_failed", ticket=ticket_id, error=str(e))
+
+    return state
+
+
 # ── Node: Report ────────────────────────────────────────────────────────────
 def node_report(state: AgentState) -> AgentState:
     """Send final Telegram summary report."""
@@ -848,6 +886,7 @@ def build_pipeline():
     graph.add_node("debug", node_debug)
     graph.add_node("skill_gap", node_skill_gap)
     graph.add_node("report", node_report)
+    graph.add_node("jira_update", node_jira_update)
 
     graph.set_entry_point("source_intake")
     graph.add_conditional_edges("source_intake", route_after_source_intake)
@@ -861,7 +900,8 @@ def build_pipeline():
     graph.add_conditional_edges("execute", route_after_execute)
     graph.add_edge("debug", "skill_gap")
     graph.add_edge("skill_gap", "report")
-    graph.add_edge("report", END)
+    graph.add_edge("report", "jira_update")
+    graph.add_edge("jira_update", END)
 
     return graph.compile()
 

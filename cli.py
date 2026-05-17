@@ -204,6 +204,47 @@ def cmd_review(args):
         console.print(f"  [cyan]CSV:[/]   {paths['csv']}")
 
 
+def cmd_debug(args):
+    from agents.debug_agent import FailureContext, debug_agent
+    from pathlib import Path
+
+    test_file = args.test_file
+    test_name = Path(test_file).stem if test_file else "unknown"
+
+    console.print(Panel(
+        f"[bold cyan]Test file:[/] {test_file or 'N/A'}\n"
+        f"[bold cyan]Error:[/] {args.error[:120]}",
+        title="[bold]Debug Agent", border_style="cyan",
+    ))
+
+    ctx = FailureContext(
+        test_name=test_name,
+        error_message=args.error,
+        platform=getattr(args, "platform", "web"),
+        location=test_file or "",
+    )
+    report = debug_agent.analyze(ctx)
+
+    sev_color = {"P0": "red", "P1": "orange1", "P2": "yellow", "P3": "green"}.get(report.severity, "white")
+    console.print(f"\n[bold]Debug Report[/]")
+    console.print(f"  Severity:   [{sev_color}]{report.severity}[/]")
+    console.print(f"  Title:      {report.title}")
+    console.print(f"  Bug type:   {report.bug_type}")
+    console.print(f"  Root cause: {report.root_cause}")
+    console.print(f"  Component:  {report.affected_component}")
+    console.print(f"  Action:     {report.recommended_action}")
+    if report.steps_to_reproduce:
+        console.print(f"\n  [bold]Steps to Reproduce:[/]")
+        for i, step in enumerate(report.steps_to_reproduce, 1):
+            console.print(f"    {i}. {step}")
+    if report.suggested_fix:
+        console.print(f"\n  [bold]Suggested Fix:[/] {report.suggested_fix}")
+    if report.integrity_notes:
+        console.print(f"\n  [bold yellow]Integrity Notes:[/]")
+        for note in report.integrity_notes:
+            console.print(f"    - {note}")
+
+
 def cmd_requirements(args):
     from agents.requirements_agent import requirements_agent
     # Auto-fetch dari Jira menggunakan jira_client
@@ -538,6 +579,11 @@ def build_parser():
     rev.add_argument("--tc-file",   default=None, dest="tc_file")
     rev.add_argument("--no-export", action="store_false", dest="export")
 
+    dbg = sub.add_parser("debug", help="Analyze a test failure with the debug agent")
+    dbg.add_argument("--test-file", default=None, dest="test_file", help="Path to the failing test file")
+    dbg.add_argument("--error",     required=True, help="Error message from the test failure")
+    dbg.add_argument("--platform",  default="web", help="Platform (web/android/api)")
+
     req = sub.add_parser("requirements")
     req.add_argument("--jira-story",  default=None, dest="jira_story")
     req.add_argument("--feature",     default=None)
@@ -788,6 +834,8 @@ def main():
         cmd_export(args)
     elif args.command == "review":
         cmd_review(args)
+    elif args.command == "debug":
+        cmd_debug(args)
     elif args.command == "requirements":
         cmd_requirements(args)
     elif args.command == "drafts":
