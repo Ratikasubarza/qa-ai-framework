@@ -16,6 +16,9 @@ import os
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
 from core.test_data.base_builder import PayloadBuilder
+from config.test_data import BoundaryValues
+from skills.auth.auth_helper import AuthHelper
+from skills.data.data_generator import DataGenerator
 
 load_dotenv(dotenv_path=".env")
 
@@ -66,17 +69,21 @@ class LoginTestData:
     NONEXISTENT_EMAIL  = "notexist@mailinator.com"
     EMPTY_STRING       = ""
 
+    # ── Auth tokens ───────────────────────────────────────────────────
+    INVALID_TOKEN      = AuthHelper.get_invalid_token()
+    EXPIRED_TOKEN      = AuthHelper.get_expired_token()
+
     # ── Security payloads ─────────────────────────────────────────────
-    SQL_INJECTION      = "'; DROP TABLE users;--"
-    XSS_PAYLOAD        = "<script>alert('xss')</script>"
-    LONG_STRING        = "a" * 500
+    SQL_INJECTION      = DataGenerator.sql_injection_strings()[0]
+    XSS_PAYLOAD        = DataGenerator.xss_strings()[0]
+    LONG_STRING        = DataGenerator.boundary_string(BoundaryValues.MAX_NAME_LENGTH, "a")
 
     # ── Expected results ──────────────────────────────────────────────
     EXPECTED_REDIRECT  = "/feed"
     ERROR_KEYWORDS     = ["invalid", "incorrect", "error", "wrong"]
 
     # ── Performance thresholds ────────────────────────────────────────
-    MAX_RESPONSE_MS    = 3000
+    MAX_RESPONSE_MS    = BoundaryValues.MAX_RESPONSE_MS
 
     # ── Gherkin Examples Tables ───────────────────────────────────────
     # Dipakai di Scenario Outline
@@ -93,3 +100,13 @@ class LoginTestData:
         (VALID_EMAIL, EMPTY_STRING,       "empty password"),
         (VALID_EMAIL, LONG_STRING[:50],   "too long password"),
     ]
+
+    @staticmethod
+    def get_token(email: str = None, password: str = None) -> str:
+        """Get a valid Bearer token for authenticated test flows. Delegates to AuthHelper."""
+        return AuthHelper.get_user_token(email=email, password=password)
+
+    @staticmethod
+    def get_cms_token() -> str:
+        """Get CMS admin Bearer token. Delegates to AuthHelper."""
+        return AuthHelper.get_cms_token()

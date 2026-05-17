@@ -10,6 +10,8 @@ import time
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
 from core.test_data.base_builder import PayloadBuilder
+from config.test_data import BoundaryValues
+from skills.data.data_generator import DataGenerator
 
 load_dotenv(dotenv_path=".env")
 
@@ -55,17 +57,8 @@ class RegisterTestData:
     # ── Valid registration data ────────────────────────────────────────
     @staticmethod
     def valid_payload(suffix: str = None) -> dict:
-        """Generate unique valid registration payload."""
-        ts = suffix or int(time.time())
-        # Use last 9 digits of timestamp for unique phone number
-        phone = str(ts)[-9:]
-        return {
-            "fullname":           f"Test User {ts}",
-            "email":              f"testregister+{ts}@mailinator.com",
-            "phone_number":       phone,
-            "phone_country_code": "ID",
-            "linkedin":           f"https://linkedin.com/in/testuser{ts}",
-        }
+        """Generate unique valid registration payload. Delegates to DataGenerator."""
+        return DataGenerator.valid_register_payload(suffix=suffix)
 
     # ── Existing registered email ─────────────────────────────────────
     EXISTING_EMAIL = os.getenv("STAGING_EMAIL", "testingHonoA@mailinator.com")
@@ -73,7 +66,7 @@ class RegisterTestData:
     # ── Invalid payloads ──────────────────────────────────────────────
     INVALID_EMAIL_PAYLOAD = {
         "fullname":           "Test User",
-        "email":              "not-an-email",
+        "email":              DataGenerator.invalid_email_variants()[0],
         "phone_number":       "8123456789",
         "phone_country_code": "ID",
         "linkedin":           "https://linkedin.com/in/test",
@@ -92,6 +85,7 @@ class RegisterTestData:
     # ── Expected responses ────────────────────────────────────────────
     SUCCESS_CODE    = "OK"
     SUCCESS_MESSAGE = "Data saved"
+
     # ── Known registered users for duplicate tests ────────────────────
     EXISTING_EMAIL_A    = "testingHonoA@mailinator.com"
     EXISTING_PHONE_A    = "81234567104"
@@ -99,6 +93,10 @@ class RegisterTestData:
     EXISTING_PHONE_B    = "81234567105"
 
     # ── Security payloads ─────────────────────────────────────────────
-    SQL_INJECTION_NAME  = "'; DROP TABLE users; --"
-    XSS_NAME           = "<script>alert('xss')</script>"
-    LONG_NAME          = "A" * 501
+    SQL_INJECTION_NAME  = DataGenerator.sql_injection_strings()[0]
+    XSS_NAME            = DataGenerator.xss_strings()[0]
+    LONG_NAME           = DataGenerator.boundary_string(BoundaryValues.LONG_NAME_LENGTH)
+
+    # ── Invalid variants (for parametrize) ────────────────────────────
+    INVALID_EMAIL_VARIANTS = DataGenerator.invalid_email_variants()
+    INVALID_PHONE_VARIANTS = DataGenerator.invalid_phone_variants()
