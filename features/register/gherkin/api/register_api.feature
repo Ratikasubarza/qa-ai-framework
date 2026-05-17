@@ -1,5 +1,5 @@
 @api @register
-Feature: Register API — /v1/users/register
+Feature: Register API
   As a new user
   I want to register an account via API
   So that I can access the Hono platform
@@ -10,33 +10,33 @@ Feature: Register API — /v1/users/register
 
   @smoke @P0 @TC-REG-API-001
   Scenario: Register with valid data returns OK
-    When I POST to "/v1/users/register" with valid registration payload
+    When I register with valid registration payload
     Then the response status should be 200
     And the response code should be "OK"
 
   @negative @P1 @TC-REG-API-002
   Scenario: Register with existing email returns error
-    When I POST to "/v1/users/register" with already registered email
+    When I register with already registered email
     Then the response status should be 4xx
 
   @boundary @P1 @TC-REG-API-003
   Scenario: Register with missing required fields returns 400
-    When I POST to "/v1/users/register" with only email field
+    When I register with only email field
     Then the response status should be 400
 
   @negative @P1 @TC-REG-API-004
   Scenario: Register with invalid email format returns 400
-    When I POST to "/v1/users/register" with invalid email "not-an-email"
+    When I register with invalid email "not-an-email"
     Then the response status should be 400
 
   @boundary @P1 @TC-REG-API-005
   Scenario: Register with empty body returns 400
-    When I POST to "/v1/users/register" with empty body
+    When I register with empty body
     Then the response status should be 400
 
   @negative @P1 @TC-REG-API-007
   Scenario: Register with duplicate phone number returns error
-    When I POST to "/v1/users/register" with already registered phone number
+    When I register with already registered phone number
     Then the response status should be 4xx
 
   @combination @P1 @TC-REG-API-008
@@ -69,7 +69,7 @@ Feature: Register API — /v1/users/register
   @security @P0 @TC-REG-API-012
   Scenario: Register without x-api-key returns 401
     Given the API key header is not set
-    When I POST to "/v1/users/register" with valid payload
+    When I register with valid payload
     Then the response status should be 401
 
   @security @P2 @TC-REG-API-013

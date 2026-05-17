@@ -9,26 +9,26 @@ Feature: User email API
 
   @api @smoke
   Scenario: Request email change with a new email address
-    When I PUT "/v1/users/me/email" with a unique new email
+    When I request an email change with a unique new email
     Then the API returns 200
     And the response confirms the email change request is saved
 
   @api @security @negative
   Scenario: Request email change without bearer token
-    When I PUT "/v1/users/me/email" without an Authorization header
+    When I request an email change without an Authorization header
     Then the API returns 401
 
   @api @negative
   Scenario: Request email change to an email already in use
     Given another approved synthetic user exists
-    When I PUT "/v1/users/me/email" using the other user's email
+    When I request an email change using the other user's email
     Then the API returns a validation error
     And the response says the email already exists
 
   @api @smoke
   Scenario: Verify email change with a valid code
     Given an authenticated user requested an email change
-    When I GET "/v1/users/verify-email" with the latest verification code
+    When I verify my email change with the latest verification code
     Then the API returns 200
     And the response says the email was updated successfully
 
@@ -36,6 +36,6 @@ Feature: User email API
   Scenario: Verify email change with an expired code
     Given an authenticated user requested an email change
     And the latest verification code is expired
-    When I GET "/v1/users/verify-email" with the expired verification code
+    When I verify my email change with the expired verification code
     Then the API returns 410
     And the response says the verification link has expired

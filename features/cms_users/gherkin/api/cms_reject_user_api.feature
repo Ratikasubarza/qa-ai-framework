@@ -1,5 +1,5 @@
 @api @cms @reject
-Feature: CMS Reject User API — POST /v1/users/:id/reject
+Feature: CMS Reject User API
   As a CMS admin
   I want to reject user applications
   So that unqualified users cannot access the Hono platform
@@ -29,7 +29,7 @@ Feature: CMS Reject User API — POST /v1/users/:id/reject
   @security @P0 @TC-CMS-REJECT-004
   Scenario: Reject without token returns 401
     Given I am not authenticated
-    When I POST to "/v1/users/:id/reject"
+    When CMS admin rejects the user
     Then response status should be 401
 
   @negative @P0 @TC-CMS-REJECT-005

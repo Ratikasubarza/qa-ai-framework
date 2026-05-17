@@ -1,5 +1,5 @@
 @api @cms @approve
-Feature: CMS Approve User API — POST /v1/users/:id/approve
+Feature: CMS Approve User API
   As a CMS admin
   I want to approve registered users
   So that they can access the Hono platform
@@ -24,7 +24,7 @@ Feature: CMS Approve User API — POST /v1/users/:id/approve
   @security @P0 @TC-CMS-APPROVE-003
   Scenario: Approve without token returns 401
     Given I am not authenticated
-    When I POST to "/v1/users/:id/approve"
+    When CMS admin approves the user
     Then the response status should be 401
 
   @boundary @P2 @TC-CMS-APPROVE-004

@@ -1,5 +1,5 @@
 @api @onboarding
-Feature: Onboarding API — PUT /v1/users/onboarding
+Feature: Onboarding API
   As an approved Hono user
   I want to complete my profile onboarding via API
   So that I can access the full Hono community
@@ -10,20 +10,20 @@ Feature: Onboarding API — PUT /v1/users/onboarding
 
   @smoke @P0 @TC-ONB-API-001
   Scenario: Complete onboarding with valid data
-    When I PUT to "/v1/users/onboarding" with valid payload
+    When I submit my onboarding profile with valid payload
     Then the response status should be 200
     And onboarding_completed_at should be set in DB
 
   @security @P0 @TC-ONB-API-002
   Scenario: Onboarding without token returns 401
     Given I am not authenticated
-    When I PUT to "/v1/users/onboarding"
+    When I submit my onboarding profile
     Then the response status should be 401
 
   @security @P0 @TC-ONB-API-003
   Scenario: Onboarding with invalid token returns 401
     Given I use an invalid Bearer token
-    When I PUT to "/v1/users/onboarding"
+    When I submit my onboarding profile
     Then the response status should be 401
 
   @boundary @P1 @TC-ONB-API-004
