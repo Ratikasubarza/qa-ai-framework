@@ -90,6 +90,7 @@ class TestCaseAgentOutput(BaseModel):
     model_used:       str
     generated_at:     datetime = Field(default_factory=datetime.now)
     tokens_used:      int      = 0
+    confidence_score: float    = 0.0  # 0.0–1.0, derived from review coverage
 
 
 # ── AC Extraction Schemas ──────────────────────────────────────────────────

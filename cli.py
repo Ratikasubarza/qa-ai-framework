@@ -245,6 +245,93 @@ def cmd_debug(args):
             console.print(f"    - {note}")
 
 
+def cmd_approve(args):
+    """Manually resolve a pending async approval from the terminal."""
+    from core.workflows.pending_approvals import PendingApprovalStore
+    store   = PendingApprovalStore()
+    payload = store.load(args.id)
+
+    if payload is None:
+        console.print(f"[red]✗ Approval not found or expired:[/] {args.id}")
+        return
+
+    feature    = payload.get("feature", "N/A")
+    ticket     = payload.get("ticket_id", "N/A")
+    confidence = payload.get("confidence", 0.0)
+    created    = payload.get("created_at", "N/A")
+    expires    = payload.get("expires_at", "N/A")
+
+    console.print(Panel(
+        f"[bold cyan]ID:[/]         {args.id}\n"
+        f"[bold cyan]Ticket:[/]     {ticket}\n"
+        f"[bold cyan]Feature:[/]    {feature}\n"
+        f"[bold cyan]Confidence:[/] {confidence:.0%}\n"
+        f"[bold cyan]Created:[/]    {created}\n"
+        f"[bold cyan]Expires:[/]    {expires}",
+        title="[bold]Pending Approval", border_style="cyan",
+    ))
+
+    decision = args.decision
+    ok = store.resolve(args.id, decision, reason=args.reason or "")
+    if ok:
+        color = "green" if decision == "approve" else "red"
+        symbol = "✅" if decision == "approve" else "❌"
+        console.print(f"\n[{color}]{symbol} {decision.upper()}ED:[/] {args.id}")
+        if args.reason:
+            console.print(f"  Reason: {args.reason}")
+    else:
+        console.print(f"[red]✗ Failed to resolve[/] — may already be expired or resolved")
+
+
+def cmd_pending(args):
+    """List all pending async approvals not yet expired."""
+    from core.workflows.pending_approvals import PendingApprovalStore
+    from rich.table import Table
+    from rich import box
+
+    store   = PendingApprovalStore()
+    cleaned = store.cleanup_expired()
+    items   = store.list_pending()
+
+    if cleaned:
+        console.print(f"[dim]Cleaned up {cleaned} expired record(s)[/]\n")
+
+    if not items:
+        console.print("[yellow]No pending approvals[/]")
+        return
+
+    table = Table(
+        title=f"Pending Approvals ({len(items)})",
+        border_style="cyan",
+        box=box.ROUNDED,
+        show_lines=True,
+    )
+    table.add_column("ID",         style="dim",   width=28)
+    table.add_column("Ticket",     style="cyan",  width=12)
+    table.add_column("Feature",    style="white", width=30)
+    table.add_column("Confidence", style="yellow",width=11)
+    table.add_column("Created",    style="dim",   width=20)
+    table.add_column("Expires",    style="red",   width=20)
+
+    for item in items:
+        conf = item.get("confidence", 0.0)
+        conf_emoji = "🟢" if conf >= 0.85 else "🟡" if conf >= 0.60 else "🔴"
+        table.add_row(
+            item.get("approval_id", ""),
+            item.get("ticket_id", "N/A"),
+            item.get("feature", "N/A")[:30],
+            f"{conf_emoji} {conf:.0%}",
+            item.get("created_at", "")[:19],
+            item.get("expires_at", "")[:19],
+        )
+
+    console.print(table)
+    console.print(
+        "\n[dim]Resolve:[/] "
+        "PYTHONPATH=. ./venv/bin/python3.11 cli.py approve --id <ID> --decision approve|reject"
+    )
+
+
 def cmd_requirements(args):
     from agents.requirements_agent import requirements_agent
     # Auto-fetch dari Jira menggunakan jira_client
@@ -584,6 +671,14 @@ def build_parser():
     dbg.add_argument("--error",     required=True, help="Error message from the test failure")
     dbg.add_argument("--platform",  default="web", help="Platform (web/android/api)")
 
+    app = sub.add_parser("approve", help="Manually resolve a pending async approval")
+    app.add_argument("--id",       required=True, help="Approval ID (e.g. HM-516_1234567890)")
+    app.add_argument("--decision", choices=["approve", "reject"], default="approve",
+                     help="Decision to apply (default: approve)")
+    app.add_argument("--reason",   default="", help="Optional reason/notes")
+
+    sub.add_parser("pending", help="List all pending async approvals")
+
     req = sub.add_parser("requirements")
     req.add_argument("--jira-story",  default=None, dest="jira_story")
     req.add_argument("--feature",     default=None)
@@ -836,6 +931,10 @@ def main():
         cmd_review(args)
     elif args.command == "debug":
         cmd_debug(args)
+    elif args.command == "approve":
+        cmd_approve(args)
+    elif args.command == "pending":
+        cmd_pending(args)
     elif args.command == "requirements":
         cmd_requirements(args)
     elif args.command == "drafts":

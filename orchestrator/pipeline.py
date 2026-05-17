@@ -15,6 +15,7 @@ import csv
 import json
 import re
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -311,6 +312,8 @@ def node_case_review(state: AgentState) -> AgentState:
             "traceability_matrix": report.traceability_matrix,
         }
 
+        confidence_score = round(report.coverage_percentage / 100.0, 4)
+
         if (
             scope_summary["blocking_critical_count"] > 0
             or scope_summary["blocking_missing_count"] > 0
@@ -323,6 +326,7 @@ def node_case_review(state: AgentState) -> AgentState:
                 **state,
                 "current_phase": "case_review",
                 "case_review": review,
+                "confidence_score": confidence_score,
                 "draft_exports": draft_exports,
                 "error": {
                     "phase": "case_review",
@@ -340,6 +344,7 @@ def node_case_review(state: AgentState) -> AgentState:
             **state,
             "current_phase": "case_review",
             "case_review": review,
+            "confidence_score": confidence_score,
             "error": None,
         }
     except Exception as e:
@@ -355,108 +360,151 @@ def node_case_review(state: AgentState) -> AgentState:
 # ── Node: Approval Gate ─────────────────────────────────────────────────────
 async def node_approval(state: AgentState) -> AgentState:
     """
-    Single approval gate for orchestrated runs.
+    3-tier confidence-based approval gate (non-blocking).
 
-    TestCaseAgent approval is disabled in node_testcase so the graph owns the
-    decision and guarantees codegen consumes the same reviewed artifact.
+    Tier 1 — Auto-approve: confidence ≥ AUTO_APPROVE_THRESHOLD AND regression,
+              OR APPROVAL_MODE="never".
+    Tier 2 — Async Telegram: confidence in [AUTO_REJECT_THRESHOLD, AUTO_APPROVE_THRESHOLD),
+              OR APPROVAL_MODE="always". Pipeline ends immediately ("pending"); resumes
+              when QA Lead responds via Telegram button or cli.py approve.
+    Tier 3 — Auto-reject: confidence < AUTO_REJECT_THRESHOLD (smart mode).
+              Re-runs node_testcase with feedback; escalates after 3 retries.
     """
+    from config.settings import settings
+    from core.telegram_bot import telegram_bot
+    from core.workflows.pending_approvals import PendingApprovalStore
+
     logger.info("node_start", node="approval")
 
-    from config.settings import settings
+    confidence   = float(state.get("confidence_score") or 0.0)
+    is_regression = (state.get("test_type") == "regression")
+    mode         = settings.approval_mode
+    retry_count  = int(state.get("approval_retry_count") or 0)
 
-    output = state.get("testcase_output")
-    test_cases = state.get("test_cases") or []
-    attempt = int((state.get("approval") or {}).get("attempt", 0)) + 1
-
-    if not test_cases or output is None:
+    # Guard: nothing to approve
+    if not state.get("test_cases") or state.get("testcase_output") is None:
         return {
             **state,
             "current_phase": "approval",
-            "approved": False,
-            "approval": _approval_payload(
-                "rejected",
-                attempt=attempt,
-                reason="no_test_cases",
-                feedback="No test cases were generated.",
-            ),
+            "approval_decision": "reject",
+            "approval_method": "auto",
             "error": {"phase": "approval", "message": "No test cases were generated."},
         }
 
-    if not settings.approval_required:
-        logger.info("approval_auto", reason="settings.approval_required=false")
+    # ── Tier 1 — Auto-approve ─────────────────────────────────────────
+    if mode == "never" or (
+        mode == "smart"
+        and confidence >= settings.auto_approve_threshold
+        and is_regression
+    ):
+        logger.info(
+            "approval_auto_approved",
+            confidence=confidence,
+            is_regression=is_regression,
+            mode=mode,
+        )
         return {
             **state,
             "current_phase": "approval",
             "approved": True,
-            "approval": _approval_payload("auto_approved", attempt=attempt),
+            "approval_decision": "approve",
+            "approval_method": "auto",
+            "error": None,
         }
 
-    try:
-        from core.telegram_bot import telegram_bot
-        from core.workflows.approval_workflow import review_queue
+    # ── Tier 3 — Auto-reject ──────────────────────────────────────────
+    if mode == "smart" and confidence < settings.auto_reject_threshold:
+        if retry_count >= 3:
+            logger.warning(
+                "approval_max_retries_escalating",
+                confidence=confidence,
+                retries=retry_count,
+            )
+            try:
+                await telegram_bot.send_alert(
+                    f"⚠️ Auto-reject max retries reached for "
+                    f"`{state.get('feature', 'unknown')}`\n"
+                    f"Confidence: {confidence:.0%} after {retry_count} attempts\n"
+                    f"Manual intervention required."
+                )
+            except Exception as e:
+                logger.warning("escalation_notify_failed", error=str(e))
+            return {
+                **state,
+                "current_phase": "approval",
+                "approved": False,
+                "approval_decision": "escalated",
+                "approval_method": "auto",
+                "error": None,
+            }
 
-        # Bot MUST run in this event loop — it shares review_queue (in-memory asyncio.Event).
-        # start_polling() is idempotent; stop_polling() is called in finally.
-        telegram_bot.set_review_queue(review_queue)
-        await telegram_bot.start_polling()
-
-        item = review_queue.enqueue(
-            agent_name="orchestrator.testcase_approval",
-            payload={
-                "feature": state.get("feature", ""),
-                "test_cases": test_cases,
-                "run_id": state.get("run_id", ""),
-            },
+        logger.warning(
+            "approval_auto_rejected",
+            confidence=confidence,
+            retry=retry_count + 1,
         )
-        await telegram_bot.send_test_cases_for_review(
-            output_id=item.output_id,
-            feature=state.get("feature", ""),
-            scenarios=output.scenarios,
-            model_used=output.model_used,
-        )
-
-        feedback = await item.wait(timeout=300.0)
-        status = feedback.decision.value
-        approved = status == "approve"
-
-        return {
-            **state,
-            "current_phase": "approval",
-            "approved": approved,
-            "approval": _approval_payload(
-                "approved" if approved else status,
-                attempt=attempt,
-                output_id=item.output_id,
-                reviewer_id=feedback.reviewer_id,
-                rejection_reason=(
-                    feedback.rejection_reason.value
-                    if feedback.rejection_reason else None
-                ),
-                feedback=feedback.corrected_output,
-            ),
-            "approval_feedback": feedback.corrected_output or "",
-            "error": None if approved else {
-                "phase": "approval",
-                "message": f"Test cases were not approved: {status}",
-            },
-        }
-    except Exception as e:
-        logger.error("node_failed", node="approval", error=str(e))
         return {
             **state,
             "current_phase": "approval",
             "approved": False,
-            "approval": _approval_payload("failed", attempt=attempt, message=str(e)),
-            "error": {"phase": "approval", "message": str(e)},
+            "approval_decision": "reject",
+            "approval_method": "auto",
+            "approval_retry_count": retry_count + 1,
+            "rejection_feedback": (
+                f"Low confidence {confidence:.0%} — re-generating test cases. "
+                f"Attempt {retry_count + 1}/3."
+            ),
+            "error": None,
         }
-    finally:
-        # Always stop polling so the httpx session is released and the Application
-        # can be restarted cleanly on the next pipeline run.
-        try:
-            from core.telegram_bot import telegram_bot as _tb
-            await _tb.stop_polling()
-        except Exception:
-            pass
+
+    # ── Tier 2 — Async Telegram (non-blocking) ────────────────────────
+    store       = PendingApprovalStore()
+    approval_id = f"{state.get('ticket_id', 'unknown')}_{int(time.time())}"
+
+    store.save(
+        approval_id=approval_id,
+        state=state,
+        expires_hours=settings.approval_timeout_hours,
+    )
+
+    output = state.get("testcase_output")
+    scenarios_count = len(state.get("test_cases") or [])
+    coverage_text = (
+        output.coverage_summary
+        if hasattr(output, "coverage_summary") and output.coverage_summary
+        else str(state.get("case_review", {}).get("coverage_percentage", "N/A"))
+    )
+
+    try:
+        await telegram_bot.request_approval_async(
+            approval_id=approval_id,
+            feature=state.get("feature", ""),
+            ticket=state.get("ticket_id", ""),
+            confidence=confidence,
+            scenarios_count=scenarios_count,
+            coverage=coverage_text,
+            timeout_hours=settings.approval_timeout_hours,
+        )
+    except Exception as e:
+        logger.warning("async_approval_notify_failed", error=str(e))
+
+    logger.info(
+        "approval_pending_async",
+        approval_id=approval_id,
+        confidence=confidence,
+        timeout_hours=settings.approval_timeout_hours,
+    )
+
+    # Pipeline ends here — resumes when QA Lead responds via Telegram or CLI
+    return {
+        **state,
+        "current_phase": "approval_pending",
+        "approved": False,
+        "approval_id": approval_id,
+        "approval_decision": "pending",
+        "approval_method": "async_telegram",
+        "error": None,
+    }
 
 
 # ── Node: Test Case Export ──────────────────────────────────────────────────
@@ -835,12 +883,15 @@ def route_after_case_review(state: AgentState) -> Literal["approval_gate", "repo
     return "report"
 
 
-def route_after_approval(state: AgentState) -> Literal["testcase_export", "report"]:
-    if state.get("approved"):
-        return "testcase_export"
-    if int((state.get("approval") or {}).get("attempt", 0)) >= MAX_APPROVAL_ATTEMPTS:
-        return "report"
-    return "report"
+def route_after_approval(state: AgentState) -> str:
+    decision = state.get("approval_decision")
+    if decision == "approve":
+        return "codegen"
+    if decision == "reject":
+        return "testcase"   # re-generate with rejection_feedback in state
+    # "pending", "escalated", or unset — stop the pipeline run
+    from langgraph.graph import END
+    return END
 
 
 def route_after_testcase_export(state: AgentState) -> Literal["automation_readiness_gate", "report"]:

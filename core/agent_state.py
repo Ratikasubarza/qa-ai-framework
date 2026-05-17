@@ -28,10 +28,17 @@ class AgentState(TypedDict, total=False):
     # ── Test case phase ─────────────────────────────────────────────
     test_cases:           list[dict]    # Generated test case dicts
     testcase_output:      Any           # TestCaseAgentOutput used by downstream agents
+    confidence_score:     float         # 0.0–1.0 confidence derived from review coverage
     case_review:          dict          # AI review summary before human approval
-    approved:             bool          # Telegram approval gate
+    approved:             bool          # Legacy approval flag (kept for compat)
     approval:             dict          # Approval status, reviewer, feedback
     approval_feedback:    str           # Reviewer comment if rejected
+    # ── Confidence-based async approval ─────────────────────────────
+    approval_decision:    str           # "approve"|"reject"|"pending"|"escalated"
+    approval_method:      str           # "auto"|"async_telegram"
+    approval_id:          str           # Unique ID for file-backed pending approval
+    approval_retry_count: int           # Auto-reject+regenerate cycle count
+    rejection_feedback:   str           # Feedback forwarded back to testcase node
 
     # ── Test case export phase ──────────────────────────────────────
     testcase_exports:     dict[str, str]  # {csv: path, excel: path}

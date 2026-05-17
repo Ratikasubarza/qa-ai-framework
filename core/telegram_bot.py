@@ -41,53 +41,75 @@ class QATelegramBot:
     async def _handle_callback(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         await query.answer()
-        data = query.data  # Format: "action:output_id[:reason]"
+        data = query.data  # Format: "action:id[:reason]"
         parts = data.split(":")
 
         if len(parts) < 2:
             return
 
-        action, output_id = parts[0], parts[1]
-        reason = parts[2] if len(parts) > 2 else None
+        action     = parts[0]
+        target_id  = parts[1]
+        reason_arg = parts[2] if len(parts) > 2 else None
+        reviewer   = query.from_user.first_name
 
+        # ── Async pending-approval callbacks ──────────────────────────
+        # approval_ids look like "HM-516_1234567890"; review-queue ids are 8-char UUIDs
+        if action in ("approve", "reject", "approve_notes") and (
+            "_" in target_id and len(target_id) > 10
+        ):
+            from core.workflows.pending_approvals import PendingApprovalStore
+            store = PendingApprovalStore()
+            decision = "approve" if action in ("approve", "approve_notes") else "reject"
+            ok = store.resolve(target_id, decision, reason=reason_arg or "")
+            status_text = (
+                f"✅ Approved by {reviewer}"
+                if decision == "approve"
+                else f"❌ Rejected by {reviewer}"
+            )
+            await query.edit_message_text(status_text)
+            logger.info(
+                "async_approval_resolved",
+                approval_id=target_id,
+                decision=decision,
+                reviewer=reviewer,
+                store_ok=ok,
+            )
+            return
+
+        # ── Legacy review-queue callbacks ─────────────────────────────
         if not self._review_queue:
             return
 
         if action == "approve":
             feedback = AgentFeedback(
-                output_id=output_id,
+                output_id=target_id,
                 decision=Decision.APPROVE,
                 reviewer_id=str(query.from_user.id),
             )
-            await query.edit_message_text(
-                f"✅ Approved by {query.from_user.first_name}"
-            )
+            await query.edit_message_text(f"✅ Approved by {reviewer}")
 
         elif action == "reject":
             feedback = AgentFeedback(
-                output_id=output_id,
+                output_id=target_id,
                 decision=Decision.REJECT,
-                rejection_reason=RejectionReason(reason) if reason else None,
+                rejection_reason=RejectionReason(reason_arg) if reason_arg else None,
                 reviewer_id=str(query.from_user.id),
             )
-            await query.edit_message_text(
-                f"❌ Rejected by {query.from_user.first_name}"
-            )
+            await query.edit_message_text(f"❌ Rejected by {reviewer}")
 
         elif action == "edit":
             feedback = AgentFeedback(
-                output_id=output_id,
+                output_id=target_id,
                 decision=Decision.EDIT,
                 reviewer_id=str(query.from_user.id),
             )
             await query.edit_message_text(
-                f"✏️ Edit requested by {query.from_user.first_name}\n"
-                f"Reply with your corrections."
+                f"✏️ Edit requested by {reviewer}\nReply with your corrections."
             )
         else:
             return
 
-        self._review_queue.resolve(output_id, feedback)
+        self._review_queue.resolve(target_id, feedback)
 
     # ── Notification Methods ──────────────────────────────────────────
 
@@ -190,6 +212,63 @@ class QATelegramBot:
             f"Agent calls are blocked until recovery."
         )
         await self._send(self.channels["qa_ops"], text)
+
+    async def send_alert(self, message: str) -> None:
+        """Send a plain alert to the QA Ops channel."""
+        await self._send(self.channels["qa_ops"], message)
+
+    async def request_approval_async(
+        self,
+        approval_id:    str,
+        feature:        str,
+        ticket:         str,
+        confidence:     float,
+        scenarios_count: int,
+        coverage:       str,
+        timeout_hours:  int = 24,
+    ) -> None:
+        """
+        Send async approval request to QA Leads — pipeline does NOT wait for reply.
+        Approve/Reject buttons write to PendingApprovalStore; resolve() resumes the run.
+        """
+        confidence_emoji = (
+            "🟢" if confidence >= 0.85
+            else "🟡" if confidence >= 0.60
+            else "🔴"
+        )
+        message = (
+            f"🧪 *Test Cases Ready for Review*\n\n"
+            f"*Ticket:* {ticket or 'N/A'}\n"
+            f"*Feature:* {feature}\n"
+            f"*Scenarios:* {scenarios_count}\n"
+            f"*Confidence:* {confidence_emoji} {confidence:.0%}\n"
+            f"*Coverage:* {coverage or 'N/A'}\n\n"
+            f"_You have {timeout_hours}h to review. "
+            f"No response → auto-escalated._"
+        )
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    "✅ Approve", callback_data=f"approve:{approval_id}"
+                ),
+                InlineKeyboardButton(
+                    "❌ Reject", callback_data=f"reject:{approval_id}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "✏️ Approve with notes",
+                    callback_data=f"approve_notes:{approval_id}",
+                ),
+            ],
+        ])
+        await self._send(self.channels["qa_leads"], message, keyboard)
+        logger.info(
+            "async_approval_requested",
+            approval_id=approval_id,
+            feature=feature,
+            confidence=confidence,
+        )
 
     async def _send(
         self,

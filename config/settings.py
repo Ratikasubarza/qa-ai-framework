@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     approval_required: bool = True
 
+    # ── Approval thresholds ───────────────────────────────
+    # APPROVAL_MODE: "smart" (3-tier) | "always" (require human) | "never" (auto-approve all)
+    approval_mode: str = Field(default="smart")
+    auto_approve_threshold: float = Field(default=0.85)
+    auto_reject_threshold: float = Field(default=0.60)
+    approval_timeout_hours: int = Field(default=24)
+
     # ── ChromaDB ──────────────────────────────────────────
     hono_api_url:     str = "https://api-dev.thehono.com"
     hono_web_url:     str = "https://dev.thehono.com"
