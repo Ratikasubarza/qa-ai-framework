@@ -72,9 +72,13 @@ async def create_approved_user(
         timeout=30
     ) as client:
         # CMS login
+        _cms_email    = os.getenv("CMS_EMAIL", "")
+        _cms_password = os.getenv("CMS_PASSWORD", "")
+        if not _cms_email or not _cms_password:
+            raise EnvironmentError("CMS_EMAIL and CMS_PASSWORD must be set in .env")
         login_resp = await client.post("/v1/users/login", json={
-            "email":    os.getenv("CMS_EMAIL", "ops@hono.app"),
-            "password": os.getenv("CMS_PASSWORD", "password"),
+            "email":    _cms_email,
+            "password": _cms_password,
             "resource": "admin"
         })
         login_data = login_resp.json()

@@ -139,13 +139,17 @@ class DebugAgent:
             failure.stack_trace[:2000], source="stack_trace"
         )
 
+        clean_test_name = input_sanitizer.sanitize(failure.test_name, source="test_name").content
+        clean_location = input_sanitizer.sanitize(failure.location, source="location").content
+        clean_context = input_sanitizer.sanitize(context[:500], source="test_context").content
+
         system = ANALYSIS_PROMPT.format(
-            test_name=failure.test_name,
+            test_name=clean_test_name,
             error_message=clean_error.content,
             platform=failure.platform,
-            location=failure.location,
+            location=clean_location,
             stack_trace=clean_stack.content,
-            context=context[:500],
+            context=clean_context,
         )
 
         def _call():

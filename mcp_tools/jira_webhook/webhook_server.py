@@ -24,13 +24,33 @@ logger = structlog.get_logger(__name__)
 
 app = FastAPI(title="QA Jira Webhook", version="1.0.0")
 
-GITHUB_TOKEN    = os.getenv("GITHUB_TOKEN", "")
-GITHUB_REPO     = os.getenv("GITHUB_REPOSITORY", "Ratikasubarza/qa-ai-framework")
-TELEGRAM_TOKEN  = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT   = os.getenv("TELEGRAM_QA_OPS_CHAT_ID", "")
-JIRA_URL        = os.getenv("JIRA_BASE_URL", "")
-JIRA_EMAIL      = os.getenv("JIRA_EMAIL", "")
-JIRA_TOKEN      = os.getenv("JIRA_TOKEN", "")
+GITHUB_TOKEN        = os.getenv("GITHUB_TOKEN", "")
+GITHUB_REPO         = os.getenv("GITHUB_REPOSITORY", "Ratikasubarza/qa-ai-framework")
+TELEGRAM_TOKEN      = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT       = os.getenv("TELEGRAM_QA_OPS_CHAT_ID", "")
+JIRA_URL            = os.getenv("JIRA_BASE_URL", "")
+JIRA_EMAIL          = os.getenv("JIRA_EMAIL", "")
+JIRA_TOKEN          = os.getenv("JIRA_TOKEN", "")
+JIRA_WEBHOOK_SECRET = os.getenv("JIRA_WEBHOOK_SECRET", "")
+
+
+def _verify_jira_signature(body: bytes, signature_header: str) -> bool:
+    """Verify Jira webhook HMAC-SHA256 signature.
+
+    Jira sends: X-Hub-Signature: sha256=<hex_digest>
+    Returns True when secret is unset (not configured) so existing deployments
+    keep working until the secret is provisioned.
+    """
+    if not JIRA_WEBHOOK_SECRET:
+        logger.warning("jira_webhook_secret_not_configured")
+        return True
+    if not signature_header or not signature_header.startswith("sha256="):
+        return False
+    expected = hmac.new(
+        JIRA_WEBHOOK_SECRET.encode(), body, hashlib.sha256
+    ).hexdigest()
+    received = signature_header[len("sha256="):]
+    return hmac.compare_digest(expected, received)
 
 
 async def send_telegram(msg: str):
@@ -197,8 +217,15 @@ async def health():
 @app.post("/webhook/jira")
 async def jira_webhook(request: Request, background_tasks: BackgroundTasks):
     """Main Jira webhook handler."""
+    raw_body = await request.body()
+    sig_header = request.headers.get("X-Hub-Signature", "")
+    if not _verify_jira_signature(raw_body, sig_header):
+        logger.warning("jira_webhook_invalid_signature", sig=sig_header[:20])
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
     try:
-        payload = await request.json()
+        import json as _json
+        payload = _json.loads(raw_body)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 

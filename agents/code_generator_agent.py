@@ -165,13 +165,18 @@ def navigate_to_base(page: Page, base_url: str):
     page.goto(base_url)
 '''
 
+    _SAFE_OUTPUT_ROOT = Path("features").resolve()
+
     def _save_files(self, files: dict[str, str], feature_low: str) -> dict[str, str]:
         saved = {}
         for filename, content in files.items():
-            path = Path(filename)
+            path = Path(filename).resolve()
+            if not str(path).startswith(str(self._SAFE_OUTPUT_ROOT)):
+                logger.error("path_traversal_blocked", path=filename)
+                raise ValueError(f"Output path outside allowed directory: {filename}")
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)
-            saved[filename] = str(path.absolute())
+            saved[filename] = str(path)
             logger.info("file_saved", path=filename)
         return saved
 

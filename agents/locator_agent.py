@@ -60,10 +60,12 @@ class LocatorAgent:
         Returns list of candidates ordered by confidence.
         """
         clean_dom = input_sanitizer.sanitize(dom_snapshot, source="dom_snapshot")
+        clean_locator = input_sanitizer.sanitize(broken_locator, source="broken_locator")
+        clean_description = input_sanitizer.sanitize(element_description, source="element_description")
 
         system = SYSTEM_PROMPT.format(
-            broken_locator=broken_locator,
-            element_description=element_description,
+            broken_locator=clean_locator.content,
+            element_description=clean_description.content,
             dom_snapshot=clean_dom.content[:3000],
         )
 

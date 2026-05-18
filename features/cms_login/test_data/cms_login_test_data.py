@@ -9,9 +9,12 @@ load_dotenv(dotenv_path=".env")
 
 class CmsLoginTestData:
     # ── Valid CMS credentials ──────────────────────────────────────────
-    VALID_EMAIL    = os.getenv("CMS_EMAIL",    "ops@hono.app")
-    VALID_PASSWORD = os.getenv("CMS_PASSWORD", "password")
+    VALID_EMAIL    = os.getenv("CMS_EMAIL",    "")
+    VALID_PASSWORD = os.getenv("CMS_PASSWORD", "")
     RESOURCE       = "admin"
+
+    if not VALID_EMAIL or not VALID_PASSWORD:
+        raise EnvironmentError("CMS_EMAIL and CMS_PASSWORD must be set in .env")
 
     # ── Invalid credentials ────────────────────────────────────────────
     WRONG_PASSWORD     = "WrongPass123!"

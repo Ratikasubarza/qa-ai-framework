@@ -119,6 +119,10 @@ class FlakyTestAgent:
         error_patterns  = self._dedupe_errors(errors or [])
 
         clean_name = input_sanitizer.sanitize(test_name, source="test_name")
+        clean_patterns = [
+            input_sanitizer.sanitize(e, source="error_pattern").content
+            for e in error_patterns
+        ]
 
         prompt = ANALYSIS_PROMPT.format(
             test_name=clean_name.content,
@@ -126,7 +130,7 @@ class FlakyTestAgent:
             failure_count=failure_count,
             total_runs=total_runs,
             outcomes=" → ".join(outcomes[-10:]),
-            error_patterns=json.dumps(error_patterns, indent=2),
+            error_patterns=json.dumps(clean_patterns, indent=2),
         )
 
         def _call():

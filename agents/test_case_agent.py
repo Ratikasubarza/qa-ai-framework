@@ -144,11 +144,11 @@ class TestCaseAgent:
 
                 # Build Jira context block
                 jira_ctx_lines = [
-                    f"JIRA STORY: {issue['key']} — {issue['summary']}",
+                    f"JIRA STORY: {issue['key']} — {input_sanitizer.sanitize(issue['summary'], source='jira_summary').content}",
                     f"Status: {issue.get('status', '')}  Priority: {issue.get('priority', '')}",
                 ]
                 if issue.get("description"):
-                    jira_ctx_lines.append(f"Description:\n{issue['description'][:600]}")
+                    jira_ctx_lines.append(f"Description:\n{input_sanitizer.sanitize(issue['description'][:600], source='jira_description').content}")
 
                 # Include existing QA subtasks to avoid duplicating already-generated cases
                 existing_subtasks = [
@@ -158,9 +158,11 @@ class TestCaseAgent:
                 if existing_subtasks:
                     jira_ctx_lines.append("\nExisting QA subtasks (avoid duplicating these):")
                     for st in existing_subtasks:
+                        clean_st_summary = input_sanitizer.sanitize(st['summary'], source='jira_subtask_summary').content
+                        clean_st_desc = input_sanitizer.sanitize(st['description'][:200], source='jira_subtask_desc').content if st.get("description") else ""
                         jira_ctx_lines.append(
-                            f"  [{st['key']}] {st['summary']} ({st['status']})"
-                            + (f"\n    {st['description'][:200]}" if st.get("description") else "")
+                            f"  [{st['key']}] {clean_st_summary} ({st['status']})"
+                            + (f"\n    {clean_st_desc}" if clean_st_desc else "")
                         )
 
                 jira_context_parts.append("\n".join(jira_ctx_lines))
@@ -173,8 +175,9 @@ class TestCaseAgent:
                 confluence = ConfluenceClient()
                 prd_text = confluence.fetch_page(input_data.confluence_page_url)
                 if prd_text:
+                    prd_clean = input_sanitizer.sanitize(prd_text[:1500], source="confluence_prd").content
                     jira_context_parts.append(
-                        f"CONFLUENCE PRD:\n{prd_text[:1500]}"
+                        f"CONFLUENCE PRD:\n{prd_clean}"
                     )
                     logger.info("confluence_prd_fetched", url=input_data.confluence_page_url)
             except PermissionError:
@@ -187,7 +190,7 @@ class TestCaseAgent:
         # Merge any extra context provided by caller
         extra_context_parts = []
         if input_data.context:
-            extra_context_parts.append(input_data.context)
+            extra_context_parts.append(input_sanitizer.sanitize(input_data.context, source="extra_context").content)
         extra_context_parts.extend(jira_context_parts)
         enriched_context = "\n\n---\n".join(extra_context_parts) if extra_context_parts else ""
 
