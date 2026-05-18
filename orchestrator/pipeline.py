@@ -886,7 +886,7 @@ def route_after_case_review(state: AgentState) -> Literal["approval_gate", "repo
 def route_after_approval(state: AgentState) -> str:
     decision = state.get("approval_decision")
     if decision == "approve":
-        return "codegen"
+        return "testcase_export"
     if decision == "reject":
         return "testcase"   # re-generate with rejection_feedback in state
     # "pending", "escalated", or unset — stop the pipeline run

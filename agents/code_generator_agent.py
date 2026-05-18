@@ -9,6 +9,7 @@ from pathlib import Path
 from core.llm_client import llm_client, ModelTier
 from core.agent_contracts import TestCaseAgentOutput, Platform
 from core.circuit_breaker import get_breaker
+from core.input_sanitizer import sanitize
 from core.prompt_manager import prompt_manager
 from config.test_config import TestConfig
 
@@ -44,18 +45,21 @@ class CodeGeneratorAgent:
             scenarios=test_output.total_scenarios,
         )
 
-        # Format test cases for prompt
-        tc_text = self._format_test_cases(test_output)
+        # Format test cases for prompt — sanitize external content before LLM
+        tc_text = sanitize(self._format_test_cases(test_output), source="test_cases").content
 
         # Load prompt
         template     = prompt_manager.get(PROMPT_NAME)
         base_url     = BASE_URLS.get(platform, BASE_URLS[Platform.WEB])
         feature_low  = test_output.feature.lower().replace(" ", "_")
 
-        locators_context = self._format_automation_evidence(
-            automation_evidence=automation_evidence or {},
-            platform=platform,
-        )
+        locators_context = sanitize(
+            self._format_automation_evidence(
+                automation_evidence=automation_evidence or {},
+                platform=platform,
+            ),
+            source="automation_evidence",
+        ).content
         system_prompt = template.format(
             base_url=base_url,
             feature=test_output.feature,

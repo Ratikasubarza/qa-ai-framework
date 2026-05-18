@@ -11,6 +11,7 @@ from datetime import datetime
 
 from core.llm_client import llm_client, ModelTier
 from core.circuit_breaker import CircuitBreaker
+from core.input_sanitizer import sanitize
 
 logger     = structlog.get_logger(__name__)
 AGENT_NAME = "skill_gap_agent"
@@ -60,11 +61,17 @@ class SkillGapAgent:
                     ac_count=len(acceptance_criteria),
                     tc_count=len(test_cases))
 
-        ac_text = "\n".join(f"- {ac}" for ac in acceptance_criteria)
-        tc_text = "\n".join(
-            f"- [{tc.get('scenario_id','?')}] {tc.get('name', tc.get('title','?'))}"
-            for tc in test_cases
-        )
+        ac_text = sanitize(
+            "\n".join(f"- {ac}" for ac in acceptance_criteria),
+            source="acceptance_criteria",
+        ).content
+        tc_text = sanitize(
+            "\n".join(
+                f"- [{tc.get('scenario_id','?')}] {tc.get('name', tc.get('title','?'))}"
+                for tc in test_cases
+            ),
+            source="test_cases",
+        ).content
 
         def _call():
             return llm_client.complete_text(
