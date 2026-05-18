@@ -1,6 +1,7 @@
 # Credentials — NEVER commit these
 .env
 .env.*
+*.env
 !.env.example
 secrets/
 *.key
@@ -26,5 +27,3 @@ reports/gap_reports/
 # Vector store (generated)
 knowledge_base/vector_store/
 
-# Environment
-.env
