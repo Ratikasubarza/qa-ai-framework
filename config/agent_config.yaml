@@ -1,0 +1,67 @@
+# Agent configuration — model tier, token budget, prompt version per agent.
+# This file is the single source of truth for per-agent LLM settings.
+# Override at runtime by passing tier/max_tokens directly to llm_client.complete().
+
+agents:
+  test_case_agent:
+    tier: standard
+    max_tokens: 2000
+    prompt: test_case_gen
+    prompt_version: "2.0.0"
+    description: "Generates scoped QA test cases from Jira / PRD / story text"
+
+  test_case_review_agent:
+    tier: complex
+    max_tokens: 3000
+    prompt: reviewer
+    prompt_version: "1.0.0"
+    description: "Reviews generated test cases for quality, coverage, and platform scope"
+
+  code_generator_agent:
+    tier: standard
+    max_tokens: 3000
+    prompt: code_generator
+    prompt_version: "1.0.0"
+    description: "Converts approved test cases into pytest / Playwright / Appium code"
+
+  debug_agent:
+    tier: standard
+    max_tokens: 3000
+    prompt: debug_analysis
+    prompt_version: "1.0.0"
+    description: "Classifies test failures and generates structured bug reports"
+
+  locator_agent:
+    tier: fast
+    max_tokens: 500
+    prompt: locator_heal
+    prompt_version: "1.1.0"
+    description: "Suggests alternative Playwright locators when an existing locator breaks"
+
+  flaky_test_agent:
+    tier: fast
+    max_tokens: 800
+    prompt: flaky_test
+    prompt_version: "1.0.0"
+    description: "Detects intermittent failures and classifies flakiness root cause"
+
+  requirements_agent:
+    tier: standard
+    max_tokens: 2000
+    prompt: ac_extraction
+    prompt_version: "1.0.0"
+    description: "Extracts structured acceptance criteria from Jira stories or PRD text"
+
+  skill_gap_agent:
+    tier: standard
+    max_tokens: 2000
+    prompt: skill_gap
+    prompt_version: "1.0.0"
+    description: "Identifies untested AC and calculates test coverage percentage"
+
+# Model tier mapping (see core/llm_client.py FALLBACK_MODELS)
+# fast     → nvidia/nemotron-nano-9b (dev) | claude-haiku (prod)
+# standard → openai/gpt-oss-20b (dev)     | claude-sonnet (prod)
+# complex  → openai/gpt-oss-120b (dev)    | claude-opus (prod)
+#
+# Switch to production: MODEL_TIER=production in .env

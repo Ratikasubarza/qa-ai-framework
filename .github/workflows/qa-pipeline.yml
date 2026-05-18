@@ -31,6 +31,7 @@ jobs:
   smoke:
     name: Smoke Test — LLM Connection
     runs-on: self-hosted
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -45,6 +46,7 @@ jobs:
     name: API Tests — api-dev.thehono.com
     runs-on: self-hosted
     needs: smoke
+    timeout-minutes: 60
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'api' || github.event.inputs.test_suite == ''
     steps:
       - uses: actions/checkout@v4
@@ -75,6 +77,7 @@ jobs:
     name: Web Tests — app-dev.thehono.com
     runs-on: self-hosted
     needs: smoke
+    timeout-minutes: 60
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'web' || github.event.inputs.test_suite == ''
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +108,7 @@ jobs:
     name: Self-Healing Tests
     runs-on: self-hosted
     needs: web-tests
+    timeout-minutes: 30
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'self-healing' || github.event.inputs.test_suite == ''
     steps:
       - uses: actions/checkout@v4
@@ -124,6 +128,7 @@ jobs:
     name: Debug Agent Tests
     runs-on: self-hosted
     needs: smoke
+    timeout-minutes: 30
     if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'debug-agent' || github.event.inputs.test_suite == ''
     steps:
       - uses: actions/checkout@v4
@@ -147,6 +152,7 @@ jobs:
     name: Generate Report & Notify
     runs-on: self-hosted
     needs: [api-tests, web-tests, debug-agent-tests]
+    timeout-minutes: 15
     if: always()
     steps:
       - uses: actions/checkout@v4

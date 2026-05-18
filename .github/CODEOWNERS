@@ -1,0 +1,25 @@
+# CODEOWNERS — automatic review requests on PR
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @Ratikasubarza
+
+# Test suites — any new feature test requires review
+features/ @Ratikasubarza
+
+# Agent logic — changes to AI agents require careful review
+agents/ @Ratikasubarza
+
+# Pipeline orchestration — changes affect the full CI/CD flow
+orchestrator/ @Ratikasubarza
+
+# Configuration — credentials patterns, thresholds, endpoints
+config/ @Ratikasubarza
+.env.example @Ratikasubarza
+
+# CI/CD pipeline definition
+.github/workflows/ @Ratikasubarza
+
+# Agent context files — must stay consistent with Python agents
+.claude/agents/ @Ratikasubarza
+.github/agents/ @Ratikasubarza
