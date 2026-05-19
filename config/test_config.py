@@ -71,9 +71,97 @@ class APIEndpoints:
     def reject(user_id: str) -> str:
         return f"/v1/users/{user_id}/reject"
 
-    # ── Content ───────────────────────────────────────────────────────
-    POSTS           = "/v1/posts"
-    SEARCH_POSTS    = "/v1/search/posts"
+    # ── Token / Auth flow ─────────────────────────────────────────────────
+    AUTH_REFRESH            = "/v1/auth/refresh"
+    AUTH_FORGOT_PASSWORD    = "/v1/auth/forgot-password"
+    AUTH_RESET_PASSWORD     = "/v1/auth/reset-password"
+    AUTH_VALIDATE_RESET     = "/v1/auth/reset-password/validate"
+    AUTH_RESEND_EMAIL_VERIF = "/v1/auth/email/verification"
+
+    # ── User self (extended) ──────────────────────────────────────────────
+    ME_DEACTIVATE    = "/v1/users/me/deactivate"
+    MENTIONABLE      = "/v1/users/mentionable"
+
+    # ── Feed ─────────────────────────────────────────────────────────────
+    FEED             = "/v1/feed"
+    TOPICS           = "/v1/topics"
+
+    # ── Content ───────────────────────────────────────────────────────────
+    POSTS            = "/v1/posts"
+    MEDIA_UPLOAD     = "/v1/media/upload"
+    SEARCH_POSTS     = "/v1/search/posts"
+    SEARCH_USERS     = "/v1/search/users"
+    SEARCH_TYPEAHEAD = "/v1/search/typeahead"
+
+    # ── Network ───────────────────────────────────────────────────────────
+    NETWORK_FOLLOWERS   = "/v1/network/followers"
+    NETWORK_FOLLOWING   = "/v1/network/following"
+    NETWORK_SUGGESTIONS = "/v1/network/suggestions"
+
+    # ── Privacy / Social ─────────────────────────────────────────────────
+    SETTINGS_ACCOUNTS_BLOCK  = "/v1/settings/accounts/block"
+    SETTINGS_ACCOUNTS_MUTE   = "/v1/settings/accounts/mute"
+    SETTINGS_ACCOUNT_COUNTS  = "/v1/settings/account/counts"
+    SETTINGS_ACCOUNT_LIST    = "/v1/settings/account/list"
+
+    # ── Settings ─────────────────────────────────────────────────────────
+    SETTINGS_TOGGLE       = "/v1/settings/toggle"
+    SETTINGS_OPTION       = "/v1/settings/option"
+    SETTINGS_MSG_PREFERENCE = "/v1/settings/message-preference"
+    SETTINGS_NOTIF_PREFS  = "/v1/settings/notification-preferences"
+
+    # ── Master data ───────────────────────────────────────────────────────
+    MASTER_INDUSTRIES         = "/v1/master/industries"
+    MASTER_BUSINESS_AREAS     = "/v1/master/business-areas"
+    MASTER_PERSONAL_INTERESTS = "/v1/master/personal-interests"
+    MASTER_SOCIAL_CAUSES      = "/v1/master/social-causes"
+    MASTER_COUNTRIES          = "/v1/master/countries"
+    MASTER_CITIES             = "/v1/master/cities"
+    MASTER_RELATIONSHIP_TYPES = "/v1/master/relationship-types"
+
+    # ── Reports ───────────────────────────────────────────────────────────
+    REPORTS          = "/v1/reports"
+
+    # ── Public (no auth) ─────────────────────────────────────────────────
+    PUBLIC_COUNTRIES = "/v1/public/countries"
+    PUBLIC_CITIES    = "/v1/public/cities"
+
+    # ── App config ────────────────────────────────────────────────────────
+    APP_CONFIG       = "/v1/app-config"
+
+    # ── Path-based static helpers ─────────────────────────────────────────
+
+    @staticmethod
+    def post_detail(post_id: str) -> str:
+        return f"/v1/posts/{post_id}"
+
+    @staticmethod
+    def post_visibility(post_id: str) -> str:
+        return f"/v1/posts/{post_id}/visibility"
+
+    @staticmethod
+    def post_not_interested(post_id: str) -> str:
+        return f"/v1/posts/{post_id}/not-interested"
+
+    @staticmethod
+    def user_posts(user_id: str) -> str:
+        return f"/v1/users/{user_id}/posts"
+
+    @staticmethod
+    def user_media(user_id: str) -> str:
+        return f"/v1/users/{user_id}/media"
+
+    @staticmethod
+    def user_follow(user_id: str) -> str:
+        return f"/v1/users/{user_id}/follow"
+
+    @staticmethod
+    def user_mute_by_id(user_id: str) -> str:
+        return f"/v1/users/{user_id}/mute"
+
+    @staticmethod
+    def storage_presign(key: str) -> str:
+        return f"/v1/storage/presign/{key}"
 
 
 class Timeouts:
