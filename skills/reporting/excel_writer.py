@@ -1,8 +1,11 @@
 """
-Excel & CSV Writer Skill — exports test cases to both formats.
-Naming convention: test_plan_<feature_name>_<YYYYMMDD>.csv/xlsx
+Excel & CSV Writer Skill — exports test cases and test plans to both formats.
+Naming conventions:
+  test_cases:  test_plan_<feature>_<YYYYMMDD>.csv/xlsx
+  test_plans:  <feature>_test_plan_<YYYYMMDD>.csv/xlsx
 """
 import csv
+import json as _json
 import structlog
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +14,7 @@ from openpyxl.styles import (
     PatternFill, Font, Alignment, Border, Side
 )
 from openpyxl.utils import get_column_letter
-from core.agent_contracts import TestCaseAgentOutput
+from core.agent_contracts import TestCaseAgentOutput, TestPlanOutput
 
 logger = structlog.get_logger(__name__)
 
@@ -172,3 +175,213 @@ class ExcelWriter:
 
 
 excel_writer = ExcelWriter()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Test Plan export (TestPlanOutput → CSV + multi-sheet XLSX)
+# ─────────────────────────────────────────────────────────────────────────────
+
+TP_SCENARIO_COLUMNS = [
+    "TC ID", "Name", "Technique", "Type", "Priority",
+    "Platforms", "Preconditions", "Inputs", "Expected Outcome",
+    "Risk Level", "Tags",
+]
+
+TECHNIQUE_COLORS = {
+    "decision_table":             "D6E4FF",  # blue
+    "boundary_value_analysis":    "FFF2CC",  # yellow
+    "state_transition":           "E2EFDA",  # green
+    "equivalence_partitioning":   "FCE4EC",  # pink
+    "error_guessing":             "F3E5F5",  # purple
+    "pairwise":                   "E0F7FA",  # teal
+}
+
+
+class TestPlanExcelWriter:
+    def __init__(self, output_dir: str = "reports/test_plans"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _slug(self, feature: str) -> str:
+        return feature.lower().replace(" ", "_").replace("/", "_").replace(":", "")
+
+    def _get_path(self, feature: str, ext: str) -> Path:
+        date_str = datetime.now().strftime("%Y%m%d")
+        return self.output_dir / f"{self._slug(feature)}_test_plan_{date_str}.{ext}"
+
+    def _scenario_rows(self, output: TestPlanOutput) -> list[list]:
+        rows = []
+        for s in output.scenarios:
+            rows.append([
+                s.scenario_id,
+                s.scenario_name,
+                s.technique,
+                s.type,
+                s.priority,
+                ", ".join(s.platforms),
+                "\n".join(s.preconditions),
+                _json.dumps(s.inputs, ensure_ascii=False) if s.inputs else "",
+                s.expected_outcome,
+                s.risk_level,
+                ", ".join(s.tags),
+            ])
+        return rows
+
+    def write_csv(self, output: TestPlanOutput) -> Path:
+        """Write test plan scenarios to CSV."""
+        path = self._get_path(output.feature_name, "csv")
+        rows = self._scenario_rows(output)
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(TP_SCENARIO_COLUMNS)
+            writer.writerows(rows)
+        logger.info("test_plan_csv_written", path=str(path), rows=len(rows))
+        return path
+
+    def write_excel(self, output: TestPlanOutput) -> Path:
+        """Write test plan to formatted multi-sheet Excel."""
+        path = self._get_path(output.feature_name, "xlsx")
+        wb   = Workbook()
+
+        thin = Border(
+            left=Side(style="thin"), right=Side(style="thin"),
+            top=Side(style="thin"),  bottom=Side(style="thin"),
+        )
+        header_fill = PatternFill("solid", fgColor=HEADER_COLOR)
+        header_font = Font(bold=True, color=HEADER_FONT, size=11)
+        center      = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        def _write_header(ws, columns):
+            for ci, col in enumerate(columns, 1):
+                cell = ws.cell(row=1, column=ci, value=col)
+                cell.fill      = header_fill
+                cell.font      = header_font
+                cell.alignment = center
+                cell.border    = thin
+            ws.row_dimensions[1].height = 25
+            ws.freeze_panes = "A2"
+
+        # ── Sheet 1: Test Scenarios ───────────────────────────────────────────
+        ws = wb.active
+        ws.title = "Test Scenarios"
+        _write_header(ws, TP_SCENARIO_COLUMNS)
+        for ri, row in enumerate(self._scenario_rows(output), 2):
+            technique = output.scenarios[ri - 2].technique
+            row_color = TECHNIQUE_COLORS.get(technique, "FFFFFF")
+            fill      = PatternFill("solid", fgColor=row_color)
+            for ci, val in enumerate(row, 1):
+                cell = ws.cell(row=ri, column=ci, value=str(val))
+                cell.fill      = fill
+                cell.border    = thin
+                cell.alignment = Alignment(vertical="top", wrap_text=True)
+            ws.row_dimensions[ri].height = 55
+        for i, w in enumerate([10, 38, 22, 14, 10, 14, 28, 32, 38, 12, 22], 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        # ── Sheet 2: Decision Table ───────────────────────────────────────────
+        if output.decision_table:
+            wsd = wb.create_sheet("Decision Table")
+            max_rules = max((len(r.rules) for r in output.decision_table), default=0)
+            dt_cols = ["Condition"] + [f"R{i+1}" for i in range(max_rules)]
+            _write_header(wsd, dt_cols)
+            rule_fills = [
+                PatternFill("solid", fgColor=c) for c in
+                ["E8F5E9", "FFF9C4", "E3F2FD", "FCE4EC",
+                 "F3E5F5", "E0F7FA", "FFF3E0", "F1F8E9"]
+            ]
+            for ri, row in enumerate(output.decision_table, 2):
+                cond_cell = wsd.cell(row=ri, column=1, value=row.condition)
+                cond_cell.font   = Font(bold=True)
+                cond_cell.border = thin
+                cond_cell.alignment = Alignment(vertical="center", wrap_text=True)
+                for ci, rule in enumerate(row.rules, 2):
+                    cell = wsd.cell(row=ri, column=ci, value=rule)
+                    cell.fill      = rule_fills[(ci - 2) % len(rule_fills)]
+                    cell.border    = thin
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+            wsd.column_dimensions["A"].width = 30
+            for i in range(2, max_rules + 2):
+                wsd.column_dimensions[get_column_letter(i)].width = 8
+
+        # ── Sheet 3: State Diagram ────────────────────────────────────────────
+        sd = output.state_diagram
+        if sd:
+            wss = wb.create_sheet("State Diagram")
+            _write_header(wss, ["Type", "From State", "Event / Condition", "To State", "Expected HTTP"])
+            ri = 2
+            valid_fill   = PatternFill("solid", fgColor="E2EFDA")
+            invalid_fill = PatternFill("solid", fgColor="FFCCCC")
+            for t in sd.get("transitions", []):
+                for ci, val in enumerate([
+                    "VALID", t.get("from",""), t.get("event",""), t.get("to",""), "200"
+                ], 1):
+                    cell = wss.cell(row=ri, column=ci, value=val)
+                    cell.fill = valid_fill; cell.border = thin
+                    cell.alignment = Alignment(vertical="center", wrap_text=True)
+                ri += 1
+            for t in sd.get("invalid_transitions", []):
+                for ci, val in enumerate([
+                    "INVALID", t.get("from",""), "—", t.get("to",""), t.get("expected","409")
+                ], 1):
+                    cell = wss.cell(row=ri, column=ci, value=val)
+                    cell.fill = invalid_fill; cell.border = thin
+                    cell.alignment = Alignment(vertical="center")
+                ri += 1
+            for i, w in enumerate([10, 16, 42, 16, 16], 1):
+                wss.column_dimensions[get_column_letter(i)].width = w
+
+        # ── Sheet 4: Summary ──────────────────────────────────────────────────
+        wsm = wb.create_sheet("Summary")
+        bold = Font(bold=True)
+        summary_rows = [
+            ("Feature",                  output.feature_name),
+            ("Ticket ID",                output.ticket_id),
+            ("Generated At",             output.generated_at.strftime("%Y-%m-%d %H:%M")),
+            ("Model Used",               output.model_used),
+            ("Prompt Version",           output.prompt_version),
+            ("Techniques Used",          ", ".join(output.techniques_used)),
+            ("Total Scenarios",          output.total_scenarios),
+            ("Estimated Coverage",       f"{output.estimated_coverage_percent:.1f}%"),
+            ("Est. Execution Time",      f"{output.estimated_execution_time_minutes} min"),
+            ("", ""),
+            ("Coverage per AC", ""),
+        ]
+        for ac, pct in output.coverage_per_ac.items():
+            summary_rows.append((f"  {ac}", f"{pct:.1f}%"))
+        summary_rows += [
+            ("", ""),
+            ("Test Data Requirements", ""),
+        ]
+        for item in output.test_data_requirements:
+            summary_rows.append((f"  • {item}", ""))
+        summary_rows += [("", ""), ("Environment Prerequisites", "")]
+        for item in output.environment_prerequisites:
+            summary_rows.append((f"  • {item}", ""))
+        summary_rows += [("", ""), ("Entry Criteria", "")]
+        for item in output.entry_criteria:
+            summary_rows.append((f"  • {item}", ""))
+        summary_rows += [("", ""), ("Exit Criteria", "")]
+        for item in output.exit_criteria:
+            summary_rows.append((f"  • {item}", ""))
+
+        for ri, (key, val) in enumerate(summary_rows, 1):
+            ka = wsm.cell(row=ri, column=1, value=key)
+            va = wsm.cell(row=ri, column=2, value=val)
+            if key and not key.startswith(" ") and key != "":
+                ka.font = bold
+        wsm.column_dimensions["A"].width = 32
+        wsm.column_dimensions["B"].width = 55
+
+        wb.save(path)
+        logger.info("test_plan_excel_written", path=str(path), scenarios=output.total_scenarios)
+        return path
+
+    def write_both(self, output: TestPlanOutput) -> dict[str, Path]:
+        """Write CSV and Excel. Returns {csv: Path, excel: Path}."""
+        return {
+            "csv":   self.write_csv(output),
+            "excel": self.write_excel(output),
+        }
+
+
+test_plan_excel_writer = TestPlanExcelWriter()
