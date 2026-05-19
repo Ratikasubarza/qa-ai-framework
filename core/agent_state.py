@@ -25,6 +25,10 @@ class AgentState(TypedDict, total=False):
     requirements_output:  dict          # Full requirements_agent output
     requirements_raw:     dict          # Backward-compatible alias
 
+    # ── Test plan phase ─────────────────────────────────────────────
+    test_plan:            dict          # TestPlanOutput serialised to dict
+    techniques_used:      list[str]     # Techniques selected by test_plan_agent
+
     # ── Test case phase ─────────────────────────────────────────────
     test_cases:           list[dict]    # Generated test case dicts
     testcase_output:      Any           # TestCaseAgentOutput used by downstream agents

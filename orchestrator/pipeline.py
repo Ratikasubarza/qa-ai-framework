@@ -217,6 +217,40 @@ def node_requirements(state: AgentState) -> AgentState:
         }
 
 
+# ── Node: Test Plan ──────────────────────────────────────────────────────────
+def node_test_plan(state: AgentState) -> AgentState:
+    from agents.test_plan_agent import test_plan_agent
+
+    logger.info("node_start", node="test_plan", feature=state.get("feature"))
+
+    try:
+        requirements = {
+            "feature_name":        state.get("feature", ""),
+            "ticket_id":           state.get("ticket_id", ""),
+            "acceptance_criteria": state.get("acceptance_criteria", []),
+            "description":         state.get("story_text", ""),
+            "platforms":           state.get("platforms", ["web"]),
+        }
+        output  = test_plan_agent.create_test_plan(requirements)
+        run_id  = state.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+        test_plan_agent.save_report(output, _slugify(state.get("feature", "feature")), run_id)
+
+        return {
+            **state,
+            "current_phase": "test_plan",
+            "test_plan":      output.model_dump(mode="json"),
+            "techniques_used": output.techniques_used,
+            "error":          None,
+        }
+    except Exception as e:
+        logger.error("node_failed", node="test_plan", error=str(e))
+        return {
+            **state,
+            "current_phase": "test_plan",
+            "error": {"phase": "test_plan", "message": str(e)},
+        }
+
+
 # ── Node: Test Case Generation ───────────────────────────────────────────────
 async def node_testcase(state: AgentState) -> AgentState:
     from agents.test_case_agent import test_case_agent
@@ -927,6 +961,7 @@ def build_pipeline():
 
     graph.add_node("source_intake", node_source_intake)
     graph.add_node("requirements", node_requirements)
+    graph.add_node("test_plan", node_test_plan)
     graph.add_node("testcase", node_testcase)
     graph.add_node("case_review_gate", node_case_review)
     graph.add_node("approval_gate", node_approval)
@@ -941,7 +976,8 @@ def build_pipeline():
 
     graph.set_entry_point("source_intake")
     graph.add_conditional_edges("source_intake", route_after_source_intake)
-    graph.add_edge("requirements", "testcase")
+    graph.add_edge("requirements", "test_plan")
+    graph.add_edge("test_plan", "testcase")
     graph.add_edge("testcase", "case_review_gate")
     graph.add_conditional_edges("case_review_gate", route_after_case_review)
     graph.add_conditional_edges("approval_gate", route_after_approval)
