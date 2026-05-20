@@ -3,192 +3,123 @@
 
 ---
 
-## ⚠️ Critical Rules — Read First
+## Critical Rules — Read First
 
-1. **NEVER break existing passing tests** — always run affected test suite after changes
-2. **NEVER hardcode credentials** — use TestConfig or test data classes
+1. **NEVER break existing passing tests** — run the affected suite after every change
+2. **NEVER hardcode credentials** — use `TestConfig` or test data classes
 3. **NEVER use system Python** — always use `./venv/bin/python3.11`
 4. **NEVER change folder structure** without updating all imports
-5. **ALWAYS commit after milestone** — git add → commit → push
+5. **ALWAYS commit after each milestone** — git add → commit → push
 
 ---
 
 ## Project Overview
 
-AI-powered QA automation framework for **Hono app** (app-dev.thehono.com).
-Combines LLM agents (OpenRouter) + Playwright + Appium + LangGraph orchestration.
+AI-powered QA automation framework for **Hono** (app-dev.thehono.com).
+Combines LLM agents (OpenRouter/Claude) + Playwright + Appium + LangGraph orchestration.
 
-**Target app:** `app.thehono.development` (Flutter Android)
-**API:** `https://api-dev.thehono.com`
-**Web:** `https://app-dev.thehono.com`
-**DB:** MySQL `hono_dev` (staging, requires VPN)
+| Target | Value |
+|--------|-------|
+| Mobile app | `app.thehono.development` (Flutter Android) |
+| API | `https://api-dev.thehono.com` |
+| Web | `https://app-dev.thehono.com` |
+| DB | MySQL `hono_dev` (staging — requires VPN) |
 
 ---
 
 ## Folder Structure
-/Users/ratikasubarza/Documents/Ratika/automation-agents/qa-ai-framework-backup-20260508/venv/bin/python3.11 << 'EOF'
-from platforms.mobile.appium_driver import AppiumDriver
-from config.test_config import TestConfig
-from appium.webdriver.common.appiumby import AppiumBy
-import re, time, subprocess
 
-ADB = "~/Downloads/platform-tools/adb"
-
-driver = AppiumDriver(
-    app_package=TestConfig.ANDROID_PACKAGE,
-    app_activity=TestConfig.ANDROID_ACTIVITY,
-    device_name=TestConfig.ANDROID_DEVICE,
-    platform_version=TestConfig.ANDROID_VERSION,
-)
-driver.start()
-time.sleep(5)
-
-def get_elements(label):
-    for attempt in range(5):
-        try:
-            time.sleep(3)
-            source = driver.driver.page_source
-            cds = re.findall(r'content-desc="([^"]+)"', source)
-            print(f"\n=== {label} ===")
-            for cd in cds[:25]:
-                if cd and not cd.startswith('&#'):
-                    print(f"  '{cd}'")
-            return source
-        except:
-            time.sleep(3)
-    return ""
-
-def safe_fill(index, text):
-    for attempt in range(3):
-        try:
-            els = driver.driver.find_elements(AppiumBy.CLASS_NAME, "android.widget.EditText")
-            if len(els) > index:
-                els[index].click(); time.sleep(0.5)
-                els[index].send_keys(text); time.sleep(0.3)
-                print(f"  ✓ [{index}] = {text}"); return True
-        except: time.sleep(2)
-    return False
-
-def tap_continue():
-    for attempt in range(3):
-        try:
-            driver.find(AppiumBy.ACCESSIBILITY_ID, "Continue", timeout=5).click()
-            time.sleep(6); print("  ✓ Continue"); return True
-        except: time.sleep(3)
-    return False
-
-def adb_tap(x, y):
-    subprocess.run(f'{ADB} shell input tap {x} {y}', shell=True)
-    time.sleep(1)
-
-# Steps 2+3
-safe_fill(0, "Test Onboard User")
-driver.hide_keyboard(); time.sleep(1); tap_continue()
-safe_fill(0, "QA Engineer"); time.sleep(0.5)
-safe_fill(1, "Hono Testing Inc")
-driver.hide_keyboard(); time.sleep(1); tap_continue()
-
-# Country
-els = driver.driver.find_elements(AppiumBy.CLASS_NAME, "android.widget.EditText")
-adb_tap(els[0].location['x'] + els[0].size['width']//2,
-        els[0].location['y'] + els[0].size['height']//2)
-time.sleep(3)
-search_els = driver.driver.find_elements(AppiumBy.CLASS_NAME, "android.widget.EditText")
-search_els[0].click(); time.sleep(0.5)
-search_els[0].send_keys("Indonesia"); time.sleep(2)
-driver.find(AppiumBy.ACCESSIBILITY_ID, "Indonesia", timeout=5).click()
-time.sleep(4)
-
-# City
-adb_tap(360, 700); time.sleep(3)
-els = driver.driver.find_elements(AppiumBy.CLASS_NAME, "android.widget.EditText")
-els[0].click(); time.sleep(0.5)
-els[0].send_keys("Jakarta"); time.sleep(3)
-driver.find(AppiumBy.ACCESSIBILITY_ID, "Jakarta Pusat", timeout=3).click()
-time.sleep(3)
-tap_continue()
-print("✓ Steps 2-4 done")
-
-# Step 5 - Industries
-get_elements("Industries screen")
-
-# Try tap Continue to see what options are available or tap the dropdown
-try:
-    driver.find(AppiumBy.ACCESSIBILITY_ID, "Continue", timeout=3)
-    print("Continue exists — tap to open industries?")
-except:
-    pass
-
-# Tap screen center to open dropdown
-adb_tap(360, 400)
-time.sleep(3)
-get_elements("After tap industries area")
-
-driver.stop()
----
-
-## TDD Flow — Mandatory
-
-Setiap kali menambah atau mengubah test:
-
-1. **Write test spec dulu** (Gherkin di `gherkin/` folder)
-2. **Run test** — pastikan FAIL dulu (red)
-3. **Implement** code/fix
-4. **Run test lagi** — harus PASS (green)
-5. **Refactor** jika perlu
-6. **Commit**
-
-```bash
-# Verify setelah setiap perubahan
-PYTHONPATH=. ./venv/bin/python3.11 -m pytest [test_file] -v
+```
+qa-ai-framework/
+├── agents/                  # LLM agent implementations (LangGraph nodes)
+├── config/                  # TestConfig, APIEndpoints, settings.py (Pydantic)
+├── core/                    # Shared infra: agent_state, circuit_breaker, db/, input_sanitizer, self_healer
+├── features/                # One folder per product feature
+│   └── <feature>/
+│       ├── pages/web/       # Web POM — inherits BasePage
+│       ├── screens/android/ # Mobile Screen Objects — inherits BaseMobileScreen
+│       ├── locators/
+│       │   ├── web/         # Runtime Playwright locators (CSS/ARIA strings)
+│       │   └── mobile/      # Runtime Appium locators (accessibility IDs, indices)
+│       ├── steps/
+│       │   ├── api/         # API tests (httpx / SchemaValidator)
+│       │   ├── web/         # Web e2e tests (Playwright / POM)
+│       │   └── mobile/      # Mobile e2e tests (Appium / Screen Objects)
+│       └── test_data/       # Test data classes — never raw strings in tests
+├── knowledge_base/          # RAG engine (ChromaDB) + source prep
+├── locators/registry/       # YAML healing metadata per feature (*.web.yaml)
+├── integrations/            # External system bridges
+│   ├── approval_workflow/   # Async approval schema + feedback handler
+│   ├── confluence_client/   # Confluence MCP bridge
+│   ├── figma_client/        # Figma MCP bridge
+│   ├── github_client/       # GitHub API client
+│   ├── jira_client/         # Jira API client
+│   ├── jira_webhook/        # Jira webhook server (FastAPI)
+│   └── telegram_bot/        # Telegram notification bot
+├── orchestrator/            # LangGraph pipeline (pipeline.py)
+├── platforms/
+│   ├── api/                 # HonoAPIClient (httpx async)
+│   ├── web/pages/           # BasePage (Playwright)
+│   └── mobile/screens/      # BaseMobileScreen (Appium)
+├── reports/                 # Allure, Excel, metrics output
+├── scripts/
+│   ├── ci_cd/               # CI/CD helper scripts (secret sync, GitHub setup)
+│   └── run_demo.py          # Pipeline demo runner
+└── skills/
+    ├── api/                 # SchemaValidator — canonical API assertion library
+    ├── assertions/          # DEPRECATED — api_assertions.py is a stub for SchemaValidator
+    ├── base/                # DEPRECATED — ElementInteraction, WaitStrategy, AssertionHelper
+    └── testing/             # Shared test helpers (assert_required_keys, etc.)
 ```
 
 ---
 
-## Feedback Loop — Mandatory
+## Canonical Import Rules (Enforced)
 
-Setelah setiap file modification:
+### API Tests
+```python
+# CORRECT
+from skills.api.schema_validator import SchemaValidator
+SchemaValidator(response).status_ok().has_key("data").response_time_under(3000)
 
-```bash
-# 1. Run affected test suite
-PYTHONPATH=. ./venv/bin/python3.11 -m pytest [affected_test] -v --tb=short
+# FORBIDDEN — deprecated alias, will be removed
+from skills.assertions.api_assertions import APIAssertions
+```
 
-# 2. Run static analysis
-./venv/bin/python3.11 -m ruff check . --select E,W,F --ignore E501
+### Web Tests (Playwright)
+```python
+# CORRECT — use the Page Object, never raw page.click() in tests
+from features.login.pages.web.login_page import LoginPage
+LoginPage(page).open().login(email, password).assert_login_success()
 
-# 3. Verify imports tidak broken
-PYTHONPATH=. ./venv/bin/python3.11 -c "from [modified_module] import *; print('OK')"
+# FORBIDDEN — skills/base/ must not be imported directly in test files
+from skills.base.element_interaction import ElementInteraction
+from skills.base.wait_strategy import WaitStrategy
+from skills.base.assertion_helper import AssertionHelper
+```
+
+### Mobile Tests (Appium)
+```python
+# CORRECT — use the Screen Object
+from features.login.screens.android.login_screen import LoginScreen
+LoginScreen(driver).ensure_on_login_screen().login(email, password).assert_login_success()
+
+# FORBIDDEN — direct raw driver interaction in test files
+from skills.mobile.mobile_interaction import MobileInteraction
 ```
 
 ---
 
-## Static Analysis
+## Test File Conventions
 
-```bash
-# Install (sudah ada di venv)
-./venv/bin/pip install ruff
-
-# Run before commit
-./venv/bin/python3.11 -m ruff check . --select E,W,F --ignore E501,E402
-
-# Auto-fix
-./venv/bin/python3.11 -m ruff check . --fix
-```
-
----
-
-## API Spec
-
-API spec tersimpan di `api_spec.yaml` — update setiap ada endpoint baru.
-
-Endpoints yang sudah ter-cover:
-- `POST /v1/users/login` — user + admin (resource=admin)
-- `POST /v1/users/register`
-- `GET /v1/users/me`
-- `GET /v1/users` — CMS list users
-- `POST /v1/users/:id/approve`
-- `POST /v1/users/:id/reject`
-- `PUT /v1/users/onboarding`
+| Rule | Example |
+|------|---------|
+| Naming | `test_TC_[SUITE]_[NNN]_[snake_description]` |
+| Allure — module level only | `pytestmark = [allure.feature("Login"), allure.suite("Web")]` |
+| No per-test allure decorators | `@allure.story()` and `@allure.severity()` are forbidden |
+| Async API tests | `@pytest.mark.asyncio` + `async def test_` |
+| Sync Web/Mobile tests | plain `def test_` |
+| Markers | `@pytest.mark.smoke`, `.negative`, `.web`, `.mobile`, `.api` |
 
 ---
 
@@ -197,41 +128,85 @@ Endpoints yang sudah ter-cover:
 | Need | Location |
 |------|----------|
 | API client | `platforms/api/httpx_client.py` → `HonoAPIClient` |
+| API assertions | `skills/api/schema_validator.py` → `SchemaValidator` |
 | DB operations | `core/db/db_client.py` → `DBClient` |
-| Create test user | `core/db/test_user_helper.py` → `create_approved_user_sync()` |
-| Test config/URLs | `config/test_config.py` → `TestConfig` |
-| Login test data | `features/login/test_data/login_test_data.py` |
-| Schema validation | `skills/api/schema_validator.py` → `SchemaValidator` |
-| Mobile interaction | `skills/mobile/mobile_interaction.py` |
-| CMS token | Call `get_cms_token()` in any CMS test file |
+| Create synthetic user | `core/db/test_user_helper.py` → `create_approved_user()` |
+| Test config / URLs | `config/test_config.py` → `TestConfig`, `APIEndpoints` |
+| Web base page | `platforms/web/pages/base_page.py` → `BasePage` |
+| Mobile base screen | `platforms/mobile/screens/base_mobile_screen.py` → `BaseMobileScreen` |
+| Self-healer | `core/self_healer.py` → `self_healer` (used inside BasePage, not in tests) |
+| Input sanitization | `core/input_sanitizer.py` → `InputSanitizer` |
+| Circuit breaker | `core/circuit_breaker.py` → `CircuitBreaker` |
+| LangGraph pipeline | `orchestrator/pipeline.py` |
+| Agent contracts | `core/agent_contracts.py` — Pydantic schemas for all agent I/O |
+| CMS token | `get_cms_token()` in `features/cms_users/steps/api/conftest.py` |
 
 ---
 
-## Coding Conventions
+## TDD Flow — Mandatory
 
-- **URLs**: always `TestConfig.API_URL` — never hardcode
-- **Credentials**: always from `LoginTestData`, `CmsLoginTestData` — never hardcode  
-- **Python**: always `./venv/bin/python3.11` — never system python
-- **Async tests**: always `@pytest.mark.asyncio` + `async def test_`
-- **DB queries**: always `BIN_TO_UUID(id)` for user IDs
-- **Naming**: `test_TC_[SUITE]_[NUM]_[description]`
+1. **Write Gherkin spec** in `gherkin/` folder
+2. **Run test** — confirm it FAILS (red)
+3. **Implement** the feature or fix
+4. **Run test again** — confirm it PASSES (green)
+5. **Refactor** if needed, then commit
+
+```bash
+PYTHONPATH=. ./venv/bin/python3.11 -m pytest [test_file] -v
+```
+
+---
+
+## Feedback Loop — Mandatory
+
+After every file modification:
+
+```bash
+# 1. Run affected suite
+PYTHONPATH=. ./venv/bin/python3.11 -m pytest [affected_test] -v --tb=short
+
+# 2. Static analysis
+./venv/bin/python3.11 -m ruff check . --select E,W,F --ignore E501,E402
+
+# 3. Verify imports
+PYTHONPATH=. ./venv/bin/python3.11 -c "from [modified_module] import *; print('OK')"
+```
 
 ---
 
 ## Security Checklist
 
-Before commit:
+Before every commit:
 - [ ] No hardcoded credentials
-- [ ] No hardcoded URLs  
-- [ ] `.env` not committed (in .gitignore)
-- [ ] No raw DB errors exposed in assertions
-- [ ] `[DEV-BUG]` tagged for API issues found
+- [ ] No hardcoded URLs — use `TestConfig`
+- [ ] `.env` not committed (it is in `.gitignore`)
+- [ ] No raw DB errors in assertion messages
+- [ ] Webhook endpoints require HMAC or Bearer token auth
+- [ ] All subprocess paths validated against project root (no path traversal)
+- [ ] `[DEV-BUG]` tag used for API contract violations found during testing
+
+---
+
+## API Spec
+
+Stored in `api_spec.yaml` — update when a new endpoint is added.
+
+Endpoints covered:
+- `POST /v1/users/login` — user + admin (`resource=admin`)
+- `POST /v1/users/register`
+- `GET /v1/users/me`
+- `GET /v1/users/me/account` + `PUT /v1/users/me/account`
+- `GET /v1/users` — CMS list
+- `POST /v1/users/:id/approve` / `reject`
+- `PUT /v1/users/onboarding`
+- `GET /v1/feed` + `GET /v1/topics`
+- `POST /v1/auth/refresh` / `forgot-password` / `reset-password` / `resend-email`
 
 ---
 
 ## Model Configuration
 
 Current: `MODEL_TIER=development` — free models via OpenRouter
-Production-ready: set `MODEL_TIER=production` + `ANTHROPIC_API_KEY` to switch to Claude
+Production: set `MODEL_TIER=production` + `ANTHROPIC_API_KEY` to use Claude
 
-See `core/llm_client.py` for full model list.
+See `core/llm_client.py` for the full model list.

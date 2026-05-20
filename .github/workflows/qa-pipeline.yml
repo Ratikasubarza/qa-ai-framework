@@ -53,6 +53,10 @@ jobs:
             --ignore-missing-imports \
             --no-error-summary
 
+      - name: pip-audit dependency scan
+        run: |
+          ./venv/bin/python3.11 -m pip_audit --strict --desc on
+
   # ── Job 1: Smoke Test ──────────────────────────────────────────────
   smoke:
     name: Smoke Test — LLM Connection
