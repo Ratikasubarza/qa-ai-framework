@@ -15,8 +15,9 @@ import time
 from appium.webdriver.common.appiumby import AppiumBy
 from platforms.mobile.screens.base_mobile_screen import BaseMobileScreen
 from features.login.locators.mobile.login_android_locators import (
-    LOGIN_BUTTON, EMAIL_FIELD_INDEX as EMAIL_INDEX,
-    PASSWORD_FIELD_INDEX as PASSWORD_INDEX,
+    LOGIN_BUTTON, FEED_SCREEN,
+    EMAIL_FIELD_AID, PASSWORD_FIELD_AID,
+    EMAIL_FIELD_CLASS,
 )
 
 
@@ -34,9 +35,9 @@ class LoginScreen(BaseMobileScreen):
 
         if "Welcome to HONO" in source or "personalize profile" in source:
             self.driver.driver.terminate_app(TestConfig.ANDROID_PACKAGE)
-            time.sleep(2)
+            time.sleep(2)  # OS process teardown — inherently timing-based
             self.driver.driver.activate_app(TestConfig.ANDROID_PACKAGE)
-            time.sleep(4)
+            self.wait_for_text_in_source("Login", timeout=10)
 
         try:
             self.driver.find(
@@ -44,39 +45,49 @@ class LoginScreen(BaseMobileScreen):
                 'new UiSelector().descriptionContains("Log in")',
                 timeout=5,
             ).click()
-            time.sleep(3)
+            # Wait for login form EditText to appear instead of fixed sleep
+            self.wait_for_element(AppiumBy.CLASS_NAME, EMAIL_FIELD_CLASS, timeout=8)
         except AssertionError:
             pass  # already on login screen
         return self
 
-    def _logout_from_feed(self):
+    def _logout_from_feed(self) -> None:
         try:
             self.driver.driver.tap([(50, 120)])
-            time.sleep(2)
+            self.wait_for_element(AppiumBy.ACCESSIBILITY_ID, "Show menu", timeout=5)
             self.driver.find(AppiumBy.ACCESSIBILITY_ID, "Show menu", timeout=5).click()
-            time.sleep(2)
+            self.wait_for_element(AppiumBy.ACCESSIBILITY_ID, "Logout", timeout=5)
             self.driver.find(AppiumBy.ACCESSIBILITY_ID, "Logout", timeout=5).click()
-            time.sleep(3)
+            self.wait_for_text_in_source("Log in", timeout=8)
         except Exception:
             pass
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
+    def _fill_semantic_or_index(self, aid: str, index: int, text: str, description: str) -> None:
+        """Try accessibility ID first; fall back to EditText index if not found."""
+        try:
+            self.fill(AppiumBy.ACCESSIBILITY_ID, aid, text, description=description)
+        except Exception:
+            self.fill_by_index(index, text, description=description)
+
     def enter_email(self, email: str) -> "LoginScreen":
-        self.fill_by_index(EMAIL_INDEX, email, description="Email field")
+        self._fill_semantic_or_index(EMAIL_FIELD_AID, 0, email, "Email field")
         return self
 
     def enter_password(self, password: str) -> "LoginScreen":
-        self.fill_by_index(PASSWORD_INDEX, password, description="Password field")
+        self._fill_semantic_or_index(PASSWORD_FIELD_AID, 1, password, "Password field")
         return self
 
     def tap_login(self) -> "LoginScreen":
         self.hide_keyboard()
-        time.sleep(0.5)
+        time.sleep(0.5)  # keyboard dismiss animation — too short for element-based wait
         self.tap(AppiumBy.ANDROID_UIAUTOMATOR,
                  'new UiSelector().description("Login to my account")',
                  description="Login button")
-        time.sleep(10)
+        # Wait for feed tab OR error text — whichever arrives first (up to 15 s)
+        self.wait_for_text_in_source(FEED_SCREEN, timeout=15) or \
+            self.wait_for_text_in_source("Invalid", timeout=2)
         return self
 
     def login(self, email: str, password: str) -> "LoginScreen":
@@ -107,4 +118,8 @@ class LoginScreen(BaseMobileScreen):
             "[LoginScreen] Expected error message after failed login, but none found.\n"
             f"  Page source preview: {self.get_page_source()[:300]}"
         )
+        return self
+
+    def assert_button_disabled(self) -> "LoginScreen":
+        self.assert_that.element_disabled_by_accessibility(LOGIN_BUTTON, "Login button")
         return self

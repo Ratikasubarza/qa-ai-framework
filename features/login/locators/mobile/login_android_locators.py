@@ -7,10 +7,13 @@ from appium.webdriver.common.appiumby import AppiumBy
 # ── Navigation ────────────────────────────────────────────────────────
 ONBOARDING_LOGIN_LINK = "Already have an account? Log in"
 
-# ── Login Form — pakai EditText index karena Flutter tidak expose resource-id
+# ── Login Form — semantic accessibility IDs (preferred)
+# Flutter Semantics labels are exposed as content-desc via UIAutomator.
+EMAIL_FIELD_AID    = "Email"     # content-desc / Semantics label
+PASSWORD_FIELD_AID = "Password"  # content-desc / Semantics label
+
+# ── Login Form — class name (used for element-wait in ensure_on_login_screen)
 EMAIL_FIELD_CLASS    = "android.widget.EditText"
-EMAIL_FIELD_INDEX    = 0   # first EditText
-PASSWORD_FIELD_INDEX = 1   # second EditText (password=true)
 
 # ── Buttons ───────────────────────────────────────────────────────────
 LOGIN_BUTTON   = "Login to my account"

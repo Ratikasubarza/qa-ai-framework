@@ -27,3 +27,18 @@ reports/gap_reports/
 # Vector store (generated)
 knowledge_base/vector_store/
 
+.DS_Store
+
+# SQLite pipeline checkpoints (generated, not for VCS)
+checkpoints/*.db
+checkpoints/
+
+# Scripts / audit artifacts (not production code)
+scripts/audit_report.txt
+scripts/audit_full.sh
+
+# Pytest cache
+.pytest_cache/
+
+# Mypy cache
+.mypy_cache/

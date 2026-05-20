@@ -10,6 +10,30 @@ from features.register.test_data.register_test_data import RegisterTestData
 from core.db.db_client import DBClient
 from config.test_config import APIEndpoints
 
+
+def _wait_for_user_in_db(email: str, timeout: float = 5.0) -> dict:
+    """Poll DB until user row appears. Returns user dict or raises TimeoutError."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with DBClient() as db:
+            user = db.get_user_by_email(email)
+        if user:
+            return user
+        time.sleep(0.3)
+    raise TimeoutError(f"User '{email}' not found in DB after {timeout}s")
+
+
+def _wait_for_status(email: str, expected: str, timeout: float = 5.0) -> dict:
+    """Poll DB until user reaches *expected* status. Returns updated user dict."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with DBClient() as db:
+            user = db.get_user_by_email(email)
+        if user and user.get("status") == expected:
+            return user
+        time.sleep(0.3)
+    raise TimeoutError(f"User '{email}' did not reach status '{expected}' after {timeout}s")
+
 pytestmark = allure.feature("CMS Approve User")
 
 
@@ -23,8 +47,6 @@ async def _register_new_user() -> dict:
     return payload
 
 
-@allure.story("TC-CMS-APPROVE-001: Full flow register → verify → approve")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_APPROVE_001_full_flow_register_verify_approve(cms_token):
     """
@@ -34,10 +56,7 @@ async def test_TC_CMS_APPROVE_001_full_flow_register_verify_approve(cms_token):
     payload = await _register_new_user()
     email = payload["email"]
 
-    time.sleep(1)
-    with DBClient() as db:
-        user = db.get_user_by_email(email)
-    assert user, f"User not found in DB: {email}"
+    user = _wait_for_user_in_db(email)
     assert user["status"] == "PENDING"
     user_id = user["id"]
 
@@ -50,24 +69,17 @@ async def test_TC_CMS_APPROVE_001_full_flow_register_verify_approve(cms_token):
     assert response.status_code == 200, \
         f"Approve failed: {response.status_code} {response.json()}"
 
-    time.sleep(1)
-    with DBClient() as db:
-        updated = db.get_user_by_email(email)
-    assert updated["status"] == "APPROVED", f"Expected APPROVED, got: {updated['status']}"
+    updated = _wait_for_status(email, "APPROVED")
     assert updated["approved_at"] is not None
 
 
-@allure.story("TC-CMS-APPROVE-002: Approve unverified user")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_APPROVE_002_approve_without_verification(cms_token):
     """
     TC-CMS-APPROVE-002 | Negative | Approve PENDING user (not verified)
     """
     payload = await _register_new_user()
-    time.sleep(1)
-    with DBClient() as db:
-        user = db.get_user_by_email(payload["email"])
+    user = _wait_for_user_in_db(payload["email"])
     assert user["status"] == "PENDING"
 
     async with HonoAPIClient() as client:
@@ -76,8 +88,6 @@ async def test_TC_CMS_APPROVE_002_approve_without_verification(cms_token):
     assert response.status_code in [200, 400, 422]
 
 
-@allure.story("TC-CMS-APPROVE-003: Approve nonexistent user")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_APPROVE_003_approve_nonexistent_user(cms_token):
     """TC-CMS-APPROVE-003 | Negative | Approve with invalid user ID"""
@@ -88,8 +98,6 @@ async def test_TC_CMS_APPROVE_003_approve_nonexistent_user(cms_token):
     assert response.status_code in [404, 400]
 
 
-@allure.story("TC-CMS-APPROVE-004: Approve without token")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_APPROVE_004_approve_without_token():
     """TC-CMS-APPROVE-004 | Security | Approve without CMS token"""
@@ -102,8 +110,6 @@ async def test_TC_CMS_APPROVE_004_approve_without_token():
     assert response.status_code == 401
 
 
-@allure.story("TC-CMS-APPROVE-005: Approve already approved user")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_APPROVE_005_approve_already_approved(cms_token):
     """TC-CMS-APPROVE-005 | Boundary | Approve already approved user"""

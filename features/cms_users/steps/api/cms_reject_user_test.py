@@ -16,6 +16,30 @@ from features.register.test_data.register_test_data import RegisterTestData
 from core.db.db_client import DBClient
 from config.test_config import APIEndpoints
 
+
+def _wait_for_user_in_db(email: str, timeout: float = 5.0) -> dict:
+    """Poll DB until user row appears. Returns user dict or raises TimeoutError."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with DBClient() as db:
+            user = db.get_user_by_email(email)
+        if user:
+            return user
+        time.sleep(0.3)
+    raise TimeoutError(f"User '{email}' not found in DB after {timeout}s")
+
+
+def _wait_for_status(email: str, expected: str, timeout: float = 5.0) -> dict:
+    """Poll DB until user reaches *expected* status. Returns updated user dict."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with DBClient() as db:
+            user = db.get_user_by_email(email)
+        if user and user.get("status") == expected:
+            return user
+        time.sleep(0.3)
+    raise TimeoutError(f"User '{email}' did not reach status '{expected}' after {timeout}s")
+
 pytestmark = allure.feature("CMS Reject User")
 
 
@@ -26,16 +50,12 @@ async def _register_and_verify() -> dict:
         resp = await client.post(APIEndpoints.REGISTER, json=payload)
     skip_on_email_quota(resp)
     assert resp.status_code == 200, f"Register failed: {resp.json()}"
-    time.sleep(1)
+    user = _wait_for_user_in_db(payload["email"])
     with DBClient() as db:
-        user = db.get_user_by_email(payload["email"])
-        assert user, f"User not found: {payload['email']}"
         db.set_verified(payload["email"])
     return {"email": payload["email"], "user_id": user["id"]}
 
 
-@allure.story("TC-CMS-REJECT-001: Full flow register → verify → reject")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_001_reject_verified_user(cms_token):
     """
@@ -50,14 +70,10 @@ async def test_TC_CMS_REJECT_001_reject_verified_user(cms_token):
         )
     assert response.status_code == 200, \
         f"Expected 200, got: {response.status_code} {response.json()}"
-    time.sleep(1)
-    with DBClient() as db:
-        updated = db.get_user_by_email(user["email"])
+    updated = _wait_for_status(user["email"], "REJECTED")
     assert updated["status"] == "REJECTED", f"Expected REJECTED, got: {updated['status']}"
 
 
-@allure.story("TC-CMS-REJECT-002: Reject without reason body")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_002_reject_without_reason(cms_token):
     """TC-CMS-REJECT-002 | Boundary | Reject without reason body"""
@@ -68,8 +84,6 @@ async def test_TC_CMS_REJECT_002_reject_without_reason(cms_token):
     assert response.status_code in [200, 400, 422]
 
 
-@allure.story("TC-CMS-REJECT-003: Reject with empty string reason")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_003_reject_with_empty_reason(cms_token):
     """TC-CMS-REJECT-003 | Boundary | Reject with empty string reason"""
@@ -83,8 +97,6 @@ async def test_TC_CMS_REJECT_003_reject_with_empty_reason(cms_token):
     assert response.status_code in [200, 400, 422]
 
 
-@allure.story("TC-CMS-REJECT-004: Reject without token")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_004_reject_without_token():
     """TC-CMS-REJECT-004 | Security | Reject without CMS token returns 401"""
@@ -97,8 +109,6 @@ async def test_TC_CMS_REJECT_004_reject_without_token():
     assert response.status_code == 401
 
 
-@allure.story("TC-CMS-REJECT-005: Reject nonexistent user")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_005_reject_nonexistent_user(cms_token):
     """TC-CMS-REJECT-005 | Negative | Reject with invalid user ID returns 404"""
@@ -112,8 +122,6 @@ async def test_TC_CMS_REJECT_005_reject_nonexistent_user(cms_token):
     assert response.status_code in [404, 400]
 
 
-@allure.story("TC-CMS-REJECT-006: Reject already approved user")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_006_reject_already_approved_user(cms_token):
     """
@@ -139,8 +147,6 @@ async def test_TC_CMS_REJECT_006_reject_already_approved_user(cms_token):
     assert response.status_code in [200, 400, 409, 422]
 
 
-@allure.story("TC-CMS-REJECT-007: Double reject (idempotent check)")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_007_reject_already_rejected_user(cms_token):
     """
@@ -157,8 +163,6 @@ async def test_TC_CMS_REJECT_007_reject_already_rejected_user(cms_token):
     assert r2.status_code in [200, 400, 409]
 
 
-@allure.story("TC-CMS-REJECT-008: Reject unverified PENDING user")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_008_reject_pending_unverified_user(cms_token):
     """
@@ -170,9 +174,7 @@ async def test_TC_CMS_REJECT_008_reject_pending_unverified_user(cms_token):
         resp = await client.post(APIEndpoints.REGISTER, json=payload)
     skip_on_email_quota(resp)
     assert resp.status_code == 200
-    time.sleep(1)
-    with DBClient() as db:
-        user = db.get_user_by_email(payload["email"])
+    user = _wait_for_user_in_db(payload["email"])
     async with HonoAPIClient() as client:
         client._client.headers["Authorization"] = f"Bearer {cms_token}"
         response = await client.post(
@@ -182,8 +184,6 @@ async def test_TC_CMS_REJECT_008_reject_pending_unverified_user(cms_token):
     assert response.status_code in [200, 400, 422]
 
 
-@allure.story("TC-CMS-REJECT-009: Reject with very long reason")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_009_reject_with_very_long_reason(cms_token):
     """TC-CMS-REJECT-009 | Boundary | Very long rejection reason (1000+ chars)"""
@@ -198,8 +198,6 @@ async def test_TC_CMS_REJECT_009_reject_with_very_long_reason(cms_token):
     assert response.status_code in [200, 400, 422]
 
 
-@allure.story("TC-CMS-REJECT-010: Reject then approve same user")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_REJECT_010_reject_then_approve(cms_token):
     """

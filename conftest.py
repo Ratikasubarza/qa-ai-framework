@@ -16,23 +16,11 @@ logger = structlog.get_logger(__name__)
 
 # ── Activate plugins ───────────────────────────────────────────────────────────
 pytest_plugins = ["conftest_debug"]
+import core.pom_registry_setup  # noqa: F401 — populates the POMRegistry singleton at session start
 
 # ── Required env vars for API/agent tests ─────────────────────────────────────
 _REQUIRED_FOR_API = ["HONO_API_KEY"]
 _REQUIRED_FOR_AGENTS = ["OPENROUTER_API_KEY"]
-
-
-# ── Marker registration ────────────────────────────────────────────────────────
-def pytest_configure(config):
-    config.addinivalue_line("markers", "smoke: happy-path end-to-end — run first")
-    config.addinivalue_line("markers", "security: auth, RBAC, and access-control assertions")
-    config.addinivalue_line("markers", "negative: expected rejection and error cases")
-    config.addinivalue_line("markers", "boundary: edge values, limits, overflow")
-    config.addinivalue_line("markers", "performance: response time SLA assertions")
-    config.addinivalue_line("markers", "agent: LLM agent quality gates (evals)")
-    config.addinivalue_line("markers", "mobile: Appium Android tests — requires device")
-    config.addinivalue_line("markers", "web: Playwright web tests — requires browser")
-    config.addinivalue_line("markers", "db: tests that write to staging DB")
 
 
 # ── Session start — environment banner + guard ─────────────────────────────────
@@ -125,3 +113,27 @@ def _skip_if_missing_agent_key(request):
     if request.node.get_closest_marker("agent"):
         if not os.getenv("OPENROUTER_API_KEY"):
             pytest.skip("OPENROUTER_API_KEY not set — agent eval skipped")
+
+
+@pytest.fixture
+def cleanup(request, worker_id="main"):
+    """
+    Opt-in cleanup registry fixture.
+
+    Usage:
+        def test_something(cleanup):
+            user_id = create_user(...)
+            cleanup.register("user", user_id, lambda: delete_user(user_id))
+            # cleanup_all() is called automatically after the test
+    """
+    from core.test_data.cleanup_registry import cleanup_registry
+
+    try:
+        wid = request.config.workerinput.get("workerid", "main")
+    except AttributeError:
+        wid = "main"
+    run_id = os.getenv("RUN_ID", "pytest")
+
+    yield cleanup_registry
+
+    cleanup_registry.cleanup_all(run_id=run_id, worker_id=wid)
