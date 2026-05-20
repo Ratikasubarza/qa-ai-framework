@@ -11,7 +11,7 @@ from config.test_config import APIEndpoints
 from features.posts.test_data.create_post_test_data import CreatePostPayload
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def post_user():
     """
     Create one approved user per test module — reused across all post tests.
@@ -21,7 +21,7 @@ def post_user():
     return create_approved_user_sync(suffix=suffix)
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(scope="function")
 async def post_token(post_user) -> str:
     """Login once per module and return bearer token."""
     async with HonoAPIClient() as client:
@@ -37,7 +37,7 @@ async def post_token(post_user) -> str:
     return token
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(scope="function")
 async def created_post_id(post_token) -> str:
     """Create one post per module — reused for GET/PUT/DELETE/visibility tests."""
     async with HonoAPIClient() as client:

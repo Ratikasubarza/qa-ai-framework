@@ -82,6 +82,9 @@ class CodeGeneratorAgent:
         response = self.breaker.call(_call)
         files    = self._parse_files(response.content, feature_low)
 
+        # Validate generated steps against POM registry before writing
+        self._validate_pom_steps(test_output.feature, platforms=[platform.value])
+
         # Save files
         saved = self._save_files(files, feature_low)
         logger.info("code_gen_complete", files=list(saved.keys()))
@@ -148,6 +151,29 @@ class CodeGeneratorAgent:
 
         return files
 
+    def _validate_pom_steps(self, feature: str, platforms: list[str]) -> None:
+        """Warn if generated feature has no registered POM/Screen class."""
+        from core.pom_registry import registry
+        feature_low = feature.lower().replace(" ", "_")
+        for plat in platforms:
+            if plat == "web":
+                registered = registry.list_web_pages()
+                if feature_low not in registered:
+                    logger.warning(
+                        "pom_registry_no_web_page",
+                        feature=feature_low,
+                        registered=registered,
+                    )
+            else:
+                screens = registry.list_mobile_screens()
+                if feature_low not in screens or plat not in screens.get(feature_low, {}):
+                    logger.warning(
+                        "pom_registry_no_screen",
+                        feature=feature_low,
+                        platform=plat,
+                        registered=screens,
+                    )
+
     def _default_conftest(self) -> str:
         return '''import pytest
 from playwright.sync_api import Page
@@ -168,12 +194,27 @@ def navigate_to_base(page: Page, base_url: str):
     _SAFE_OUTPUT_ROOT = Path("features").resolve()
 
     def _save_files(self, files: dict[str, str], feature_low: str) -> dict[str, str]:
+        from core.code_security import validate_generated_code
+        from core.exceptions import CodeGenerationSecurityError
+
         saved = {}
         for filename, content in files.items():
             path = Path(filename).resolve()
             if not str(path).startswith(str(self._SAFE_OUTPUT_ROOT)):
                 logger.error("path_traversal_blocked", path=filename)
                 raise ValueError(f"Output path outside allowed directory: {filename}")
+
+            # AST security pre-flight — reject LLM output with blocked imports/calls
+            try:
+                validate_generated_code(content, filename)
+            except CodeGenerationSecurityError as exc:
+                logger.error(
+                    "codegen_security_blocked",
+                    file=filename,
+                    violations=exc.context.get("violations", []),
+                )
+                raise
+
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)
             saved[filename] = str(path)

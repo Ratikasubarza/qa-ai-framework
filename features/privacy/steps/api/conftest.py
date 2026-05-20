@@ -10,21 +10,21 @@ from skills.testing.helpers import skip_on_email_quota
 from config.test_config import APIEndpoints
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def actor_user():
     """The user performing follow/block/mute actions."""
     suffix = f"{int(time.time())}{random.randint(100, 999)}"
     return create_approved_user_sync(suffix=suffix)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def target_user():
     """The user being followed/blocked/muted."""
     suffix = f"{int(time.time()) + 1}{random.randint(100, 999)}"
     return create_approved_user_sync(suffix=suffix)
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(scope="function")
 async def actor_token(actor_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={

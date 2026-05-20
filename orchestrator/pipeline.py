@@ -63,11 +63,20 @@ def _scenario_to_dict(scenario: Any) -> dict:
 
 
 def _generated_file_paths(generated_files: Any) -> list[str]:
+    paths: list[str] = []
     if isinstance(generated_files, dict):
-        return [str(path) for path in generated_files.values()]
-    if isinstance(generated_files, list):
-        return [str(path) for path in generated_files]
-    return []
+        candidates = [str(path) for path in generated_files.values()]
+    elif isinstance(generated_files, list):
+        candidates = [str(path) for path in generated_files]
+    else:
+        candidates = []
+
+    seen: set[str] = set()
+    for path in candidates:
+        if path not in seen:
+            paths.append(path)
+            seen.add(path)
+    return paths
 
 
 def _approval_payload(status: str, **extra: Any) -> dict:
@@ -106,12 +115,18 @@ def _slugify(value: str) -> str:
 
 
 def _write_case_review_draft_exports(state: AgentState, review: dict) -> dict[str, str]:
-    output_dir = Path("reports/drafts")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    from core.artifacts.artifact_writer import get_run_dir
 
     feature_slug = _slugify(state.get("feature", "feature"))
     run_id = state.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
-    base = output_dir / f"test_plan_{feature_slug}_{run_id}_needs_revision"
+
+    # Run-scoped dir (canonical)
+    review_dir = get_run_dir(run_id, "review")
+    base = review_dir / f"test_plan_{feature_slug}_{run_id}_needs_revision"
+
+    # Keep legacy path for backward compat
+    legacy_dir = Path("reports/drafts")
+    legacy_dir.mkdir(parents=True, exist_ok=True)
     test_cases = state.get("test_cases") or []
 
     json_path = base.with_suffix(".json")
@@ -544,7 +559,8 @@ async def node_approval(state: AgentState) -> AgentState:
 # ── Node: Test Case Export ──────────────────────────────────────────────────
 def node_testcase_export(state: AgentState) -> AgentState:
     from core.agent_contracts import TestCaseAgentOutput
-    from skills.reporting.excel_writer import excel_writer
+    from core.artifacts.artifact_writer import get_run_dir, write_json
+    from skills.reporting.excel_writer import ExcelWriter
 
     logger.info("node_start", node="testcase_export", feature=state.get("feature"))
 
@@ -555,8 +571,24 @@ def node_testcase_export(state: AgentState) -> AgentState:
         if isinstance(output, dict):
             output = TestCaseAgentOutput.model_validate(output)
 
-        paths = excel_writer.write_both(output)
+        run_id = state.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+        tc_dir = get_run_dir(run_id, "test_cases")
+
+        writer = ExcelWriter(output_dir=str(tc_dir))
+        paths  = writer.write_both(output)
         exports = {name: str(path) for name, path in paths.items()}
+
+        # Write canonical JSON artifact
+        tc_json = tc_dir / "test_cases.json"
+        write_json(tc_json, {
+            "feature":    output.feature,
+            "run_id":     run_id,
+            "generated_at": output.generated_at.isoformat(),
+            "model_used":   output.model_used,
+            "total_scenarios": output.total_scenarios,
+            "scenarios":  [s.model_dump(mode="json") for s in output.scenarios],
+        })
+        exports["json"] = str(tc_json)
 
         return {
             **state,
@@ -615,11 +647,16 @@ def node_codegen(state: AgentState) -> AgentState:
             output = TestCaseAgentOutput.model_validate(output)
 
         platforms = [Platform(p) for p in (state.get("platforms") or ["web"])]
-        saved = code_generator_agent.run(
-            output,
-            platforms[0],
-            automation_evidence=state.get("automation_evidence") or {},
-        )
+        saved: dict[str, str] = {}
+        for platform in platforms:
+            platform_saved = code_generator_agent.run(
+                output,
+                platform,
+                automation_evidence=state.get("automation_evidence") or {},
+            )
+            for name, path in platform_saved.items():
+                key = name if len(platforms) == 1 else f"{platform.value}:{name}"
+                saved[key] = path
 
         return {
             **state,
@@ -646,15 +683,32 @@ def node_execute(state: AgentState) -> AgentState:
     results: dict[str, dict] = {}
     failures: list[dict] = []
 
+    project_root = Path(__file__).resolve().parent.parent
+
     for fpath in files:
-        path = Path(fpath)
-        if not path.exists():
+        path = Path(fpath).resolve()
+
+        # Security: reject paths outside the project root (path traversal guard)
+        try:
+            path.relative_to(project_root)
+        except ValueError:
+            logger.error("execute_path_traversal_blocked", path=str(path))
             failures.append({
                 "test_file": fpath,
+                "error_message": f"Blocked: path '{fpath}' is outside project root.",
+                "platform": (state.get("platforms") or ["web"])[0],
+                "test_name": Path(fpath).stem,
+                "location": fpath,
+            })
+            continue
+
+        if not path.exists():
+            failures.append({
+                "test_file": str(path),
                 "error_message": "Generated test file does not exist.",
                 "platform": (state.get("platforms") or ["web"])[0],
                 "test_name": path.stem,
-                "location": fpath,
+                "location": str(path),
             })
             continue
 
@@ -665,7 +719,7 @@ def node_execute(state: AgentState) -> AgentState:
                 PYTHON_BIN,
                 "-m",
                 "pytest",
-                fpath,
+                str(path),
                 "-v",
                 "--tb=short",
                 "--json-report",
@@ -676,7 +730,7 @@ def node_execute(state: AgentState) -> AgentState:
             check=False,
         )
         passed = run.returncode == 0
-        results[fpath] = {
+        results[str(path)] = {
             "passed": passed,
             "stdout": run.stdout[-4000:],
             "stderr": run.stderr[-4000:],
@@ -685,11 +739,11 @@ def node_execute(state: AgentState) -> AgentState:
         }
         if not passed:
             failures.append({
-                "test_file": fpath,
+                "test_file": str(path),
                 "error_message": (run.stdout + "\n" + run.stderr)[-1000:],
                 "platform": (state.get("platforms") or ["web"])[0],
                 "test_name": path.stem,
-                "location": fpath,
+                "location": str(path),
                 "json_report": str(report_path),
             })
 
@@ -705,6 +759,7 @@ def node_execute(state: AgentState) -> AgentState:
 # ── Node: Debug Agent ───────────────────────────────────────────────────────
 def node_debug(state: AgentState) -> AgentState:
     from agents.debug_agent import FailureContext, debug_agent
+    from core.artifacts.artifact_writer import get_run_dir, write_json
 
     logger.info("node_start", node="debug", failures=len(state.get("failures", [])))
 
@@ -719,44 +774,164 @@ def node_debug(state: AgentState) -> AgentState:
         )
         report = debug_agent.analyze(ctx)
         bug_reports.append({
-            "title": report.title,
-            "severity": report.severity,
-            "bug_type": report.bug_type,
-            "root_cause": report.root_cause,
-            "steps": report.steps_to_reproduce,
-            "jira_key": report.jira_key,
+            "title":                 report.title,
+            "severity":              report.severity,
+            "bug_type":              report.bug_type,
+            "failure_classification": report.failure_classification,
+            "recommended_action":    report.recommended_action,
+            "confidence":            report.confidence,
+            "auto_fix_allowed":      report.auto_fix_allowed,
+            "root_cause":            report.root_cause,
+            "steps":                 report.steps_to_reproduce,
+            "expected_behavior":     report.expected_behavior,
+            "actual_behavior":       report.actual_behavior,
+            "affected_component":    report.affected_component,
+            "suggested_fix":         report.suggested_fix,
+            "integrity_notes":       report.integrity_notes,
+            "jira_key":              report.jira_key,
+            "needs_dev_attention":   report.needs_dev_attention,
+            "labels":                report.labels,
         })
 
+    # Write run-scoped debug artifact
+    run_id = state.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    debug_dir = get_run_dir(run_id, "debug")
+    write_json(debug_dir / "debug_report.json", {
+        "run_id":      run_id,
+        "feature":     state.get("feature"),
+        "timestamp":   datetime.now().isoformat(),
+        "bug_reports": bug_reports,
+    })
+
     return {**state, "current_phase": "debug", "bug_reports": bug_reports}
+
+
+# ── Node: Flaky Analysis ────────────────────────────────────────────────────
+def node_flaky_analysis(state: AgentState) -> AgentState:
+    """
+    Record current run outcomes then run FlakyTestAgent across history.
+    Only tests with ≥3 historical runs and mixed outcomes are classified.
+    Product bugs are never quarantined — integrity is preserved by the agent.
+    """
+    import csv as _csv
+    from agents.flaky_test_agent import flaky_test_agent
+    from core.artifacts.artifact_writer import get_run_dir, write_json
+    from core.flaky_history import get_history, record_run
+
+    logger.info("node_start", node="flaky_analysis")
+
+    run_id     = state.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    exec_results = state.get("execution_results") or {}
+
+    # Persist this run's outcomes before analyzing
+    if exec_results:
+        try:
+            record_run(exec_results)
+        except Exception as e:
+            logger.warning("flaky_history_record_failed", error=str(e))
+
+    # Analyze full history for flaky candidates
+    flaky_results: list[dict] = []
+    try:
+        history  = get_history()
+        analyzed = flaky_test_agent.analyze_batch(history, flakiness_threshold=0.20)
+        flaky_results = [
+            {
+                "test_name":              r.test_name,
+                "flakiness_score":        r.flakiness_score,
+                "failure_count":          r.failure_count,
+                "total_runs":             r.total_runs,
+                "category":               r.category,
+                "confidence":             r.confidence,
+                "root_cause":             r.root_cause,
+                "remediation":            r.remediation,
+                "quarantine_recommended": r.quarantine_recommended,
+                "error_patterns":         r.error_patterns[:3],
+            }
+            for r in analyzed
+        ]
+    except Exception as e:
+        logger.error("flaky_analysis_failed", error=str(e))
+
+    # Write run-scoped artifacts
+    try:
+        flaky_dir = get_run_dir(run_id, "flaky")
+        write_json(flaky_dir / "flaky_report.json", {
+            "run_id":        run_id,
+            "feature":       state.get("feature"),
+            "timestamp":     datetime.now().isoformat(),
+            "flaky_tests":   flaky_results,
+            "total_analyzed": len(get_history()),
+        })
+
+        csv_path = flaky_dir / "flaky_report.csv"
+        if flaky_results:
+            with open(csv_path, "w", newline="", encoding="utf-8") as f:
+                fieldnames = [
+                    "test_name", "flakiness_score", "failure_count", "total_runs",
+                    "category", "confidence", "quarantine_recommended", "root_cause",
+                ]
+                writer = _csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for r in flaky_results:
+                    writer.writerow({k: r.get(k, "") for k in fieldnames})
+            logger.info("flaky_csv_written", path=str(csv_path), count=len(flaky_results))
+    except Exception as e:
+        logger.warning("flaky_artifact_write_failed", error=str(e))
+
+    logger.info("flaky_analysis_complete", candidates=len(flaky_results))
+    return {
+        **state,
+        "current_phase": "flaky_analysis",
+        "flaky_results": flaky_results,
+    }
 
 
 # ── Node: Skill Gap Analysis ────────────────────────────────────────────────
 def node_skill_gap(state: AgentState) -> AgentState:
     from agents.skill_gap_agent import skill_gap_agent
+    from core.artifacts.artifact_writer import get_run_dir, write_json, write_markdown
 
     logger.info("node_start", node="skill_gap")
+
+    run_id  = state.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    feature = state.get("feature", "unknown")
 
     gap = skill_gap_agent.analyze(
         acceptance_criteria=state.get("acceptance_criteria", []),
         test_cases=state.get("test_cases", []),
-        feature=state.get("feature", ""),
+        feature=feature,
     )
-    path = skill_gap_agent.save_report(
-        gap_data=gap,
-        feature=state.get("feature", "unknown"),
-        run_id=state.get("run_id", ""),
+
+    # Write to run-scoped dir (canonical) + legacy path (backward compat)
+    sg_dir    = get_run_dir(run_id, "skill_gap")
+    json_path = sg_dir / "skill_gap_report.json"
+    write_json(json_path, {"feature": feature, "run_id": run_id, **gap})
+
+    # Markdown summary
+    missing   = gap.get("missing_scenarios", [])
+    gaps_md   = "\n".join(f"- {g}" for g in missing[:20]) or "_None identified_"
+    recs_md   = "\n".join(f"- {r}" for r in gap.get("recommendations", [])[:10]) or "_None_"
+    md_content = (
+        f"# Skill Gap Report — {feature}\n\n"
+        f"**Coverage:** {gap.get('coverage_percentage', 0):.1f}%  "
+        f"| **Run ID:** `{run_id}`\n\n"
+        f"## Missing Scenarios\n\n{gaps_md}\n\n"
+        f"## Recommendations\n\n{recs_md}\n"
     )
-    coverage_report = {
-        **gap,
-        "report_path": path,
-    }
+    write_markdown(sg_dir / "skill_gap_summary.md", md_content)
+
+    # Legacy path for CLI backward compat
+    legacy_path = skill_gap_agent.save_report(gap_data=gap, feature=feature, run_id=run_id)
+
+    coverage_report = {**gap, "report_path": str(json_path)}
     return {
         **state,
-        "current_phase": "skill_gap",
-        "coverage_report": coverage_report,
-        "coverage_gaps": gap.get("missing_scenarios", []),
+        "current_phase":      "skill_gap",
+        "coverage_report":    coverage_report,
+        "coverage_gaps":      gap.get("missing_scenarios", []),
         "coverage_percentage": gap.get("coverage_percentage", 0.0),
-        "gap_report_path": path,
+        "gap_report_path":    str(json_path),
     }
 
 
@@ -771,7 +946,7 @@ def node_jira_update(state: AgentState) -> AgentState:
     failures = state.get("failures") or []
 
     try:
-        from mcp_tools.jira_client.jira_client import jira_client
+        from integrations.jira_client.jira_client import jira_client
 
         if not failures:
             ok = jira_client.transition_issue(ticket_id, "DONE")
@@ -801,12 +976,13 @@ def node_jira_update(state: AgentState) -> AgentState:
 # ── Node: Report ────────────────────────────────────────────────────────────
 def node_report(state: AgentState) -> AgentState:
     """Send final Telegram summary report."""
-    import os
+    from core.source_intake.security import redact_internal_text
+    from config.settings import settings as _settings
 
     logger.info("node_start", node="report")
 
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_QA_OPS_CHAT_ID")
+    token = _settings.telegram_bot_token
+    chat_id = _settings.telegram_qa_ops_chat_id
 
     failures = state.get("failures") or []
     bugs = state.get("bug_reports") or []
@@ -824,8 +1000,13 @@ def node_report(state: AgentState) -> AgentState:
     )
     status = "PASSED" if not failures and not state.get("error") else "FAILED"
 
-    bug_lines = "\n".join(f"  - [{b['severity']}] {b['title'][:60]}" for b in bugs[:5])
-    gap_lines = "\n".join(f"  - {g[:70]}" for g in gaps[:3])
+    bug_lines = "\n".join(
+        f"  - [{b['severity']}] {redact_internal_text(b['title'][:60]).text}"
+        for b in bugs[:5]
+    )
+    gap_lines = "\n".join(
+        f"  - {redact_internal_text(g[:70]).text}" for g in gaps[:3]
+    )
 
     msg = (
         f"{status} *QA Pipeline - Phase 9*\n\n"
@@ -840,7 +1021,8 @@ def node_report(state: AgentState) -> AgentState:
         f"*Coverage:* {coverage:.0f}%\n"
     )
     if state.get("error"):
-        msg += f"\n*Error:* `{_error_message(state['error'])}`\n"
+        safe_err = redact_internal_text(_error_message(state["error"])[:200]).text
+        msg += f"\n*Error:* `{safe_err}`\n"
     if case_review:
         msg += (
             "\n*AI Case Review:*\n"
@@ -882,7 +1064,7 @@ def node_report(state: AgentState) -> AgentState:
     pr_number = state.get("github_pr_number")
     if pr_number:
         try:
-            from mcp_tools.github_client import github_client as gh
+            from integrations.github_client import github_client as gh
             gh.post_qa_summary(
                 pr_number=int(pr_number),
                 passed=len(test_cases) - len(failures),
@@ -894,6 +1076,14 @@ def node_report(state: AgentState) -> AgentState:
             logger.info("github_pr_comment_sent", pr=pr_number)
         except Exception as e:
             logger.error("github_pr_comment_failed", error=str(e))
+
+    # Write final summary artifact to run-scoped dir
+    run_id = state.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    try:
+        from core.artifacts.artifact_writer import write_final_summary
+        write_final_summary(run_id, state)
+    except Exception as e:
+        logger.warning("final_summary_write_failed", error=str(e))
 
     notifications = [
         *(state.get("notifications") or []),
@@ -918,13 +1108,14 @@ def route_after_case_review(state: AgentState) -> Literal["approval_gate", "repo
 
 
 def route_after_approval(state: AgentState) -> str:
+    from langgraph.graph import END
+
     decision = state.get("approval_decision")
     if decision == "approve":
         return "testcase_export"
     if decision == "reject":
         return "testcase"   # re-generate with rejection_feedback in state
     # "pending", "escalated", or unset — stop the pipeline run
-    from langgraph.graph import END
     return END
 
 
@@ -947,15 +1138,19 @@ def route_after_codegen(state: AgentState) -> Literal["execute", "skill_gap"]:
     return "skill_gap"
 
 
-def route_after_execute(state: AgentState) -> Literal["debug", "skill_gap"]:
+def route_after_execute(state: AgentState) -> Literal["debug", "flaky_analysis"]:
     if state.get("failures"):
         return "debug"
-    return "skill_gap"
+    # No failures — skip debug but still record history and run skill_gap
+    return "flaky_analysis"
 
 
 # ── Build graph ─────────────────────────────────────────────────────────────
 def build_pipeline():
+    from pathlib import Path as _Path
+
     from langgraph.graph import END, StateGraph
+    from langgraph.checkpoint.memory import MemorySaver
 
     graph = StateGraph(AgentState)
 
@@ -970,6 +1165,7 @@ def build_pipeline():
     graph.add_node("codegen", node_codegen)
     graph.add_node("execute", node_execute)
     graph.add_node("debug", node_debug)
+    graph.add_node("flaky_analysis", node_flaky_analysis)
     graph.add_node("skill_gap", node_skill_gap)
     graph.add_node("report", node_report)
     graph.add_node("jira_update", node_jira_update)
@@ -985,12 +1181,32 @@ def build_pipeline():
     graph.add_conditional_edges("automation_readiness_gate", route_after_automation_readiness)
     graph.add_conditional_edges("codegen", route_after_codegen)
     graph.add_conditional_edges("execute", route_after_execute)
-    graph.add_edge("debug", "skill_gap")
+    graph.add_edge("debug", "flaky_analysis")
+    graph.add_edge("flaky_analysis", "skill_gap")
     graph.add_edge("skill_gap", "report")
     graph.add_edge("report", "jira_update")
     graph.add_edge("jira_update", END)
 
-    return graph.compile()
+    # ── Checkpointer: enables pipeline resumability on crash ─────────────
+    try:
+        from config.settings import settings as _settings
+        use_persistent = _settings.use_persistent_checkpointer
+    except Exception:
+        use_persistent = False
+
+    if use_persistent:
+        import sqlite3
+        from langgraph.checkpoint.sqlite import SqliteSaver
+        db_path = _Path("checkpoints/pipeline_state.db")
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        checkpointer = SqliteSaver(conn)
+        logger.info("pipeline_checkpointer", type="sqlite", path=str(db_path))
+    else:
+        checkpointer = MemorySaver()
+        logger.info("pipeline_checkpointer", type="memory")
+
+    return graph.compile(checkpointer=checkpointer)
 
 
 # ── Public entry point ──────────────────────────────────────────────────────

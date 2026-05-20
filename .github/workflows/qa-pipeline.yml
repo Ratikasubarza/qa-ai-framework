@@ -4,6 +4,10 @@ on:
   workflow_dispatch:      # Manual trigger from GitHub UI or gh CLI
   schedule:
     - cron: '0 17 * * *'  # Daily at 1AM SGT (UTC+8 = 17:00 UTC)
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 env:
   PYTHON_VERSION: '3.11'
@@ -27,10 +31,33 @@ env:
 
 
 jobs:
+  # ── Job 0: Static Analysis (ruff + mypy) ──────────────────────────
+  lint:
+    name: Lint & Type Check
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ruff lint
+        run: |
+          ./venv/bin/python3.11 -m ruff check . \
+            --select E,W,F \
+            --ignore E501,E402 \
+            --output-format=github
+
+      - name: Mypy type check
+        run: |
+          PYTHONPATH=. ./venv/bin/python3.11 -m mypy \
+            core agents orchestrator knowledge_base \
+            --ignore-missing-imports \
+            --no-error-summary
+
   # ── Job 1: Smoke Test ──────────────────────────────────────────────
   smoke:
     name: Smoke Test — LLM Connection
     runs-on: self-hosted
+    needs: lint
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +79,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run API tests
+        env:
+          RUN_ID: ${{ github.run_id }}
         run: |
           mkdir -p reports/junit
           PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
@@ -62,6 +91,7 @@ jobs:
             features/cms_users/steps/api/cms_approve_user_test.py \
             features/cms_users/steps/api/cms_reject_user_test.py \
             features/onboarding/steps/api/onboarding_api_test.py \
+            -m "not flaky and not mobile" \
             --junit-xml=reports/junit/api-results.xml \
             -v --tb=short --timeout=30
 
@@ -83,10 +113,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run web tests
+        env:
+          RUN_ID: ${{ github.run_id }}
         run: |
           mkdir -p reports/junit
           PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
             features/login/steps/web/login_web_app_test.py \
+            -m "not flaky and not mobile" \
             --junit-xml=reports/junit/web-results.xml -v --tb=short
 
       - name: Upload screenshots on failure

@@ -11,6 +11,7 @@ from __future__ import annotations
 import operator
 from typing import Annotated, Any, Optional, TypedDict
 
+from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
 
@@ -84,7 +85,7 @@ class AgentState(TypedDict, total=False):
 
     # ── Notifications ───────────────────────────────────────────────
     # Message passing (LangGraph 0.2.x add_messages reducer)
-    messages: Annotated[list, add_messages]
+    messages: Annotated[list[BaseMessage], add_messages]
 
     notifications:        Optional[list[dict]]   # Sent channel notifications log
 

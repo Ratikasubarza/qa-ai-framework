@@ -58,11 +58,17 @@ async def create_approved_user(
     assert resp.status_code == 200, f"Register failed: {resp.status_code} {resp.json()}"
     logger.info("test_user_registered", email=email)
 
-    # Step 2: Set verified in DB
-    time.sleep(1)
+    # Step 2: Set verified in DB — poll until row appears (up to 5s)
+    deadline = time.monotonic() + 5.0
+    user = None
+    while time.monotonic() < deadline:
+        with DBClient() as db:
+            user = db.get_user_by_email(email)
+        if user:
+            break
+        time.sleep(0.3)
+    assert user, f"User not found in DB after 5s: {email}"
     with DBClient() as db:
-        user = db.get_user_by_email(email)
-        assert user, f"User not found: {email}"
         db.set_verified(email)
 
     # Step 3: Get CMS token + approve
@@ -94,8 +100,14 @@ async def create_approved_user(
     logger.info("test_user_approved",
         email=email, status=approve_resp.status_code)
 
-    # Step 4: Override password (system temp password → our test password)
-    time.sleep(1)
+    # Step 4: Override password — poll until approved status is persisted
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        with DBClient() as db:
+            _u = db.get_user_by_email(email)
+        if _u and _u.get("status") == "APPROVED":
+            break
+        time.sleep(0.3)
     with DBClient() as db:
         db.set_password(email, pwd)
         final_user = db.get_user_by_email(email)
