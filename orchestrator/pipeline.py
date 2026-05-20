@@ -658,6 +658,17 @@ def node_codegen(state: AgentState) -> AgentState:
                 key = name if len(platforms) == 1 else f"{platform.value}:{name}"
                 saved[key] = path
 
+        # Isolate AI-generated code on a feature branch so it cannot land on main
+        # without a human review PR — do this best-effort, never fail the pipeline
+        ticket_id = state.get("ticket_id") or "unknown"
+        branch_name = f"feature/ai-gen-{ticket_id}"
+        try:
+            import subprocess as _sp
+            _sp.run(["git", "checkout", "-b", branch_name], capture_output=True)
+            logger.info("codegen_branch_created", branch=branch_name)
+        except Exception as _e:
+            logger.warning("codegen_branch_skipped", branch=branch_name, reason=str(_e))
+
         return {
             **state,
             "current_phase": "codegen",

@@ -5,6 +5,19 @@ POST /v1/users/register equivalent on mobile.
 import pytest
 import time
 from appium.webdriver.common.appiumby import AppiumBy
+
+
+def _wait_for_text(driver, text: str, timeout: float = 10.0) -> bool:
+    """Poll page source until *text* appears or timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            if text in driver.driver.page_source:
+                return True
+        except Exception:
+            pass
+        time.sleep(0.5)
+    return False
 from features.register.test_data.register_android_test_data import RegisterAndroidTestData
 from features.register.locators.mobile.register_android_locators import (
     JOIN_COMMUNITY_BTN, APPLY_NOW_BTN,
@@ -50,16 +63,16 @@ def register_driver():
         platform_version=TestConfig.ANDROID_VERSION,
     )
     driver.start()
-    time.sleep(4)
+    _wait_for_text(driver, "Login", timeout=15)
     driver.driver.terminate_app(TestConfig.ANDROID_PACKAGE)
-    time.sleep(2)
+    time.sleep(1)  # OS process teardown — inherently timing-based
     driver.driver.activate_app(TestConfig.ANDROID_PACKAGE)
-    time.sleep(4)
+    _wait_for_text(driver, "Login", timeout=12)
 
     # Navigate to register screen
     try:
         driver.find(AppiumBy.ACCESSIBILITY_ID, JOIN_COMMUNITY_BTN, timeout=5).click()
-        time.sleep(3)
+        _wait_for_text(driver, "Apply", timeout=8)
         print("  ✓ On register screen")
     except Exception as e:
         print(f"  Navigation warning: {e}")
@@ -68,7 +81,7 @@ def register_driver():
 
     try:
         driver.driver.terminate_app(TestConfig.ANDROID_PACKAGE)
-        time.sleep(1)
+        time.sleep(0.5)
     except Exception:
         pass
     finally:
@@ -111,7 +124,7 @@ def test_TC_MOB_REG_001_register_valid_data(register_driver):
         linkedin=payload["linkedin"],
     )
     register_driver.find(AppiumBy.ACCESSIBILITY_ID, APPLY_NOW_BTN).click()
-    time.sleep(5)
+    _wait_for_text(register_driver, VERIFY_EMAIL_SCREEN, timeout=12)
 
     assert register_driver.is_element_present(
         AppiumBy.ACCESSIBILITY_ID, VERIFY_EMAIL_SCREEN, timeout=10
@@ -124,9 +137,8 @@ def test_TC_MOB_REG_002_apply_button_disabled_empty_form(register_driver):
     """
     TC-MOB-REG-002 | Boundary | Apply button disabled when form empty
     """
-    from skills.mobile.mobile_assertion import MobileAssertion
-    ma = MobileAssertion(register_driver)
-    ma.element_disabled_by_accessibility(APPLY_NOW_BTN, "Apply now button")
+    from skills.assertions.mobile_assertions import MobileAssertions
+    MobileAssertions(register_driver).element_disabled_by_accessibility(APPLY_NOW_BTN, "Apply now button")
     print("\n✓ Apply button disabled with empty form")
 
 
@@ -134,7 +146,7 @@ def test_TC_MOB_REG_003_apply_button_disabled_partial_form(register_driver):
     """
     TC-MOB-REG-003 | Boundary | Apply button disabled with partial data
     """
-    from skills.mobile.mobile_assertion import MobileAssertion
+    from skills.assertions.mobile_assertions import MobileAssertions
     payload = RegisterAndroidTestData.valid_payload()
 
     # Fill only name and email — missing phone and linkedin
@@ -143,8 +155,7 @@ def test_TC_MOB_REG_003_apply_button_disabled_partial_form(register_driver):
         fullname=payload["fullname"],
         email=payload["email"],
     )
-    ma = MobileAssertion(register_driver)
-    ma.element_disabled_by_accessibility(APPLY_NOW_BTN, "Apply now button")
+    MobileAssertions(register_driver).element_disabled_by_accessibility(APPLY_NOW_BTN, "Apply now button")
     print("\n✓ Apply button disabled with partial form")
 
 
@@ -164,7 +175,7 @@ def test_TC_MOB_REG_004_register_invalid_email(register_driver):
     el = register_driver.find(AppiumBy.ACCESSIBILITY_ID, APPLY_NOW_BTN)
     if el.is_enabled():
         register_driver.find(AppiumBy.ACCESSIBILITY_ID, APPLY_NOW_BTN).click()
-        time.sleep(3)
+        _wait_for_text(register_driver, "error", timeout=5) or time.sleep(2)
         # Should show error or stay on register screen
         assert not register_driver.is_element_present(
             AppiumBy.ACCESSIBILITY_ID, VERIFY_EMAIL_SCREEN, timeout=3
@@ -187,7 +198,7 @@ def test_TC_MOB_REG_005_duplicate_email_shows_error(register_driver):
         linkedin=payload["linkedin"],
     )
     register_driver.find(AppiumBy.ACCESSIBILITY_ID, APPLY_NOW_BTN).click()
-    time.sleep(5)
+    _wait_for_text(register_driver, VERIFY_EMAIL_SCREEN, timeout=8) or time.sleep(3)
 
     # Should NOT show verify email screen
     source = register_driver.driver.page_source

@@ -63,11 +63,17 @@ async def test_TC_ONB_API_001_complete_onboarding_valid_data(approved_user):
     print(f"\n✓ Onboarding: {response.status_code} {response.json()}")
     SchemaValidator(response).status_ok()
 
-    # Verify in DB
-    time.sleep(1)
-    with DBClient() as db:
-        user = db.get_user_by_email(approved_user["email"])
-    assert user["onboarding_completed_at"] is not None, \
+    # Verify in DB — poll until onboarding_completed_at is set (up to 5s)
+    import time as _time
+    deadline = _time.monotonic() + 5.0
+    user = None
+    while _time.monotonic() < deadline:
+        with DBClient() as db:
+            user = db.get_user_by_email(approved_user["email"])
+        if user and user.get("onboarding_completed_at"):
+            break
+        _time.sleep(0.3)
+    assert user and user["onboarding_completed_at"] is not None, \
         "onboarding_completed_at should be set after completion"
     print(f"✓ onboarding_completed_at: {user['onboarding_completed_at']}")
 
