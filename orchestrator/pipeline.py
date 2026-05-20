@@ -1196,8 +1196,11 @@ def build_pipeline():
 
     if use_persistent:
         import sqlite3
+        import uuid
         from langgraph.checkpoint.sqlite import SqliteSaver
-        db_path = _Path("checkpoints/pipeline_state.db")
+        # Per-run DB path prevents concurrent-writer lock contention across webhook pipelines
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S_") + uuid.uuid4().hex[:8]
+        db_path = _Path(f"checkpoints/pipeline_{run_id}.db")
         db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(db_path), check_same_thread=False)
         checkpointer = SqliteSaver(conn)

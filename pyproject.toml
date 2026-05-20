@@ -17,17 +17,34 @@ ignore = ["E501", "E402"]              # line-length handled above; module-level
 "tests/*"      = ["F811"]              # pytest fixtures can shadow outer names
 "conftest*.py" = ["F811", "F401"]
 
-# ── Pytest ────────────────────────────────────────────────────────────────────
+# ── Mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+strict = false
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_optional = true
+files = ["core", "agents", "orchestrator", "knowledge_base"]
+
+# ── Pytest (single authoritative config — pytest.ini deleted) ────────────────
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-timeout = 30                           # per-test timeout in seconds (requires pytest-timeout)
+timeout = 30
 addopts = [
     "--alluredir=reports/allure/results",
     "--tb=short",
-    "-q",
+    "--strict-markers",
+    "-v",
+    "-n auto",
 ]
+testpaths = ["tests", "features"]
+log_cli = true
+log_cli_level = "INFO"
 markers = [
     "smoke:       happy-path end-to-end — run first",
+    "regression:  full regression suite — merge gate / nightly",
     "security:    auth, RBAC, and access-control assertions",
     "negative:    expected rejection and error cases",
     "boundary:    edge values, limits, overflow",
@@ -35,12 +52,15 @@ markers = [
     "agent:       LLM agent quality gates (evals)",
     "mobile:      Appium Android — requires connected device",
     "web:         Playwright — requires browser",
-    "db:          tests that write to staging DB",
+    "api:         API automation tests via httpx",
+    "db:          tests that write to staging DB — run serially",
+    "flaky:       known intermittent test — quarantine candidate",
+    "combination: combined parameter / pairwise tests",
 ]
 
 # ── Coverage ──────────────────────────────────────────────────────────────────
 [tool.coverage.run]
-source = ["agents", "core", "skills", "platforms", "mcp_tools"]
+source = ["agents", "core", "skills", "platforms", "integrations"]
 omit   = ["*/test*", "*/venv/*", "*/conftest*"]
 
 [tool.coverage.report]
