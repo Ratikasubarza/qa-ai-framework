@@ -93,7 +93,7 @@ def build_source_intake_state(state: AgentState, logger: Any) -> AgentState:
 
     if ticket_id:
         try:
-            from mcp_tools.jira_client.jira_client import jira_client
+            from integrations.jira_client.jira_client import jira_client
 
             issue = jira_client.get_issue(ticket_id)
             jira_text = format_jira_issue_context(
@@ -142,7 +142,7 @@ def build_source_intake_state(state: AgentState, logger: Any) -> AgentState:
 
     if should_fetch_prd:
         try:
-            from mcp_tools.confluence_client.confluence_client import confluence_client
+            from integrations.confluence_client.confluence_client import confluence_client
 
             page = confluence_client.fetch_page(prd_url)
             prd_text = (

@@ -337,7 +337,7 @@ def cmd_requirements(args):
     # Auto-fetch dari Jira menggunakan jira_client
     if args.jira_story and not getattr(args, "description", None):
         try:
-            from mcp_tools.jira_client.jira_client import jira_client
+            from integrations.jira_client.jira_client import jira_client
             issue = jira_client.get_issue(args.jira_story)
 
             if not getattr(args, "feature", None) or args.feature == args.jira_story:
@@ -522,7 +522,7 @@ async def cmd_pipeline(args):
     # Auto-derive feature from Jira ticket when --feature not given
     if not args.feature and args.ticket:
         try:
-            from mcp_tools.jira_client.jira_client import jira_client
+            from integrations.jira_client.jira_client import jira_client
             issue = jira_client.get_issue(args.ticket)
             args.feature = f"{issue['key']}: {issue['summary']}"
             console.print(f"[green]✓ Jira:[/] {args.feature}")
@@ -720,7 +720,7 @@ async def cmd_generate_testcase_batch_by_scenario(args):
     from core.llm_client import llm_client, ModelTier
     from core.prompt_manager import prompt_manager
     from datetime import datetime
-    from mcp_tools.jira_client.jira_client import jira_client as jc
+    from integrations.jira_client.jira_client import jira_client as jc
     import json, os
 
     # Fetch Jira issue

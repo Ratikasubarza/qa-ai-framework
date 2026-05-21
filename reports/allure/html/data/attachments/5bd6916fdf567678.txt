@@ -1,0 +1,5 @@
+2026-05-18 07:36:43 [info     ] api_post                       path=/v1/users/login status=401
+2026-05-18 07:36:43 [info     ] api_post                       path=/v1/users/login status=401
+2026-05-18 07:36:43 [info     ] api_post                       path=/v1/users/login status=401
+
+✓ 3 failed login attempts all returned 401

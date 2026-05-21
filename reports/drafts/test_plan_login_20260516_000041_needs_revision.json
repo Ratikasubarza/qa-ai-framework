@@ -1,0 +1,50 @@
+{
+  "feature": "Login",
+  "run_id": "20260516_000041",
+  "status": "needs_revision",
+  "case_review": {
+    "status": "needs_revision",
+    "quality_score": 5.5,
+    "quality_score_raw": 5.5,
+    "coverage_percentage": 60.0,
+    "target_platforms": [
+      "web"
+    ],
+    "findings": {
+      "critical": 1,
+      "major": 2,
+      "minor": 0
+    },
+    "scope_summary": {
+      "blocking_missing_count": 1,
+      "blocking_critical_count": 1,
+      "cross_platform_risk_count": 0,
+      "clarification_needed_count": 0,
+      "security_blocker_count": 0
+    },
+    "missing_test_cases": [
+      {
+        "title": "Missing invalid password test",
+        "scope_classification": "in_scope_missing",
+        "blocking": true
+      }
+    ],
+    "detailed_findings": [
+      {
+        "severity": "Critical",
+        "issue": "Missing invalid password test",
+        "scope_classification": "in_scope_missing",
+        "blocking": true
+      }
+    ],
+    "prd_clarifications": [],
+    "recommendation": "revise",
+    "traceability_matrix": []
+  },
+  "test_cases": [
+    {
+      "scenario_id": "TC-001",
+      "name": "Valid login"
+    }
+  ]
+}

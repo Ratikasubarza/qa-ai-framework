@@ -1,0 +1,139 @@
+Case ID,Title,Preconditions,Steps,Expected Result,Priority,Tags,Platform,AI Generated
+TC-001,"Submit feedback with valid name, email, and message","User is on the feedback page, no prior data entered","Given Given the feedback form is displayed
+When When the user enters ""John Doe"" in the Name field
+When And enters ""john.doe@example.com"" in the Email field
+When And enters ""Great app, keep it up!"" in the Message field
+When And taps the Submit button
+When Then a success toast ""Thank you for your feedback"" is displayed
+Then And the form fields are cleared",Feedback is recorded and user receives confirmation,P0,functional|UI|regression,WEB,true
+TC-002,Submit feedback with maximum length name (256 chars),User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters a 256-character string ""A"" repeated 256 times in the Name field
+When And enters ""max.name@example.com"" in the Email field
+When And enters ""Test message"" in the Message field
+When And taps the Submit button
+When Then a success toast ""Thank you for your feedback"" is displayed
+Then And the name field retains the 256 characters",Form accepts maximum length name without truncation,P2,boundary|functional|UI,WEB,true
+TC-003,Submit feedback with name exceeding maximum length (257 chars),User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters a 257-character string ""B"" repeated 257 times in the Name field
+When And enters ""exceed.name@example.com"" in the Email field
+When And enters ""Test message"" in the Message field
+When And taps the Submit button
+When Then an error message ""Name cannot exceed 256 characters"" is shown
+Then And the form is not submitted",Validation prevents submission of over-length name,P1,negative|boundary|UI,WEB,true
+TC-004,Submit feedback with invalid email format,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""Jane Smith"" in the Name field
+When And enters ""invalid-email"" in the Email field
+When And enters ""Need help"" in the Message field
+When And taps the Submit button
+When Then an error message ""Please enter a valid email address"" is shown
+Then And the form is not submitted",Email validation blocks incorrect format,P1,negative|UI,WEB,true
+TC-005,Submit feedback with empty required fields,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user leaves Name, Email, and Message fields empty
+When And taps the Submit button
+When Then error messages for each required field are displayed
+Then And the form is not submitted",All required fields are validated,P1,negative|UI,WEB,true
+TC-006,Submit feedback with whitespace-only name field,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""   "" (three spaces) in the Name field
+When And enters ""whitespace@example.com"" in the Email field
+When And enters ""Message"" in the Message field
+When And taps the Submit button
+When Then an error message ""Name cannot be empty"" is shown
+Then And the form is not submitted",Whitespace-only input is treated as empty,P1,negative|UI,WEB,true
+TC-007,Submit feedback with special characters in message field,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""Alice"" in the Name field
+When And enters ""alice@example.com"" in the Email field
+When And enters ""Hello! @#%&*()_+"" in the Message field
+When And taps the Submit button
+When Then a success toast ""Thank you for your feedback"" is displayed
+Then And the message is stored with special characters intact",Special characters are accepted and preserved,P1,functional|UI,WEB,true
+TC-008,Submit feedback with extremely long single word message (5000 chars),User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""Bob"" in the Name field
+When And enters ""bob@example.com"" in the Email field
+When And enters a 5000-character single word ""C"" repeated 5000 times in the Message field
+When And taps the Submit button
+When Then a success toast ""Thank you for your feedback"" is displayed
+Then And the message is stored correctly",Long single-word message is handled without UI break,P2,boundary|functional|UI,WEB,true
+TC-009,Rapidly tap submit button multiple times,User is on the feedback page with valid data entered,"Given Given the feedback form is displayed
+When When the user enters ""Charlie"" in the Name field
+When And enters ""charlie@example.com"" in the Email field
+When And enters ""Quick test"" in the Message field
+When And taps the Submit button 5 times in quick succession
+When Then only one submission is processed
+Then And a single success toast is shown",Duplicate submissions are prevented,P1,weird|UI|negative,WEB,true
+TC-010,Paste HTML/JS into message field and submit,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user pastes ""<script>alert('xss')</script>"" into the Message field
+When And enters ""Eve"" in the Name field
+When And enters ""eve@example.com"" in the Email field
+When And taps the Submit button
+When Then a success toast is displayed
+Then And the stored message is sanitized (no script execution)",Input is sanitized to prevent XSS,P1,security|UI|negative,WEB,true
+TC-011,Submit feedback after session expires mid-fill,User is on the feedback page with data partially entered; session timeout set to 1 minute,"Given Given the feedback form is displayed
+When When the user enters ""Frank"" in the Name field
+When And waits for 2 minutes (session expires)
+When And enters ""frank@example.com"" in the Email field
+When And enters ""Session test"" in the Message field
+When And taps the Submit button
+When Then an authentication error is shown
+Then And the user is redirected to the login screen",Session expiry is handled gracefully,P1,security|negative|weird,WEB,true
+TC-012,Submit feedback with RTL text in name field,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""أحمد"" (Arabic) in the Name field
+When And enters ""ahmed@example.com"" in the Email field
+When And enters ""Feedback"" in the Message field
+When And taps the Submit button
+When Then a success toast is displayed
+Then And the RTL name is stored correctly",RTL input is supported,P1,accessibility|UI,WEB,true
+TC-013,Submit feedback with zero-width space in email field,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""Grace"" in the Name field
+When And enters ""grace​@example.com"" (zero-width space) in the Email field
+When And enters ""Test"" in the Message field
+When And taps the Submit button
+When Then an error message ""Please enter a valid email address"" is shown
+Then And the form is not submitted",Zero-width spaces are rejected in email,P1,negative|UI,WEB,true
+TC-014,Navigate back after successful submission and resubmit,User has just submitted valid feedback and is on the success screen,"Given Given the success screen is displayed
+When When the user presses the device back button
+When And re-enters the same data
+When And taps Submit again
+When Then a new success toast is displayed
+Then And a new feedback record is created",Back navigation does not prevent new submissions,P1,weird|UI,WEB,true
+TC-015,Submit feedback with extremely long name containing emoji,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""😊"" repeated 200 times in the Name field
+When And enters ""emoji@example.com"" in the Email field
+When And enters ""Emoji test"" in the Message field
+When And taps the Submit button
+When Then a success toast is displayed
+Then And the name with emojis is stored correctly",Emoji characters are handled in name field,P1,weird|UI,WEB,true
+TC-016,"Submit feedback with extremely long name and message exceeding 10,000 chars",User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters a 10,001-character string ""D"" repeated 10,001 times in the Name field
+When And enters ""long@example.com"" in the Email field
+When And enters a 10,001-character string ""E"" repeated 10,001 times in the Message field
+When And taps the Submit button
+When Then an error message ""Name cannot exceed 10,000 characters"" is shown
+Then And the form is not submitted",Maximum length enforcement for both fields,P2,boundary|negative|UI,WEB,true
+TC-017,Submit feedback with network failure during submission,User is on the feedback page with valid data entered; network is disabled,"Given Given the feedback form is displayed
+When When the user enters ""Hannah"" in the Name field
+When And enters ""hannah@example.com"" in the Email field
+When And enters ""Network test"" in the Message field
+When And taps the Submit button
+When Then an error toast ""Unable to submit feedback. Please try again."" is displayed
+Then And the form data remains for retry",Network errors are handled gracefully,P1,negative|weird|UI,WEB,true
+TC-018,Submit feedback with mixed case email and name,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""MiXeD CaSe"" in the Name field
+When And enters ""Mixed.Case@Example.COM"" in the Email field
+When And enters ""Case test"" in the Message field
+When And taps the Submit button
+When Then a success toast is displayed
+Then And the stored email is normalized to lowercase",Email normalization occurs,P1,functional|UI,WEB,true
+TC-019,Submit feedback with special characters in email local part,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""Special"" in the Name field
+When And enters ""user+tag@example.com"" in the Email field
+When And enters ""Special email test"" in the Message field
+When And taps the Submit button
+When Then a success toast is displayed
+Then And the email is stored correctly",Plus addressing is accepted,P1,functional|UI,WEB,true
+TC-020,Submit feedback with extremely short email local part,User is on the feedback page,"Given Given the feedback form is displayed
+When When the user enters ""Short"" in the Name field
+When And enters ""a@b.co"" in the Email field
+When And enters ""Short email test"" in the Message field
+When And taps the Submit button
+When Then a success toast is displayed
+Then And the email is stored correctly",Minimal valid email is accepted,P1,functional|UI,WEB,true

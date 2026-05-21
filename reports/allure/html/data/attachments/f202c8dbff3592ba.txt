@@ -1,0 +1,21 @@
+2026-05-16 09:51:34 [info     ] test_user_registered           email=testonboard+1778896293@mailinator.com
+2026-05-16 09:51:35 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:51:35 [info     ] db_verified_set                affected=1 email=testonboard+1778896293@mailinator.com
+2026-05-16 09:51:35 [info     ] db_disconnected
+2026-05-16 09:51:36 [info     ] test_user_approved             email=testonboard+1778896293@mailinator.com status=200
+2026-05-16 09:51:38 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:51:38 [info     ] db_password_set                affected=1 email=testonboard+1778896293@mailinator.com
+2026-05-16 09:51:38 [info     ] db_disconnected
+2026-05-16 09:51:38 [info     ] test_user_ready                email=testonboard+1778896293@mailinator.com status=APPROVED
+2026-05-16 09:51:39 [info     ] test_user_registered           email=testonboard+1778896298@mailinator.com
+2026-05-16 09:51:40 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:51:40 [info     ] db_verified_set                affected=1 email=testonboard+1778896298@mailinator.com
+2026-05-16 09:51:40 [info     ] db_disconnected
+2026-05-16 09:51:41 [info     ] test_user_approved             email=testonboard+1778896298@mailinator.com status=200
+2026-05-16 09:51:42 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:51:42 [info     ] db_password_set                affected=1 email=testonboard+1778896298@mailinator.com
+2026-05-16 09:51:42 [info     ] db_disconnected
+2026-05-16 09:51:42 [info     ] test_user_ready                email=testonboard+1778896298@mailinator.com status=APPROVED
+2026-05-16 09:51:43 [info     ] api_login                      status=200
+2026-05-16 09:51:43 [info     ] api_login_success
+2026-05-16 09:51:43 [info     ] api_put                        path=/v1/users/me/email status=422

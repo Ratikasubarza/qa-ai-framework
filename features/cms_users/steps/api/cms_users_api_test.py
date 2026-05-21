@@ -7,11 +7,12 @@ from skills.api.schema_validator import SchemaValidator
 from features.cms_users.test_data.cms_users_test_data import CmsUsersTestData
 from config.test_config import APIEndpoints
 
-pytestmark = allure.feature("CMS Users")
+pytestmark = [
+    allure.feature("CMS Users"),
+    allure.suite("API"),
+]
 
 
-@allure.story("TC-CMS-USERS-001: List users authenticated")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_001_list_users_authenticated(cms_token):
     """
@@ -32,8 +33,6 @@ async def test_TC_CMS_USERS_001_list_users_authenticated(cms_token):
             assert field in users[0], f"Missing field: {field}"
 
 
-@allure.story("TC-CMS-USERS-002: List users unauthenticated")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_002_list_users_unauthenticated():
     """TC-CMS-USERS-002 | Security | List users without token returns 401"""
@@ -42,8 +41,6 @@ async def test_TC_CMS_USERS_002_list_users_unauthenticated():
     assert response.status_code == 401, f"Expected 401, got: {response.status_code}"
 
 
-@allure.story("TC-CMS-USERS-003: Filter users by status")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_003_list_users_filter_by_status(cms_token):
     """TC-CMS-USERS-003 | Functional | Filter users by status=APPROVED"""
@@ -54,8 +51,6 @@ async def test_TC_CMS_USERS_003_list_users_filter_by_status(cms_token):
     SchemaValidator(response).status_ok()
 
 
-@allure.story("TC-CMS-USERS-004: Pagination page 1 size 5")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_004_list_users_pagination(cms_token):
     """TC-CMS-USERS-004 | Functional | Pagination — page 1, size 5"""
@@ -68,8 +63,6 @@ async def test_TC_CMS_USERS_004_list_users_pagination(cms_token):
     assert len(users) <= 5, f"Expected max 5 users, got: {len(users)}"
 
 
-@allure.story("TC-CMS-USERS-005: Order by name DESC")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_005_list_users_order_desc(cms_token):
     """TC-CMS-USERS-005 | Functional | Order by name DESC"""
@@ -80,8 +73,6 @@ async def test_TC_CMS_USERS_005_list_users_order_desc(cms_token):
     SchemaValidator(response).status_ok()
 
 
-@allure.story("TC-CMS-USERS-006: Different page sizes")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_006_size_variations(cms_token):
     """TC-CMS-USERS-006 | Functional | Different page sizes return correct count"""
@@ -97,8 +88,6 @@ async def test_TC_CMS_USERS_006_size_variations(cms_token):
         assert len(users) <= size, f"size={size}: got {len(users)} users"
 
 
-@allure.story("TC-CMS-USERS-007: Order by created_at")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_007_orderby_created_at(cms_token):
     """TC-CMS-USERS-007 | Functional | Order by created_at ASC and DESC"""
@@ -112,8 +101,6 @@ async def test_TC_CMS_USERS_007_orderby_created_at(cms_token):
         SchemaValidator(response).status_ok()
 
 
-@allure.story("TC-CMS-USERS-008: Page navigation")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_008_page_navigation(cms_token):
     """TC-CMS-USERS-008 | Functional | Navigate through pages — no overlap"""
@@ -132,8 +119,6 @@ async def test_TC_CMS_USERS_008_page_navigation(cms_token):
         assert not overlap, f"Pages overlap: {overlap}"
 
 
-@allure.story("TC-CMS-USERS-009: Filter by each status value")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_009_all_status_values(cms_token):
     """TC-CMS-USERS-009 | Functional | Filter by each status value"""
@@ -152,8 +137,6 @@ async def test_TC_CMS_USERS_009_all_status_values(cms_token):
         SchemaValidator(response).status_ok()
 
 
-@allure.story("TC-CMS-USERS-010: No params uses API defaults")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_010_no_params_uses_defaults(cms_token):
     """TC-CMS-USERS-010 | Boundary | No query params — API uses defaults"""
@@ -164,8 +147,6 @@ async def test_TC_CMS_USERS_010_no_params_uses_defaults(cms_token):
     assert isinstance(response.json().get("data", []), list)
 
 
-@allure.story("TC-CMS-USERS-011: Invalid page number")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_011_invalid_page_number(cms_token):
     """TC-CMS-USERS-011 | Boundary | Invalid page number"""
@@ -178,8 +159,6 @@ async def test_TC_CMS_USERS_011_invalid_page_number(cms_token):
     assert response.status_code in [200, 400, 422]
 
 
-@allure.story("TC-CMS-USERS-012: Invalid order value")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 async def test_TC_CMS_USERS_012_invalid_order_value(cms_token):
     """TC-CMS-USERS-012 | Boundary | Invalid order value (not ASC/DESC)"""

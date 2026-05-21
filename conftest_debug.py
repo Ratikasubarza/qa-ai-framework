@@ -11,17 +11,20 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-# Set to True to auto-create Jira bugs on failure
-AUTO_CREATE_BUGS = os.getenv("AUTO_CREATE_BUGS", "false").lower() == "true"
-DEBUG_PLATFORM   = os.getenv("DEBUG_PLATFORM", "web")
+# Guard: hook only executes when AUTO_CREATE_BUGS=true.
+# When false the hook yields immediately — zero overhead on normal runs.
+_ENABLED       = os.getenv("AUTO_CREATE_BUGS", "false").lower() == "true"
+DEBUG_PLATFORM = os.getenv("DEBUG_PLATFORM", "web")
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Hook into pytest test execution — capture failures."""
     outcome = yield
-    report  = outcome.get_result()
+    if not _ENABLED:
+        return
 
+    report = outcome.get_result()
     if report.when == "call" and report.failed:
         _handle_failure(item, report)
 
@@ -46,7 +49,7 @@ def _handle_failure(item, report):
             except Exception:
                 pass
 
-    if AUTO_CREATE_BUGS:
+    if _ENABLED:
         try:
             from agents.debug_agent import debug_agent
             report_obj = debug_agent.analyze_from_pytest(

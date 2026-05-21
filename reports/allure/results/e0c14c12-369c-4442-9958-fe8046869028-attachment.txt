@@ -1,0 +1,1 @@
+INFO     httpx:_client.py:1773 HTTP Request: PUT https://api-dev.thehono.com/v1/settings/option "HTTP/1.1 401 Unauthorized"

@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("Settings")
@@ -36,7 +36,7 @@ async def test_TC_SETS_002_get_toggle_settings_personal(settings_token):
             params={"section": "PERSONAL"},
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status(200)
+    SchemaValidator(response).status(200)
 
 
 @pytest.mark.negative
@@ -48,7 +48,7 @@ async def test_TC_SETS_003_get_toggle_settings_no_token():
             APIEndpoints.SETTINGS_TOGGLE,
             params={"section": "NOTIFICATION"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── PUT /v1/settings/toggle ───────────────────────────────────────────────────
@@ -63,7 +63,7 @@ async def test_TC_SETS_004_update_toggle_setting_valid(settings_token):
             json={"section": "NOTIFICATION", "key": "repost", "value": True},
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status_in(200, 201)
+    SchemaValidator(response).status_in(200, 201)
 
 
 @pytest.mark.negative
@@ -76,7 +76,7 @@ async def test_TC_SETS_005_update_toggle_invalid_key(settings_token):
             json={"key": "invalid_key_xyz", "value": True},
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 @pytest.mark.negative
@@ -88,7 +88,7 @@ async def test_TC_SETS_006_update_toggle_no_token():
             APIEndpoints.SETTINGS_TOGGLE,
             json={"key": "repost", "value": True},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/settings/option ───────────────────────────────────────────────────
@@ -118,7 +118,7 @@ async def test_TC_SETS_008_get_option_settings_audience(settings_token):
             params={"section": "AUDIENCE"},
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status(200)
+    SchemaValidator(response).status(200)
 
 
 @pytest.mark.negative
@@ -130,7 +130,7 @@ async def test_TC_SETS_009_get_option_settings_no_token():
             APIEndpoints.SETTINGS_OPTION,
             params={"section": "MESSAGE"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── PUT /v1/settings/option ───────────────────────────────────────────────────
@@ -145,7 +145,7 @@ async def test_TC_SETS_010_update_option_message_preference(settings_token):
             json={"key": "message_preference", "value": "EVERYONE"},
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status_in(200, 201)
+    SchemaValidator(response).status_in(200, 201)
 
 
 @pytest.mark.negative
@@ -158,7 +158,7 @@ async def test_TC_SETS_011_update_option_invalid_value(settings_token):
             json={"key": "tagging_preference", "value": "INVALID_ENUM"},
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 @pytest.mark.negative
@@ -170,7 +170,7 @@ async def test_TC_SETS_012_update_option_no_token():
             APIEndpoints.SETTINGS_OPTION,
             json={"key": "message_preference", "value": "EVERYONE"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/settings/message-preference ──────────────────────────────────────
@@ -196,7 +196,7 @@ async def test_TC_SETS_014_get_message_preference_no_token():
     """TC-SETS-014 | Security | Get message preference without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.SETTINGS_MSG_PREFERENCE)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── PUT /v1/settings/message-preference ──────────────────────────────────────
@@ -211,7 +211,7 @@ async def test_TC_SETS_015_update_message_preference(settings_token):
             json={"message_preference": "FOLLOWING_ONLY"},
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status_in(200, 201)
+    SchemaValidator(response).status_in(200, 201)
 
 
 @pytest.mark.negative
@@ -224,7 +224,7 @@ async def test_TC_SETS_016_update_message_preference_invalid(settings_token):
             json={"message_preference": "INVALID"},
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── GET /v1/settings/notification-preferences ────────────────────────────────
@@ -250,7 +250,7 @@ async def test_TC_SETS_018_get_notif_preferences_no_token():
     """TC-SETS-018 | Security | Get notification preferences without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.SETTINGS_NOTIF_PREFS)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── PUT /v1/settings/notification-preferences ────────────────────────────────
@@ -274,7 +274,7 @@ async def test_TC_SETS_019_update_notification_preferences(settings_token):
             },
             headers={"Authorization": f"Bearer {settings_token}"},
         )
-    APIAssertions(response).status_in(200, 201)
+    SchemaValidator(response).status_in(200, 201)
 
 
 @pytest.mark.negative
@@ -286,4 +286,4 @@ async def test_TC_SETS_020_update_notif_preferences_no_token():
             APIEndpoints.SETTINGS_NOTIF_PREFS,
             json={"disable_all": False},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)

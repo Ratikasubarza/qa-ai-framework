@@ -1,0 +1,22 @@
+2026-05-16 09:51:56 [info     ] test_user_registered           email=testonboard+1778896315@mailinator.com
+2026-05-16 09:51:57 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:51:57 [info     ] db_verified_set                affected=1 email=testonboard+1778896315@mailinator.com
+2026-05-16 09:51:57 [info     ] db_disconnected
+2026-05-16 09:51:58 [info     ] test_user_approved             email=testonboard+1778896315@mailinator.com status=200
+2026-05-16 09:51:59 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:51:59 [info     ] db_password_set                affected=1 email=testonboard+1778896315@mailinator.com
+2026-05-16 09:51:59 [info     ] db_disconnected
+2026-05-16 09:51:59 [info     ] test_user_ready                email=testonboard+1778896315@mailinator.com status=APPROVED
+2026-05-16 09:52:00 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:52:00 [info     ] db_password_set                affected=1 email=testonboard+1778896315@mailinator.com
+2026-05-16 09:52:00 [info     ] db_disconnected
+2026-05-16 09:52:00 [info     ] api_login                      status=200
+2026-05-16 09:52:00 [info     ] api_login_success
+2026-05-16 09:52:01 [info     ] api_put                        path=/v1/users/me/password status=200
+2026-05-16 09:52:01 [debug    ] assert_status                  actual=200 expected=200
+2026-05-16 09:52:01 [debug    ] assert_response_time           elapsed_ms=532.88 limit_ms=3000
+2026-05-16 09:52:01 [info     ] api_post                       path=/v1/users/login status=401
+2026-05-16 09:52:01 [info     ] api_post                       path=/v1/users/login status=200
+2026-05-16 09:52:02 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:52:02 [info     ] db_password_set                affected=1 email=testonboard+1778896315@mailinator.com
+2026-05-16 09:52:02 [info     ] db_disconnected

@@ -24,7 +24,7 @@ Usage:
 """
 import allure
 import structlog
-from playwright.sync_api import Page
+from playwright.sync_api import Locator, Page
 from config.test_config import TestConfig
 
 logger = structlog.get_logger(__name__)
@@ -78,6 +78,21 @@ class BasePage:
         with allure.step(f"Click '{label}'"):
             self.page.wait_for_selector(selector, timeout=timeout)
             self.page.click(selector)
+        return self
+
+    def fill_by_locator(self, locator: Locator, value: str,
+                        description: str = "") -> "BasePage":
+        label = description or "element"
+        with allure.step(f"Fill '{label}' with '{value[:30]}{'...' if len(value)>30 else ''}'"):
+            locator.wait_for(state="visible")
+            locator.fill(value)
+        return self
+
+    def click_by_locator(self, locator: Locator, description: str = "") -> "BasePage":
+        label = description or "element"
+        with allure.step(f"Click '{label}'"):
+            locator.wait_for(state="visible")
+            locator.click()
         return self
 
     def select_option(self, selector: str, value: str) -> "BasePage":

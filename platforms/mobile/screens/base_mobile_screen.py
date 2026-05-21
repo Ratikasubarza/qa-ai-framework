@@ -18,9 +18,11 @@ Usage:
             self.tap(*self.LOGIN_BUTTON)
             return self
 """
+import time
 import allure
 import structlog
 from appium.webdriver.common.appiumby import AppiumBy
+from selenium.webdriver.support.ui import WebDriverWait
 from platforms.mobile.appium_driver import AppiumDriver
 
 logger = structlog.get_logger(__name__)
@@ -63,6 +65,20 @@ class BaseMobileScreen:
 
     def tap_accessibility(self, label: str, timeout: int = 10) -> "BaseMobileScreen":
         return self.tap(AppiumBy.ACCESSIBILITY_ID, label, description=label, timeout=timeout)
+
+    def wait_for_element(self, by: str, value: str, timeout: int = 10) -> "BaseMobileScreen":
+        """Explicit wait until element is present; replaces time.sleep after navigation."""
+        self.driver.find(by, value, timeout=timeout)
+        return self
+
+    def wait_for_text_in_source(self, text: str, timeout: int = 10) -> bool:
+        """Poll page source until text appears or timeout. Returns True if found."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if text in self.get_page_source():
+                return True
+            time.sleep(0.5)
+        return False
 
     def scroll_down(self) -> "BaseMobileScreen":
         self.driver.scroll_down()

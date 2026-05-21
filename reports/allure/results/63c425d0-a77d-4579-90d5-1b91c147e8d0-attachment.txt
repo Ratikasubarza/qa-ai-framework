@@ -1,0 +1,4 @@
+2026-05-16 03:57:47 [info     ] api_login                      status=200
+2026-05-16 03:57:47 [info     ] api_login_success
+2026-05-16 03:57:47 [info     ] api_get                        path=/v1/search/posts status=400
+Empty: 400

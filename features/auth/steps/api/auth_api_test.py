@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints, TestConfig
 
 pytestmark = allure.feature("Auth")
@@ -25,7 +25,7 @@ async def test_TC_AUTH_001_refresh_token_valid(auth_refresh_token):
             APIEndpoints.AUTH_REFRESH,
             json={"refresh_token": auth_refresh_token},
         )
-    APIAssertions(response).status_in(200, 201).has_token()
+    SchemaValidator(response).status_in(200, 201).has_token()
 
 
 @pytest.mark.negative
@@ -37,7 +37,7 @@ async def test_TC_AUTH_002_refresh_token_invalid():
             APIEndpoints.AUTH_REFRESH,
             json={"refresh_token": "invalid.jwt.token"},
         )
-    APIAssertions(response).status_in(401, 400, 422)
+    SchemaValidator(response).status_in(401, 400, 422)
 
 
 @pytest.mark.negative
@@ -46,7 +46,7 @@ async def test_TC_AUTH_003_refresh_token_missing_field():
     """TC-AUTH-003 | Negative | Missing refresh_token field returns 400/422"""
     async with HonoAPIClient() as client:
         response = await client.post(APIEndpoints.AUTH_REFRESH, json={})
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── Forgot Password ───────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ async def test_TC_AUTH_004_forgot_password_valid_email(auth_user):
             APIEndpoints.AUTH_FORGOT_PASSWORD,
             json={"email": auth_user["email"]},
         )
-    APIAssertions(response).status_in(200, 201, 202)
+    SchemaValidator(response).status_in(200, 201, 202)
 
 
 @pytest.mark.negative
@@ -72,7 +72,7 @@ async def test_TC_AUTH_005_forgot_password_nonexistent_email():
             APIEndpoints.AUTH_FORGOT_PASSWORD,
             json={"email": FAKE_EMAIL},
         )
-    APIAssertions(response).status_in(200, 201, 202, 404)
+    SchemaValidator(response).status_in(200, 201, 202, 404)
 
 
 @pytest.mark.negative
@@ -84,7 +84,7 @@ async def test_TC_AUTH_006_forgot_password_invalid_email_format():
             APIEndpoints.AUTH_FORGOT_PASSWORD,
             json={"email": "not-an-email"},
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── Validate Reset Password ───────────────────────────────────────────────────
@@ -112,7 +112,7 @@ async def test_TC_AUTH_008_validate_reset_code_missing():
     """TC-AUTH-008 | Negative | Missing code query param returns 400/422"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.AUTH_VALIDATE_RESET)
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── Reset Password ────────────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ async def test_TC_AUTH_009_reset_password_invalid_code():
                 "confirm_password": "NewPass123!",
             },
         )
-    APIAssertions(response).status_in(400, 404, 422)
+    SchemaValidator(response).status_in(400, 404, 422)
 
 
 @pytest.mark.negative
@@ -146,7 +146,7 @@ async def test_TC_AUTH_010_reset_password_mismatch():
                 "confirm_password": "DifferentPass456!",
             },
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── Resend Email Verification Link ────────────────────────────────────────────
@@ -160,7 +160,7 @@ async def test_TC_AUTH_011_resend_email_verif_valid(auth_user):
             APIEndpoints.AUTH_RESEND_EMAIL_VERIF,
             json={"email": auth_user["email"]},
         )
-    APIAssertions(response).status_in(200, 201, 202)
+    SchemaValidator(response).status_in(200, 201, 202)
 
 
 @pytest.mark.negative
@@ -172,7 +172,7 @@ async def test_TC_AUTH_012_resend_email_verif_invalid_format():
             APIEndpoints.AUTH_RESEND_EMAIL_VERIF,
             json={"email": "bad-email"},
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 @pytest.mark.negative
@@ -190,4 +190,4 @@ async def test_TC_AUTH_013_resend_email_verif_no_api_key():
             json={"email": FAKE_EMAIL},
             headers={"Content-Type": "application/json"},
         )
-    APIAssertions(response).status_in(401, 403)
+    SchemaValidator(response).status_in(401, 403)

@@ -84,7 +84,7 @@ def test_source_intake_fetches_confluence_prd(monkeypatch):
     fake_module = SimpleNamespace(confluence_client=FakeConfluenceClient())
     monkeypatch.setitem(
         sys.modules,
-        "mcp_tools.confluence_client.confluence_client",
+        "integrations.confluence_client.confluence_client",
         fake_module,
     )
 
@@ -144,12 +144,12 @@ def test_source_intake_composes_jira_prd_and_subtasks(monkeypatch):
 
     monkeypatch.setitem(
         sys.modules,
-        "mcp_tools.jira_client.jira_client",
+        "integrations.jira_client.jira_client",
         SimpleNamespace(jira_client=FakeJiraClient()),
     )
     monkeypatch.setitem(
         sys.modules,
-        "mcp_tools.confluence_client.confluence_client",
+        "integrations.confluence_client.confluence_client",
         SimpleNamespace(confluence_client=FakeConfluenceClient()),
     )
 
@@ -212,7 +212,7 @@ def test_source_intake_filters_parent_subtasks_by_platform(monkeypatch):
 
     monkeypatch.setitem(
         sys.modules,
-        "mcp_tools.jira_client.jira_client",
+        "integrations.jira_client.jira_client",
         SimpleNamespace(jira_client=FakeJiraClient()),
     )
 
@@ -241,7 +241,7 @@ def test_source_intake_blocks_when_prd_url_unreadable_without_manual_fallback(mo
     fake_module = SimpleNamespace(confluence_client=FakeConfluenceClient())
     monkeypatch.setitem(
         sys.modules,
-        "mcp_tools.confluence_client.confluence_client",
+        "integrations.confluence_client.confluence_client",
         fake_module,
     )
 
@@ -492,6 +492,38 @@ def test_codegen_uses_existing_testcase_output(monkeypatch):
         "features/login/test_login.py": "/tmp/test_login.py"
     }
     assert calls == [(output, Platform.WEB, {})]
+
+
+def test_codegen_runs_for_each_requested_platform(monkeypatch):
+    output = _testcase_output()
+    calls = []
+
+    class FakeCodeGenerator:
+        def run(self, testcase_output, platform, automation_evidence=None):
+            calls.append((testcase_output, platform, automation_evidence))
+            return {f"features/login/steps/{platform.value}_test.py": f"/tmp/{platform.value}_test.py"}
+
+    fake_module = SimpleNamespace(
+        code_generator_agent=FakeCodeGenerator(),
+    )
+    monkeypatch.setitem(sys.modules, "agents.code_generator_agent", fake_module)
+
+    state = pipeline.node_codegen({
+        "feature": "Login",
+        "platforms": ["web", "api"],
+        "testcase_output": output,
+        "test_cases": [output.scenarios[0].model_dump(mode="json")],
+        "automation_evidence": {"web": {"selectors": {}}, "api": {"endpoint": "/v1/users/login"}},
+    })
+
+    assert state["generated_files"] == {
+        "web:features/login/steps/web_test.py": "/tmp/web_test.py",
+        "api:features/login/steps/api_test.py": "/tmp/api_test.py",
+    }
+    assert calls == [
+        (output, Platform.WEB, {"web": {"selectors": {}}, "api": {"endpoint": "/v1/users/login"}}),
+        (output, Platform.API, {"web": {"selectors": {}}, "api": {"endpoint": "/v1/users/login"}}),
+    ]
 
 
 def test_testcase_export_uses_approved_testcase_output(monkeypatch, tmp_path):

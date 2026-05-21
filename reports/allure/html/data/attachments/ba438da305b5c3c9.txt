@@ -1,0 +1,13 @@
+2026-05-16 09:50:42 [info     ] test_user_registered           email=testonboard+1778896241374@mailinator.com
+2026-05-16 09:50:43 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:50:43 [info     ] db_verified_set                affected=1 email=testonboard+1778896241374@mailinator.com
+2026-05-16 09:50:43 [info     ] db_disconnected
+2026-05-16 09:50:44 [info     ] test_user_approved             email=testonboard+1778896241374@mailinator.com status=200
+2026-05-16 09:50:45 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:50:45 [info     ] db_password_set                affected=1 email=testonboard+1778896241374@mailinator.com
+2026-05-16 09:50:45 [info     ] db_disconnected
+2026-05-16 09:50:45 [info     ] test_user_ready                email=testonboard+1778896241374@mailinator.com status=APPROVED
+2026-05-16 09:50:46 [info     ] api_post                       path=/v1/users/login status=200
+2026-05-16 09:50:46 [info     ] api_put                        path=/v1/users/onboarding status=200
+
+✓ social_cause_ids max(5): 200

@@ -1,0 +1,3 @@
+2026-05-18 07:36:53 [info     ] api_post                       path=/v1/users/register status=422
+
+  Special chars fullname → 422

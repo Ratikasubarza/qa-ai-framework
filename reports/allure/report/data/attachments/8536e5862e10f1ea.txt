@@ -1,0 +1,3 @@
+2026-05-16 03:57:52 [info     ] api_post                       path=/v1/users/login status=401
+
+✓ Wrong resource blocked: 401

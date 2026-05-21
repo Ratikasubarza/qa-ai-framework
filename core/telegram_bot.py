@@ -16,6 +16,7 @@ from telegram.ext import Application, CallbackQueryHandler, ContextTypes
 from config.settings import settings
 from core.secret_manager import secret_manager
 from core.agent_contracts import AgentFeedback, Decision, RejectionReason
+from core.source_intake.security import redact_internal_text
 
 logger = structlog.get_logger(__name__)
 
@@ -205,10 +206,11 @@ class QATelegramBot:
 
     async def send_circuit_breaker_alert(self, agent_name: str, error: str) -> None:
         """Alert QA Ops when a circuit breaker opens."""
+        safe_error = redact_internal_text(error[:200]).text
         text = (
             f"⚡ *CIRCUIT BREAKER OPEN*\n\n"
             f"Agent: `{agent_name}`\n"
-            f"Error: {error[:200]}\n\n"
+            f"Error: {safe_error}\n\n"
             f"Agent calls are blocked until recovery."
         )
         await self._send(self.channels["qa_ops"], text)

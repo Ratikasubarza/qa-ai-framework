@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("Feed")
@@ -35,7 +35,7 @@ async def test_TC_FEED_002_get_feed_with_pagination(feed_token):
             params={"page": 1, "per_page": 5},
             headers={"Authorization": f"Bearer {feed_token}"},
         )
-    APIAssertions(response).status(200)
+    SchemaValidator(response).status(200)
 
 
 @pytest.mark.api
@@ -47,7 +47,7 @@ async def test_TC_FEED_003_get_feed_filter_param(feed_token):
             params={"filter": "following", "page": 1, "per_page": 10},
             headers={"Authorization": f"Bearer {feed_token}"},
         )
-    APIAssertions(response).status_in(200, 400)
+    SchemaValidator(response).status_in(200, 400)
 
 
 @pytest.mark.negative
@@ -56,7 +56,7 @@ async def test_TC_FEED_004_get_feed_no_token():
     """TC-FEED-004 | Security | Feed without auth token returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.FEED)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/topics ────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ async def test_TC_FEED_006_get_topics_no_token():
     """TC-FEED-006 | Security | Topics without auth token returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.TOPICS)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 @pytest.mark.api

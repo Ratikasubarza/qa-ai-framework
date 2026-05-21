@@ -1,0 +1,2209 @@
+{
+  "jira_story": "HM-516",
+  "summary": "As a user, I want to see my authored posts and uploaded media on my Profile Page so that I can review my content history and manage my digital footprint.",
+  "total": 120,
+  "scenarios_processed": 6,
+  "generated_at": "2026-05-12T05:42:57.371777",
+  "test_cases": [
+    {
+      "case_id": "S1-TC-001",
+      "title": "Default Posts tab selected and posts displayed in reverse chronological order",
+      "preconditions": "User is authenticated and has at least 5 public posts",
+      "steps": "Given the user navigates to their Profile Page\nWhen the screen loads\nThen the \"Posts\" tab must be selected by default\nAnd the system queries the Post API and returns posts sorted newest to oldest\nAnd the first 10 posts are rendered in the list",
+      "expected_result": "The Posts tab is active and the list shows the 10 most recent posts with correct order",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "smoke"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S1-TC-002",
+      "title": "Infinite scroll loads next set of posts when scrolled to bottom",
+      "preconditions": "User has 25 posts",
+      "steps": "Given the user is on the Profile Page with the Posts tab active\nWhen the user scrolls to the bottom of the post list\nThen the system requests the next 10 posts via the Post API\nAnd the new posts are appended to the list",
+      "expected_result": "15 posts are visible after first scroll, 25 after second scroll",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S1-TC-003",
+      "title": "Post text truncated at 200 characters with \"Read more\" link",
+      "preconditions": "User has a post with 250 characters of text",
+      "steps": "Given the user is on the Profile Page\nWhen the post list is rendered\nThen the post card displays only the first 200 characters followed by \"Read more\"\nAnd clicking \"Read more\" expands to full text",
+      "expected_result": "200-char preview shown; full text revealed on click",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Post text exactly 200 chars"
+      ]
+    },
+    {
+      "case_id": "S1-TC-004",
+      "title": "Post card displays media preview correctly for image posts",
+      "preconditions": "User has a post with an image URL",
+      "steps": "Given the user is on the Profile Page\nWhen the post list is rendered\nThen the media preview area shows the image thumbnail\nAnd clicking the thumbnail opens the image in a lightbox",
+      "expected_result": "Thumbnail visible and lightbox opens with full image",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Image URL is broken"
+      ]
+    },
+    {
+      "case_id": "S1-TC-005",
+      "title": "Post card shows visibility icon for followers-only posts",
+      "preconditions": "User has a followers-only post",
+      "steps": "Given the user is on the Profile Page\nWhen the post list is rendered\nThen the visibility icon indicates \"followers-only\"\nAnd the post is not visible to non-followers in API response",
+      "expected_result": "Icon displayed; API respects visibility",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Visibility flag missing"
+      ]
+    },
+    {
+      "case_id": "S1-TC-006",
+      "title": "Empty profile shows no posts and displays placeholder message",
+      "preconditions": "User has zero posts",
+      "steps": "Given the user navigates to their Profile Page\nWhen the screen loads\nThen the system queries the Post API and receives an empty list\nAnd the UI displays \"You have no posts yet\" message",
+      "expected_result": "No post cards rendered; placeholder visible",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "API returns null instead of empty array"
+      ]
+    },
+    {
+      "case_id": "S1-TC-007",
+      "title": "API returns error 500 during post fetch shows error banner",
+      "preconditions": "Post API is mocked to return 500",
+      "steps": "Given the user navigates to their Profile Page\nWhen the system requests posts\nThen the API returns 500\nAnd the UI displays an error banner with retry option",
+      "expected_result": "Error banner visible; retry button functional",
+      "priority": "P0",
+      "tags": [
+        "negative",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S1-TC-008",
+      "title": "User with 11 posts sees pagination load 10 then 1",
+      "preconditions": "User has 11 posts",
+      "steps": "Given the user is on the Profile Page\nWhen the user scrolls to bottom once\nThen the system fetches the next 10 posts\nAnd only 1 additional post is displayed",
+      "expected_result": "Total 11 posts displayed after scroll",
+      "priority": "P1",
+      "tags": [
+        "boundary",
+        "functional",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Exactly 10 posts"
+      ]
+    },
+    {
+      "case_id": "S1-TC-009",
+      "title": "Rapid scrolling triggers multiple API calls but no duplicate posts",
+      "preconditions": "User has 30 posts",
+      "steps": "Given the user is on the Profile Page\nWhen the user scrolls rapidly to bottom multiple times\nThen the system queues API requests but ensures each post appears only once",
+      "expected_result": "30 unique posts displayed; no duplicates",
+      "priority": "P1",
+      "tags": [
+        "negative",
+        "boundary",
+        "functional"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Network latency spikes"
+      ]
+    },
+    {
+      "case_id": "S1-TC-010",
+      "title": "Session expires during infinite scroll and user is redirected to login",
+      "preconditions": "User session expires after 5 minutes",
+      "steps": "Given the user is on the Profile Page and has scrolled halfway\nWhen the session token expires\nThen subsequent API calls return 401\nAnd the UI redirects to the login page",
+      "expected_result": "Login page displayed; no stale data shown",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Token expires mid-request"
+      ]
+    },
+    {
+      "case_id": "S1-TC-011",
+      "title": "Post with zero-width space in text renders correctly and truncates",
+      "preconditions": "Post text contains zero-width spaces",
+      "steps": "Given the user is on the Profile Page\nWhen the post list is rendered\nThen the text is displayed without visible gaps\nAnd truncation occurs at 200 visible characters",
+      "expected_result": "Text appears continuous; truncation logic works",
+      "priority": "P2",
+      "tags": [
+        "weird",
+        "functional",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Zero-width space at 200th character"
+      ]
+    },
+    {
+      "case_id": "S1-TC-012",
+      "title": "RTL language post displays correctly and truncates at 200 chars",
+      "preconditions": "User has a post in Arabic with 250 chars",
+      "steps": "Given the user switches locale to Arabic\nWhen the Profile Page loads\nThen the post card displays RTL text\nAnd truncation occurs after 200 chars",
+      "expected_result": "RTL rendering correct; truncation applied",
+      "priority": "P2",
+      "tags": [
+        "weird",
+        "functional",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Text exactly 200 RTL chars"
+      ]
+    },
+    {
+      "case_id": "S1-TC-013",
+      "title": "Copy-paste HTML into post text field is sanitized and stored as plain text",
+      "preconditions": "User is creating a new post",
+      "steps": "Given the user is on the New Post form\nWhen the user pastes '<script>alert(1)</script>' into the text area\nThen the system sanitizes input to plain text\nAnd the stored post contains 'alert(1)' without script tags",
+      "expected_result": "No script execution; plain text stored",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "functional"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Script with event handlers"
+      ]
+    },
+    {
+      "case_id": "S1-TC-014",
+      "title": "Back button after viewing post detail returns to correct scroll position",
+      "preconditions": "User has scrolled 3 posts down and opens a post detail",
+      "steps": "Given the user is on the Profile Page and scrolled to post #3\nWhen the user clicks on the post to view details\nAnd then clicks the browser back button\nThen the Profile Page reloads with scroll position at post #3",
+      "expected_result": "User returns to same spot without losing context",
+      "priority": "P1",
+      "tags": [
+        "weird",
+        "functional",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Back button pressed before detail loads"
+      ]
+    },
+    {
+      "case_id": "S1-TC-015",
+      "title": "Keyboard navigation can focus and activate \"Read more\" link",
+      "preconditions": "User has a post with truncated text",
+      "steps": "Given the user is on the Profile Page\nWhen the user tabs through post cards\nAnd focuses on the \"Read more\" link\nThen pressing Enter expands the post text",
+      "expected_result": "Keyboard accessible; post expands",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "functional",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Focus trap"
+      ]
+    },
+    {
+      "case_id": "S1-TC-016",
+      "title": "Responsive layout shows single column on mobile and two columns on tablet",
+      "preconditions": "User accesses Profile Page on different viewports",
+      "steps": "Given the user opens the Profile Page on a 375px width device\nWhen the page renders\nThen posts are displayed in a single column\nAnd on a 768px width device\nThen posts are displayed in two columns",
+      "expected_result": "Layout adapts correctly",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Viewport width 767px"
+      ]
+    },
+    {
+      "case_id": "S1-TC-017",
+      "title": "API injection attempt in post ID returns 400 and no data leak",
+      "preconditions": "User attempts to fetch post with ID '<script>'",
+      "steps": "Given the user navigates to /profile/posts?postId=<script>\nWhen the system queries the Post API\nThen the API returns 400 Bad Request\nAnd no post data is returned",
+      "expected_result": "Injection prevented; safe error response",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "API"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "Special characters in query param"
+      ]
+    },
+    {
+      "case_id": "S1-TC-018",
+      "title": "User with maximum allowed posts (1000) can scroll without performance degradation",
+      "preconditions": "User has 1000 posts",
+      "steps": "Given the user is on the Profile Page\nWhen the user scrolls to load all posts\nThen the UI remains responsive and no memory leaks occur",
+      "expected_result": "Smooth scrolling; no crashes",
+      "priority": "P1",
+      "tags": [
+        "boundary",
+        "regression",
+        "performance"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Exactly 1000 posts"
+      ]
+    },
+    {
+      "case_id": "S1-TC-019",
+      "title": "Post card shows engagement stats correctly even when zero likes/comments",
+      "preconditions": "User has a post with 0 likes and 0 comments",
+      "steps": "Given the user is on the Profile Page\nWhen the post list is rendered\nThen the engagement stats display '0 likes \u2022 0 comments'",
+      "expected_result": "Zero values displayed correctly",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Null engagement object"
+      ]
+    },
+    {
+      "case_id": "S1-TC-020",
+      "title": "Switching between Posts and Media tabs preserves scroll position per tab",
+      "preconditions": "User has scrolled in both tabs",
+      "steps": "Given the user scrolls to post #5 in Posts tab\nWhen the user switches to Media tab and scrolls to media #3\nThen the user switches back to Posts tab\nThen the scroll position is at post #5",
+      "expected_result": "Per-tab scroll state preserved",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Tab switch during API load"
+      ]
+    },
+    {
+      "case_id": "S2-TC-001",
+      "title": "Default Posts Tab Selected on Profile Load",
+      "preconditions": "User is authenticated and has at least one public post",
+      "steps": "Given the user navigates to /profile\nWhen the profile page loads\nThen the \"Posts\" tab must be highlighted\nAnd the first 10 posts are displayed in reverse chronological order",
+      "expected_result": "\"Posts\" tab active and 10 posts rendered",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Default tab selection"
+      ]
+    },
+    {
+      "case_id": "S2-TC-002",
+      "title": "Infinite Scroll Loads Next 10 Posts on Scroll Bottom",
+      "preconditions": "User has 25 posts, authenticated",
+      "steps": "Given the user is on the profile page with 10 posts loaded\nWhen the user scrolls to the bottom of the list\nThen the next 10 posts are fetched and appended\nAnd the total displayed posts count is 20",
+      "expected_result": "20 posts displayed after scroll",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Lazy loading"
+      ]
+    },
+    {
+      "case_id": "S2-TC-003",
+      "title": "Post Text Truncation at 200 Characters with Read More Link",
+      "preconditions": "User has a post with 250 characters of text",
+      "steps": "Given the user is on the profile page\nWhen the post card is rendered\nThen the displayed text is truncated to 200 characters\nAnd a \"Read more\" link is present",
+      "expected_result": "200 chars + ellipsis + link",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "smoke",
+      "ai_generated": true,
+      "edge_cases": [
+        "Text truncation"
+      ]
+    },
+    {
+      "case_id": "S2-TC-004",
+      "title": "Media Tab Aggregates All Images from User Posts",
+      "preconditions": "User has 3 posts with 2, 1, and 4 images respectively",
+      "steps": "Given the user navigates to the \"Media\" tab\nWhen the tab loads\nThen a 3-column grid displays 7 image thumbnails sorted by post date",
+      "expected_result": "7 thumbnails in grid",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Media aggregation"
+      ]
+    },
+    {
+      "case_id": "S2-TC-005",
+      "title": "Thumbnail Click Opens Fullscreen Lightbox with Correct Image",
+      "preconditions": "User is on Media tab with at least one thumbnail",
+      "steps": "Given the user clicks on the third thumbnail\nWhen the lightbox opens\nThen the displayed image matches the thumbnail source\nAnd the image is fullscreen",
+      "expected_result": "Correct image in lightbox",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Lightbox opening"
+      ]
+    },
+    {
+      "case_id": "S2-TC-006",
+      "title": "Lightbox Swipe Navigation Works Between Images",
+      "preconditions": "Lightbox open with at least 3 images",
+      "steps": "Given the user swipes left on the lightbox\nWhen the swipe gesture completes\nThen the next image is displayed\nAnd the image index updates accordingly",
+      "expected_result": "Image index increments by 1",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Swipe navigation"
+      ]
+    },
+    {
+      "case_id": "S2-TC-007",
+      "title": "Lightbox Pinch-to-Zoom Respects Minimum and Maximum Scale",
+      "preconditions": "Lightbox open with an image",
+      "steps": "Given the user performs a pinch gesture to zoom in\nWhen the gesture exceeds 3x scale\nThen the zoom level caps at 3x\nAnd the image does not overflow the viewport",
+      "expected_result": "Zoom capped at 3x",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Pinch zoom limits"
+      ]
+    },
+    {
+      "case_id": "S2-TC-008",
+      "title": "View Post Link Navigates to Correct Post Detail",
+      "preconditions": "Lightbox open for an image belonging to post ID 42",
+      "steps": "Given the user clicks the \"View Post\" link\nWhen navigation occurs\nThen the URL contains /posts/42\nAnd the post detail page displays post ID 42 content",
+      "expected_result": "Correct post detail displayed",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Navigation link"
+      ]
+    },
+    {
+      "case_id": "S2-TC-009",
+      "title": "Media Tab Loads Zero Images Gracefully When No Media Exists",
+      "preconditions": "User has posts but none contain images",
+      "steps": "Given the user navigates to the \"Media\" tab\nWhen the tab loads\nThen a message \"No media found\" is displayed\nAnd no thumbnails appear",
+      "expected_result": "Graceful empty state",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Empty media state"
+      ]
+    },
+    {
+      "case_id": "S2-TC-010",
+      "title": "Media Tab Handles 1000 Images Without Performance Degradation",
+      "preconditions": "User has 1000 images across posts",
+      "steps": "Given the user navigates to the \"Media\" tab\nWhen the grid renders\nThen all 1000 thumbnails are displayed within 5 seconds",
+      "expected_result": "Load time < 5s",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Large media set"
+      ]
+    },
+    {
+      "case_id": "S2-TC-011",
+      "title": "Unauthorized User Cannot Access Profile Media Tab",
+      "preconditions": "User is not authenticated",
+      "steps": "Given the user attempts to navigate to /profile/media\nWhen the request is made\nThen the response status is 401\nAnd the user is redirected to the login page",
+      "expected_result": "Access denied",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "API"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "Unauthorized access"
+      ]
+    },
+    {
+      "case_id": "S2-TC-012",
+      "title": "Session Expiry Mid-Lightbox Navigation",
+      "preconditions": "User is authenticated, session expires after 5 minutes",
+      "steps": "Given the user opens a lightbox and waits 6 minutes\nWhen the user attempts to swipe to next image\nThen the lightbox closes\nAnd the user is redirected to the login page",
+      "expected_result": "Session timeout handled",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "API",
+        "weird"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "Session expiry during interaction"
+      ]
+    },
+    {
+      "case_id": "S2-TC-013",
+      "title": "Rapid Thumbnail Clicks Do Not Trigger Multiple Lightbox Instances",
+      "preconditions": "User is on Media tab with thumbnails",
+      "steps": "Given the user clicks the same thumbnail 5 times quickly\nWhen the clicks are processed\nThen only one lightbox instance opens",
+      "expected_result": "Single lightbox",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "weird"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Race condition on click"
+      ]
+    },
+    {
+      "case_id": "S2-TC-014",
+      "title": "Copy-Paste Image URL into Search Field Does Not Trigger XSS",
+      "preconditions": "Search field accepts text input",
+      "steps": "Given the user copies <script>alert('xss')</script> and pastes into the search field\nWhen the form is submitted\nThen the script does not execute\nAnd the search results page loads normally",
+      "expected_result": "No XSS execution",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "API"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "XSS injection"
+      ]
+    },
+    {
+      "case_id": "S2-TC-015",
+      "title": "Keyboard Navigation Through Media Thumbnails Accessible",
+      "preconditions": "User is on Media tab",
+      "steps": "Given the user tabs through thumbnails using the keyboard\nWhen the focus lands on a thumbnail\nThen pressing Enter opens the lightbox\nAnd focus is trapped within the lightbox until closed",
+      "expected_result": "Keyboard accessibility",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Keyboard nav"
+      ]
+    },
+    {
+      "case_id": "S2-TC-016",
+      "title": "Screen Reader Announces Lightbox Image and Navigation Controls",
+      "preconditions": "User is on Media tab, screen reader enabled",
+      "steps": "Given the user opens a lightbox\nWhen the screen reader reads the page\nThen it announces \"Image 2 of 7, zoom in, zoom out, close\"",
+      "expected_result": "Screen reader content",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Screen reader"
+      ]
+    },
+    {
+      "case_id": "S2-TC-017",
+      "title": "Responsive Grid Adjusts to 2 Columns on Tablet Width",
+      "preconditions": "User device width set to 768px",
+      "steps": "Given the user navigates to the Media tab\nWhen the viewport width is 768px\nThen the thumbnail grid displays 2 columns",
+      "expected_result": "2-column layout",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Responsive breakpoint"
+      ]
+    },
+    {
+      "case_id": "S2-TC-018",
+      "title": "Media Tab Handles Unicode Filenames with Emoji",
+      "preconditions": "User uploads an image named \"sun\ud83c\udf1e.jpg\"",
+      "steps": "Given the user navigates to the Media tab\nWhen the grid renders\nThen the thumbnail displays the image correctly\nAnd the filename is shown as \"sun\ud83c\udf1e.jpg\"",
+      "expected_result": "Unicode filename displayed",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Unicode filenames"
+      ]
+    },
+    {
+      "case_id": "S2-TC-019",
+      "title": "Switching Language Mid-Session Does Not Break Lightbox",
+      "preconditions": "User is on lightbox in English",
+      "steps": "Given the user changes language to Spanish while lightbox is open\nWhen the language switch completes\nThen the lightbox UI updates to Spanish\nAnd the image remains displayed",
+      "expected_result": "Language switch handled",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Locale change mid-flow"
+      ]
+    },
+    {
+      "case_id": "S2-TC-020",
+      "title": "Back Button After Lightbox Closes Redirects to Media Tab",
+      "preconditions": "User opened a lightbox and closed it",
+      "steps": "Given the user presses the browser back button\nWhen the navigation occurs\nThen the profile page shows the Media tab selected",
+      "expected_result": "Back navigation restores tab state",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Browser back behavior"
+      ]
+    },
+    {
+      "case_id": "S3-TC-001",
+      "title": "Default Posts Tab Selected and First 10 Posts Loaded",
+      "preconditions": "User is authenticated and has at least 15 public posts",
+      "steps": "Given the user is on the Profile Page\nWhen the page loads\nThen the \"Posts\" tab must be selected by default\nAnd the system must query the Post API and return the first 10 posts in reverse chronological order\nAnd each post card displays truncated text, media preview, topics, visibility icon, timestamp, and engagement stats",
+      "expected_result": "First 10 posts displayed correctly with all UI elements visible",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|API|smoke"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Default tab selection"
+      ]
+    },
+    {
+      "case_id": "S3-TC-002",
+      "title": "Infinite Scroll Loads Next 10 Posts on Scroll",
+      "preconditions": "User has 25 posts and is on the Profile Page",
+      "steps": "Given the user is on the Profile Page and the first 10 posts are displayed\nWhen the user scrolls to the bottom of the list\nThen the system must request the next 10 posts via the Post API\nAnd the next 10 posts are appended to the list in correct order",
+      "expected_result": "Posts 11-20 appear after scrolling",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|API|regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Lazy loading"
+      ]
+    },
+    {
+      "case_id": "S3-TC-003",
+      "title": "Anonymous Post Labeled Correctly for Own Profile",
+      "preconditions": "User has authored an anonymous post",
+      "steps": "Given the user navigates to their own Profile Page\nWhen the anonymous post appears in the feed\nThen the post must be labeled as \"You (Anonymous)\"",
+      "expected_result": "Label displays \"You (Anonymous)\"",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|security"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Anonymous identity labeling"
+      ]
+    },
+    {
+      "case_id": "S3-TC-004",
+      "title": "Anonymous Post Labeled Correctly for Other User",
+      "preconditions": "User A has an anonymous post; User B is logged in",
+      "steps": "Given User B navigates to User A's Profile Page\nWhen the anonymous post appears in the feed\nThen the post must be labeled strictly as \"Anonymous\"",
+      "expected_result": "Label displays \"Anonymous\" only",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|security"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Privacy guardrails"
+      ]
+    },
+    {
+      "case_id": "S3-TC-005",
+      "title": "Media Tab Displays All Uploaded Media Without Author Info",
+      "preconditions": "User has uploaded 5 media items, including one from an anonymous post",
+      "steps": "Given the user clicks the \"Media\" tab\nWhen the media list loads\nThen each media item is displayed with its preview and metadata\nAnd no author identity is shown for any item",
+      "expected_result": "Media items visible, author hidden",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|security"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Media privacy"
+      ]
+    },
+    {
+      "case_id": "S3-TC-006",
+      "title": "Post Truncation at 200 Characters with Read More Link",
+      "preconditions": "User has a post with 250 characters of text",
+      "steps": "Given the user is on the Profile Page\nWhen the post card renders\nThen the displayed text must be truncated to 200 characters\nAnd a \"Read more\" link must be present",
+      "expected_result": "Truncated text + link visible",
+      "priority": "P1",
+      "tags": [
+        "functional|UI|boundary"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Exact 200 char limit"
+      ]
+    },
+    {
+      "case_id": "S3-TC-007",
+      "title": "Post Truncation with Exactly 200 Characters",
+      "preconditions": "User has a post with exactly 200 characters",
+      "steps": "Given the user is on the Profile Page\nWhen the post card renders\nThen the full 200 characters are displayed\nAnd no \"Read more\" link appears",
+      "expected_result": "Full text shown, no link",
+      "priority": "P1",
+      "tags": [
+        "functional|UI|boundary"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Exact boundary"
+      ]
+    },
+    {
+      "case_id": "S3-TC-008",
+      "title": "Post Truncation with 199 Characters",
+      "preconditions": "User has a post with 199 characters",
+      "steps": "Given the user is on the Profile Page\nWhen the post card renders\nThen the full 199 characters are displayed\nAnd no \"Read more\" link appears",
+      "expected_result": "Full text shown, no link",
+      "priority": "P1",
+      "tags": [
+        "functional|UI|boundary"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Just below boundary"
+      ]
+    },
+    {
+      "case_id": "S3-TC-009",
+      "title": "Anonymous Post Visibility Icon Correct for Own Profile",
+      "preconditions": "User has an anonymous post",
+      "steps": "Given the user is on their own Profile Page\nWhen the anonymous post appears\nThen the visibility icon must indicate \"followers-only\" if set",
+      "expected_result": "Correct icon displayed",
+      "priority": "P1",
+      "tags": [
+        "functional|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Visibility icon"
+      ]
+    },
+    {
+      "case_id": "S3-TC-010",
+      "title": "Anonymous Post Visibility Icon Correct for Other User",
+      "preconditions": "User A has an anonymous post set to followers-only; User B follows A",
+      "steps": "Given User B navigates to User A's Profile Page\nWhen the anonymous post appears\nThen the visibility icon must indicate \"followers-only\"",
+      "expected_result": "Icon matches visibility setting",
+      "priority": "P1",
+      "tags": [
+        "functional|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Visibility icon for others"
+      ]
+    },
+    {
+      "case_id": "S3-TC-011",
+      "title": "Rapid Scroll Does Not Trigger Duplicate API Calls",
+      "preconditions": "User has 50 posts",
+      "steps": "Given the user is on the Profile Page\nWhen the user scrolls rapidly to the bottom multiple times\nThen the system must not issue duplicate requests for the same page\nAnd the final list contains 50 unique posts",
+      "expected_result": "No duplicate posts, single API call per page",
+      "priority": "P1",
+      "tags": [
+        "functional|API|negative"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Race condition on scroll"
+      ]
+    },
+    {
+      "case_id": "S3-TC-012",
+      "title": "Session Expiry Mid-Scroll",
+      "preconditions": "User is authenticated; session expires after 5 minutes of inactivity",
+      "steps": "Given the user is on the Profile Page and has scrolled halfway\nWhen the session expires and the user scrolls further\nThen the system must redirect to the login page and preserve scroll position on return",
+      "expected_result": "Redirect to login, session cleared, resume after login",
+      "priority": "P0",
+      "tags": [
+        "functional|security|negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Session timeout during interaction"
+      ]
+    },
+    {
+      "case_id": "S3-TC-013",
+      "title": "Back Button After Viewing Profile Does Not Re-Load Posts",
+      "preconditions": "User navigated from Home to Profile",
+      "steps": "Given the user is on the Profile Page\nWhen the user clicks the browser back button\nThen the previous page must load without re-fetching posts from the Profile API",
+      "expected_result": "No unnecessary API call, state preserved",
+      "priority": "P1",
+      "tags": [
+        "functional|UI|negative"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Back navigation"
+      ]
+    },
+    {
+      "case_id": "S3-TC-014",
+      "title": "Copy-Paste HTML into Post Text Field",
+      "preconditions": "User is creating a new post",
+      "steps": "Given the user pastes '<script>alert(1)</script>' into the post text field\nWhen the user submits the post\nThen the system must sanitize the input and store plain text",
+      "expected_result": "No script execution, stored text is plain",
+      "priority": "P0",
+      "tags": [
+        "functional|security|negative"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "XSS attempt"
+      ]
+    },
+    {
+      "case_id": "S3-TC-015",
+      "title": "Unicode Emoji in Post Text",
+      "preconditions": "User is creating a new post",
+      "steps": "Given the user types 'Hello \ud83c\udf1f world' into the post text field\nWhen the user submits the post\nThen the post must display the emoji correctly in the feed",
+      "expected_result": "Emoji rendered without corruption",
+      "priority": "P2",
+      "tags": [
+        "functional|UI|weird"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Unicode handling"
+      ]
+    },
+    {
+      "case_id": "S3-TC-016",
+      "title": "Right-to-Left Text in Post",
+      "preconditions": "User is creating a new post",
+      "steps": "Given the user types '\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645' into the post text field\nWhen the user submits the post\nThen the post must display RTL text correctly in the feed",
+      "expected_result": "RTL rendering correct",
+      "priority": "P2",
+      "tags": [
+        "functional|UI|weird"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "RTL support"
+      ]
+    },
+    {
+      "case_id": "S3-TC-017",
+      "title": "Keyboard Navigation to Posts Tab",
+      "preconditions": "User is on the Profile Page",
+      "steps": "Given the user focuses the tab list with the Tab key\nWhen the user presses ArrowRight to select the \"Posts\" tab\nThen the Posts tab content must load and focus must move to the first post card",
+      "expected_result": "Keyboard navigation works, focus correct",
+      "priority": "P2",
+      "tags": [
+        "accessibility|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Keyboard nav"
+      ]
+    },
+    {
+      "case_id": "S3-TC-018",
+      "title": "Screen Reader Announces Anonymous Label Correctly",
+      "preconditions": "User is on their own Profile Page with an anonymous post",
+      "steps": "Given a screen reader is active\nWhen the user navigates to the anonymous post\nThen the screen reader must announce \"You (Anonymous)\"",
+      "expected_result": "Correct ARIA label read",
+      "priority": "P2",
+      "tags": [
+        "accessibility|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Screen reader"
+      ]
+    },
+    {
+      "case_id": "S3-TC-019",
+      "title": "Media Lightbox Opens with Correct Image and Caption",
+      "preconditions": "User has uploaded an image with caption \"Sunset\"",
+      "steps": "Given the user clicks the image preview in the Media tab\nWhen the lightbox opens\nThen the image must display with the caption \"Sunset\" and navigation controls",
+      "expected_result": "Lightbox content correct",
+      "priority": "P1",
+      "tags": [
+        "functional|UI|regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Lightbox navigation"
+      ]
+    },
+    {
+      "case_id": "S3-TC-020",
+      "title": "Anonymous Post Not Visible to Non-Followers",
+      "preconditions": "User A has an anonymous post set to followers-only; User B does not follow A",
+      "steps": "Given User B navigates to User A's Profile Page\nWhen the profile loads\nThen the anonymous post must not appear in the feed",
+      "expected_result": "Post hidden from non-followers",
+      "priority": "P0",
+      "tags": [
+        "functional|security|negative"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "Privacy enforcement"
+      ]
+    },
+    {
+      "case_id": "S4-TC-001",
+      "title": "Default Posts Tab Selected on Profile Load",
+      "preconditions": "User is authenticated and has at least one public post",
+      "steps": "Given the user navigates to /profile\nWhen the profile page loads\nThen the \"Posts\" tab is highlighted\nAnd the Posts API is called with limit=10, offset=0",
+      "expected_result": "Posts tab is active and first 10 posts are displayed",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "smoke"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-002",
+      "title": "Lazy Loading Fetches Next 10 Posts on Scroll",
+      "preconditions": "User has 25 public posts",
+      "steps": "Given the user is on the Posts tab with 10 posts displayed\nWhen the user scrolls to the bottom of the list\nThen the Posts API is called with limit=10, offset=10\nAnd posts 11-20 are appended to the list",
+      "expected_result": "Total 20 posts displayed after scroll",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-003",
+      "title": "Post Card Truncates Text at 200 Characters",
+      "preconditions": "User has a post with 250 characters of text",
+      "steps": "Given the user is on the Posts tab\nWhen the post card is rendered\nThen the displayed text is exactly 200 characters followed by \"\u2026\"\nAnd a \"Read more\" link is present",
+      "expected_result": "Text truncation works correctly",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-004",
+      "title": "Deleted Post Media Shows Placeholder Thumbnail",
+      "preconditions": "User has a media attachment linked to a post that was deleted",
+      "steps": "Given the user navigates to the Media tab\nWhen the media grid renders\nThen the placeholder thumbnail with label \"Post unavailable.\" is displayed for the deleted media",
+      "expected_result": "No crash, placeholder visible",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Media file missing but post exists"
+      ]
+    },
+    {
+      "case_id": "S4-TC-005",
+      "title": "Draft Post Excluded from Posts Tab",
+      "preconditions": "User has a draft post",
+      "steps": "Given the user navigates to the Posts tab\nWhen the posts list is rendered\nThen the draft post is not present in the list",
+      "expected_result": "Drafts are hidden from public view",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "API",
+        "negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-006",
+      "title": "Posts Tab Shows Only Public and Followers-Only Posts",
+      "preconditions": "User has 5 public, 3 followers-only, 2 private posts",
+      "steps": "Given the user navigates to the Posts tab\nWhen the posts list is rendered\nThen only the 8 public/followers-only posts are displayed\nAnd private posts are absent",
+      "expected_result": "Privacy filters applied",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-007",
+      "title": "Pagination Boundary: Exactly 10 Posts",
+      "preconditions": "User has exactly 10 public posts",
+      "steps": "Given the user navigates to the Posts tab\nWhen the posts list is rendered\nThen only 10 posts are displayed\nAnd no \"Load more\" button appears",
+      "expected_result": "Boundary handled correctly",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "boundary",
+        "API"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-008",
+      "title": "Pagination Boundary: 11 Posts Triggers Load More",
+      "preconditions": "User has 11 public posts",
+      "steps": "Given the user navigates to the Posts tab\nWhen the posts list is rendered\nThen 10 posts are displayed\nAnd a \"Load more\" button is present",
+      "expected_result": "Load more appears when needed",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "boundary",
+        "API"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-009",
+      "title": "Rapid Clicks on Load More Do Not Duplicate Posts",
+      "preconditions": "User has 30 public posts",
+      "steps": "Given the user is on the Posts tab with 10 posts displayed\nWhen the user clicks \"Load more\" five times rapidly\nThen the Posts API is called only once per scroll event\nAnd the final list contains 30 unique posts",
+      "expected_result": "No duplicate entries",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "negative",
+        "combination"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Multiple rapid clicks"
+      ]
+    },
+    {
+      "case_id": "S4-TC-010",
+      "title": "Session Expiry Mid-Scroll Does Not Crash",
+      "preconditions": "User has 50 public posts and session expires after 5 minutes",
+      "steps": "Given the user is scrolling through posts\nWhen the session token expires during scroll\nThen the UI shows a session expired modal\nAnd no crash occurs",
+      "expected_result": "Graceful session handling",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "weird",
+        "security"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Session timeout during API call"
+      ]
+    },
+    {
+      "case_id": "S4-TC-011",
+      "title": "Non-ASCII Unicode Characters in Post Text Render Correctly",
+      "preconditions": "User has a post containing emoji and RTL text",
+      "steps": "Given the user navigates to the Posts tab\nWhen the post card is rendered\nThen the text displays correctly with proper alignment\nAnd no layout shift occurs",
+      "expected_result": "Unicode support",
+      "priority": "P2",
+      "tags": [
+        "functional",
+        "weird",
+        "accessibility"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Zero-width spaces"
+      ]
+    },
+    {
+      "case_id": "S4-TC-012",
+      "title": "Back Button After Viewing Media Lightbox Returns to Same Scroll Position",
+      "preconditions": "User is on Media tab, scrolled to 5th page",
+      "steps": "Given the user opens a media item in lightbox\nWhen the browser back button is pressed\nThen the Media tab is displayed\nAnd the scroll position is restored to the 5th page",
+      "expected_result": "State persistence",
+      "priority": "P2",
+      "tags": [
+        "functional",
+        "weird",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-013",
+      "title": "Keyboard Navigation Through Media Grid Accessible",
+      "preconditions": "User has 15 media items",
+      "steps": "Given the user focuses on the Media tab\nWhen the user presses Tab to navigate thumbnails\nThen each thumbnail receives focus sequentially\nAnd pressing Enter opens the lightbox",
+      "expected_result": "Keyboard accessibility",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-014",
+      "title": "Screen Reader Announces Placeholder for Deleted Media",
+      "preconditions": "User has a deleted media attachment",
+      "steps": "Given the user navigates to the Media tab\nWhen a screen reader focuses on the placeholder thumbnail\nThen the announcement reads \"Post unavailable\"",
+      "expected_result": "Screen reader support",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-015",
+      "title": "SQL Injection Attempt in Post ID Parameter Fails Gracefully",
+      "preconditions": "User is authenticated",
+      "steps": "Given the user manually edits the URL to /profile?postId=1;DROP TABLE Posts\nWhen the page loads\nThen the system returns a 400 error page\nAnd no data is exposed",
+      "expected_result": "Injection prevented",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "API"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "SQL injection via query param"
+      ]
+    },
+    {
+      "case_id": "S4-TC-016",
+      "title": "Unauthorized User Cannot Access Another User's Private Posts",
+      "preconditions": "User A has private posts, User B is not a follower",
+      "steps": "Given User B navigates to User A's profile\nWhen the Posts tab is viewed\nThen only public and followers-only posts are displayed\nAnd private posts are absent",
+      "expected_result": "Access control enforced",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "API"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-017",
+      "title": "Responsive Breakpoint: Media Grid Adjusts to Mobile Width",
+      "preconditions": "User has 8 media items",
+      "steps": "Given the browser width is set to 375px\nWhen the Media tab is loaded\nThen the grid displays 2 columns\nAnd thumbnails are fully visible",
+      "expected_result": "Responsive layout",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S4-TC-018",
+      "title": "Rapid Switching Between Posts and Media Tabs Does Not Leak State",
+      "preconditions": "User has 20 posts and 20 media items",
+      "steps": "Given the user toggles between Posts and Media tabs 10 times quickly\nWhen the final tab is Posts\nThen the Posts list shows the correct 10 posts\nAnd no media thumbnails are displayed",
+      "expected_result": "No cross-tab leakage",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "combination",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Rapid tab switching"
+      ]
+    },
+    {
+      "case_id": "S4-TC-019",
+      "title": "Placeholder Thumbnail Appears for Media with Missing File URL",
+      "preconditions": "User has a media attachment with null file URL",
+      "steps": "Given the user navigates to the Media tab\nWhen the media grid renders\nThen a placeholder thumbnail with label \"Post unavailable.\" is shown",
+      "expected_result": "Graceful handling of missing media",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Null file URL"
+      ]
+    },
+    {
+      "case_id": "S4-TC-020",
+      "title": "Lightbox Opens Correctly for First Media Item",
+      "preconditions": "User has at least one media item",
+      "steps": "Given the user is on the Media tab\nWhen the user clicks the first thumbnail\nThen the lightbox opens displaying the media\nAnd the URL hash updates to #media-1",
+      "expected_result": "Lightbox functionality",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "None"
+      ]
+    },
+    {
+      "case_id": "S5-TC-001",
+      "title": "Default Posts Tab Selected on Profile Load",
+      "preconditions": "User is authenticated and navigates to /profile",
+      "steps": "Given the user is on the Profile Page\nWhen the page loads\nThen the \"Posts\" tab must be highlighted as active\nAnd the Posts API is called with limit=10 and offset=0",
+      "expected_result": "\"Posts\" tab active and first 10 posts displayed in reverse chronological order",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|API|smoke"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Default tab selection"
+      ]
+    },
+    {
+      "case_id": "S5-TC-002",
+      "title": "Infinite Scroll Loads Next 10 Posts When Scrolled to Bottom",
+      "preconditions": "User has at least 15 posts",
+      "steps": "Given the user is on the Profile Page and the first 10 posts are rendered\nWhen the user scrolls to the bottom of the posts list\nThen the system must call Posts API with offset=10 and limit=10\nAnd the next 5 posts are appended to the list",
+      "expected_result": "Total 15 posts displayed after scroll",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|API|regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Lazy loading boundary"
+      ]
+    },
+    {
+      "case_id": "S5-TC-003",
+      "title": "Posts Tab Shows Empty State When No Posts Exist",
+      "preconditions": "User has zero posts",
+      "steps": "Given the user is on the Profile Page\nWhen the Posts API returns an empty array\nThen the page must display \"You haven\u2019t posted yet.\"",
+      "expected_result": "Empty state message visible and no post cards rendered",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Empty posts"
+      ]
+    },
+    {
+      "case_id": "S5-TC-004",
+      "title": "Media Tab Shows Empty State When No Media Uploaded",
+      "preconditions": "User has zero media items",
+      "steps": "Given the user is on the Profile Page\nWhen the user clicks the \"Media\" tab\nAnd the Media API returns an empty array\nThen the page must display \"You haven\u2019t uploaded any media yet.\"",
+      "expected_result": "Empty state message visible and no media cards rendered",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Empty media"
+      ]
+    },
+    {
+      "case_id": "S5-TC-005",
+      "title": "Posts Tab Truncates Text at 200 Characters with Read More",
+      "preconditions": "User has a post with 250 characters of text",
+      "steps": "Given the user is on the Profile Page\nWhen the post card is rendered\nThen the displayed text must be truncated to 200 characters\nAnd a \"Read more\" link must be present",
+      "expected_result": "Truncated text + link visible; full text shown on click",
+      "priority": "P1",
+      "tags": [
+        "functional|UI|boundary"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Text length boundary"
+      ]
+    },
+    {
+      "case_id": "S5-TC-006",
+      "title": "Posts API Returns Posts in Reverse Chronological Order",
+      "preconditions": "User has 3 posts with timestamps T1 < T2 < T3",
+      "steps": "Given the user is on the Profile Page\nWhen the Posts API is called\nThen the response array must be ordered [T3, T2, T1]",
+      "expected_result": "API response sorted correctly",
+      "priority": "P1",
+      "tags": [
+        "functional|API|regression"
+      ],
+      "platform": "API",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Ordering"
+      ]
+    },
+    {
+      "case_id": "S5-TC-007",
+      "title": "Media Tab Lightbox Opens Correct Image on Click",
+      "preconditions": "User has at least one media item",
+      "steps": "Given the user is on the Profile Page and the Media tab is active\nWhen the user clicks on a media thumbnail\nThen a lightbox modal must open displaying the full image",
+      "expected_result": "Lightbox shows correct image and navigation controls",
+      "priority": "P1",
+      "tags": [
+        "functional|UI|regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Lightbox functionality"
+      ]
+    },
+    {
+      "case_id": "S5-TC-008",
+      "title": "Unauthorized User Cannot View Another User's Private Posts",
+      "preconditions": "User A is authenticated; User B has private posts",
+      "steps": "Given User A navigates to User B's profile\nWhen the Posts API is called\nThen the response must exclude User B's private posts",
+      "expected_result": "Only public and followers-only posts visible to User A",
+      "priority": "P0",
+      "tags": [
+        "security|negative|API"
+      ],
+      "platform": "API",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "Access control"
+      ]
+    },
+    {
+      "case_id": "S5-TC-009",
+      "title": "Session Expiry Mid-Scroll Does Not Crash Infinite Scroll",
+      "preconditions": "User has 20 posts; session expires after 5 scrolls",
+      "steps": "Given the user is on the Profile Page\nWhen the user scrolls to load more posts and the session token expires\nThen the UI must display a session expired modal and halt further API calls",
+      "expected_result": "No crash; graceful session expiry handling",
+      "priority": "P1",
+      "tags": [
+        "weird|negative|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Session expiry during async load"
+      ]
+    },
+    {
+      "case_id": "S5-TC-010",
+      "title": "Rapid Tab Switching Does Not Trigger Duplicate API Calls",
+      "preconditions": "User has posts and media",
+      "steps": "Given the user is on the Profile Page\nWhen the user quickly toggles between Posts and Media tabs 5 times\nThen each tab must call its API only once per visit and not duplicate requests",
+      "expected_result": "No duplicate network traffic; UI remains responsive",
+      "priority": "P1",
+      "tags": [
+        "weird|performance|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Rapid tab switching"
+      ]
+    },
+    {
+      "case_id": "S5-TC-011",
+      "title": "Posts Tab Handles Zero-Width Space in Title Gracefully",
+      "preconditions": "User has a post with title containing zero-width space",
+      "steps": "Given the user is on the Profile Page\nWhen the post card is rendered\nThen the title must display correctly without breaking layout",
+      "expected_result": "No layout shift; title visible",
+      "priority": "P2",
+      "tags": [
+        "weird|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Unicode whitespace"
+      ]
+    },
+    {
+      "case_id": "S5-TC-012",
+      "title": "Media Tab Shows Correct Empty State When Viewing Another User",
+      "preconditions": "User A views User B's profile; User B has no media",
+      "steps": "Given User A is on User B's profile\nWhen the Media tab is selected\nThen the page must display \"User B hasn\u2019t uploaded any media yet.\"",
+      "expected_result": "Correct personalized empty state message",
+      "priority": "P0",
+      "tags": [
+        "functional|UI|negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Other user empty state"
+      ]
+    },
+    {
+      "case_id": "S5-TC-013",
+      "title": "Posts Tab Handles 1 Post Exactly at Limit Boundary",
+      "preconditions": "User has exactly 1 post",
+      "steps": "Given the user is on the Profile Page\nWhen the Posts API returns 1 post\nThen the post card must be displayed and no pagination controls shown",
+      "expected_result": "Single post rendered correctly",
+      "priority": "P1",
+      "tags": [
+        "boundary|functional|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Single item boundary"
+      ]
+    },
+    {
+      "case_id": "S5-TC-014",
+      "title": "Posts Tab Handles 11 Posts (One Above Pagination Limit)",
+      "preconditions": "User has 11 posts",
+      "steps": "Given the user is on the Profile Page\nWhen the Posts API returns 11 posts\nThen the first 10 posts are displayed and infinite scroll loads the 11th on scroll",
+      "expected_result": "All 11 posts visible after scroll",
+      "priority": "P1",
+      "tags": [
+        "boundary|functional|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Just above limit"
+      ]
+    },
+    {
+      "case_id": "S5-TC-015",
+      "title": "Posts Tab Handles 0 Posts (Below Pagination Limit)",
+      "preconditions": "User has 0 posts",
+      "steps": "Given the user is on the Profile Page\nWhen the Posts API returns an empty array\nThen the empty state message is shown and no pagination controls appear",
+      "expected_result": "Empty state rendered correctly",
+      "priority": "P1",
+      "tags": [
+        "boundary|functional|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Zero items"
+      ]
+    },
+    {
+      "case_id": "S5-TC-016",
+      "title": "Keyboard Navigation to Posts Tab Works Correctly",
+      "preconditions": "User is on the Profile Page",
+      "steps": "Given the user focuses on the tab list with Tab key\nWhen the user presses ArrowRight to move to the Media tab\nThen the Media tab must become active and its content loaded",
+      "expected_result": "Keyboard navigation functional; focus outline visible",
+      "priority": "P2",
+      "tags": [
+        "accessibility|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Keyboard nav"
+      ]
+    },
+    {
+      "case_id": "S5-TC-017",
+      "title": "Screen Reader Announces Empty State in Posts Tab",
+      "preconditions": "User has no posts",
+      "steps": "Given the user navigates to the Profile Page\nWhen the Posts tab is active and empty state is displayed\nThen a screen reader must announce \"You haven\u2019t posted yet.\"",
+      "expected_result": "Accessible announcement present",
+      "priority": "P2",
+      "tags": [
+        "accessibility|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Screen reader"
+      ]
+    },
+    {
+      "case_id": "S5-TC-018",
+      "title": "API Rejects Posts Request with Invalid Offset Parameter",
+      "preconditions": "User is authenticated",
+      "steps": "Given the user sends a Posts API request with offset=-5\nWhen the server processes the request\nThen the response status must be 400 Bad Request with error message",
+      "expected_result": "Invalid parameter handled gracefully",
+      "priority": "P1",
+      "tags": [
+        "negative|API|security"
+      ],
+      "platform": "API",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "Invalid offset"
+      ]
+    },
+    {
+      "case_id": "S5-TC-019",
+      "title": "Media Tab Lightbox Handles Non-Image File Gracefully",
+      "preconditions": "User has a PDF uploaded as media",
+      "steps": "Given the user is on the Profile Page and the Media tab is active\nWhen the user clicks on the PDF thumbnail\nThen the lightbox must display a placeholder icon and a download link",
+      "expected_result": "Non-image media handled without crash",
+      "priority": "P1",
+      "tags": [
+        "negative|UI"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Unsupported media type"
+      ]
+    },
+    {
+      "case_id": "S5-TC-020",
+      "title": "Profile Page Loads Correctly on Mobile Breakpoint",
+      "preconditions": "Viewport width set to 375px",
+      "steps": "Given the user navigates to the Profile Page on mobile viewport\nWhen the page renders\nThen the Posts and Media tabs must stack vertically and be fully accessible",
+      "expected_result": "Responsive layout correct",
+      "priority": "P2",
+      "tags": [
+        "accessibility|UI|regression"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Responsive breakpoint"
+      ]
+    },
+    {
+      "case_id": "S6-TC-001",
+      "title": "Default Posts Tab Loads with 10 Posts on Profile Page",
+      "preconditions": "User is authenticated and has at least 15 posts.",
+      "steps": "Given the user navigates to /profile\nWhen the page loads\nThen the Posts tab is selected by default\nAnd the system queries the Post API with limit=10\nAnd 10 post cards are rendered in reverse chronological order",
+      "expected_result": "10 posts displayed, newest first, Posts tab active",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "smoke"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Default tab selection"
+      ]
+    },
+    {
+      "case_id": "S6-TC-002",
+      "title": "Infinite Scroll Loads Next 10 Posts When Scrolled to Bottom",
+      "preconditions": "User has 25 posts.",
+      "steps": "Given the user is on the Posts tab with 10 posts displayed\nWhen the user scrolls to the bottom of the list\nThen the system requests the next 10 posts\nAnd 20 posts are displayed in total",
+      "expected_result": "20 posts rendered, no duplicate or missing items",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Lazy loading"
+      ]
+    },
+    {
+      "case_id": "S6-TC-003",
+      "title": "Posts Tab Shows Truncated Text with Read More Link for 250-Char Posts",
+      "preconditions": "User has a post with 250 characters of text.",
+      "steps": "Given the user is on the Posts tab\nWhen the post card is rendered\nThen the text is truncated to 200 characters\nAnd a 'Read more' link is visible",
+      "expected_result": "200-char preview + link, full text on click",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Text truncation"
+      ]
+    },
+    {
+      "case_id": "S6-TC-004",
+      "title": "Posts Tab Handles Zero Posts Gracefully",
+      "preconditions": "User has no posts.",
+      "steps": "Given the user navigates to /profile\nWhen the Posts tab loads\nThen the system displays 'No posts to show' message",
+      "expected_result": "User sees friendly message, no errors",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Empty data set"
+      ]
+    },
+    {
+      "case_id": "S6-TC-005",
+      "title": "Media Tab Loads First 10 Media Items on Initial Render",
+      "preconditions": "User has 12 media items.",
+      "steps": "Given the user clicks the Media tab\nWhen the tab loads\nThen the system queries Media API with limit=10\nAnd 10 media thumbnails are displayed",
+      "expected_result": "10 media items rendered, thumbnails visible",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "smoke"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Initial media load"
+      ]
+    },
+    {
+      "case_id": "S6-TC-006",
+      "title": "Media Lightbox Opens with Correct Image on Thumbnail Click",
+      "preconditions": "User has at least one media item.",
+      "steps": "Given the user is on the Media tab\nWhen the user clicks a media thumbnail\nThen a lightbox opens\nAnd the clicked image is displayed in full size",
+      "expected_result": "Lightbox shows correct image, navigation controls functional",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "UI",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Lightbox functionality"
+      ]
+    },
+    {
+      "case_id": "S6-TC-007",
+      "title": "Network Timeout While Loading Posts Displays Inline Retry",
+      "preconditions": "User is on Posts tab, API times out.",
+      "steps": "Given the user navigates to /profile\nWhen the Post API request times out\nThen the system displays 'Unable to load posts. Retry.' inline\nAnd a Retry button is visible",
+      "expected_result": "Error message + Retry button, no crash",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "negative",
+        "API"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "API timeout"
+      ]
+    },
+    {
+      "case_id": "S6-TC-008",
+      "title": "Retry Button Re-fetches Posts After Network Failure",
+      "preconditions": "Previous retry attempt failed, now network restored.",
+      "steps": "Given the user sees the retry message\nWhen the user clicks Retry\nThen the system re-queries the Post API\nAnd posts are displayed successfully",
+      "expected_result": "Posts load after retry, message disappears",
+      "priority": "P0",
+      "tags": [
+        "functional",
+        "API",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Retry logic"
+      ]
+    },
+    {
+      "case_id": "S6-TC-009",
+      "title": "Retry Button Disabled When API Still Loading",
+      "preconditions": "User clicks Retry while request in flight.",
+      "steps": "Given the user clicks Retry\nWhen the API request is pending\nThen the Retry button is disabled\nAnd a spinner is shown",
+      "expected_result": "No duplicate requests, UI indicates loading",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "UI",
+        "negative"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Race condition on retry"
+      ]
+    },
+    {
+      "case_id": "S6-TC-010",
+      "title": "Posts Tab Handles 1 Post Exactly at Pagination Boundary",
+      "preconditions": "User has exactly 10 posts.",
+      "steps": "Given the user navigates to /profile\nWhen the Posts tab loads\nThen 10 posts are displayed\nAnd no 'Load more' indicator appears",
+      "expected_result": "Boundary condition handled, no extra request",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "boundary"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Exact page size"
+      ]
+    },
+    {
+      "case_id": "S6-TC-011",
+      "title": "Posts Tab Handles 11 Posts (One Above Boundary)",
+      "preconditions": "User has 11 posts.",
+      "steps": "Given the user navigates to /profile\nWhen the Posts tab loads\nThen 10 posts are displayed\nAnd scrolling loads the 11th post",
+      "expected_result": "Pagination works for one above boundary",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "boundary"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "One above boundary"
+      ]
+    },
+    {
+      "case_id": "S6-TC-012",
+      "title": "Posts Tab Handles 9 Posts (One Below Boundary)",
+      "preconditions": "User has 9 posts.",
+      "steps": "Given the user navigates to /profile\nWhen the Posts tab loads\nThen 9 posts are displayed\nAnd no further load is attempted",
+      "expected_result": "No unnecessary API calls",
+      "priority": "P1",
+      "tags": [
+        "functional",
+        "boundary"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "One below boundary"
+      ]
+    },
+    {
+      "case_id": "S6-TC-013",
+      "title": "Unauthorized User Cannot Access Profile Page",
+      "preconditions": "User is not authenticated.",
+      "steps": "Given the user navigates to /profile\nWhen the request is made\nThen the system redirects to /login",
+      "expected_result": "Access denied, redirect occurs",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "Auth bypass"
+      ]
+    },
+    {
+      "case_id": "S6-TC-014",
+      "title": "Session Expiry Mid-Scroll Triggers Re-authentication Prompt",
+      "preconditions": "User is authenticated, session expires after 5 minutes.",
+      "steps": "Given the user scrolls to load more posts after session expiry\nWhen the API returns 401\nThen the system shows a modal asking to re-login",
+      "expected_result": "User can re-authenticate without data loss",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Session expiry during action"
+      ]
+    },
+    {
+      "case_id": "S6-TC-015",
+      "title": "Keyboard Navigation Through Posts Tab Works with Tab Key",
+      "preconditions": "User is on Posts tab.",
+      "steps": "Given the user focuses on the page\nWhen the user presses Tab repeatedly\nThen focus moves through post cards sequentially\nAnd pressing Enter opens the post detail",
+      "expected_result": "Full keyboard accessibility",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Keyboard nav"
+      ]
+    },
+    {
+      "case_id": "S6-TC-016",
+      "title": "Screen Reader Announces 'No posts to show' When Profile Is Empty",
+      "preconditions": "User has no posts.",
+      "steps": "Given the user navigates to /profile\nWhen the Posts tab loads\nThen the screen reader reads 'No posts to show'",
+      "expected_result": "Assistive tech compatibility",
+      "priority": "P2",
+      "tags": [
+        "accessibility",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Screen reader"
+      ]
+    },
+    {
+      "case_id": "S6-TC-017",
+      "title": "Rapid Clicking Retry Button Does Not Trigger Multiple API Calls",
+      "preconditions": "Network failure on initial load.",
+      "steps": "Given the user sees the retry message\nWhen the user clicks Retry 5 times quickly\nThen only one API request is sent\nAnd posts load once",
+      "expected_result": "Debounce logic prevents duplicate requests",
+      "priority": "P1",
+      "tags": [
+        "negative",
+        "regression"
+      ],
+      "platform": "WEB",
+      "test_type": "e2e",
+      "ai_generated": true,
+      "edge_cases": [
+        "Rapid actions"
+      ]
+    },
+    {
+      "case_id": "S6-TC-018",
+      "title": "Copy-Paste HTML into Post Text Field Triggers Sanitization",
+      "preconditions": "User is composing a new post.",
+      "steps": "Given the user pastes '<script>alert(1)</script>' into the text area\nWhen the post is submitted\nThen the script tag is removed from stored content",
+      "expected_result": "No XSS injection possible",
+      "priority": "P0",
+      "tags": [
+        "security",
+        "negative"
+      ],
+      "platform": "WEB",
+      "test_type": "negative",
+      "ai_generated": true,
+      "edge_cases": [
+        "HTML injection"
+      ]
+    },
+    {
+      "case_id": "S6-TC-019",
+      "title": "RTL Text in Post Title Renders Correctly in Post Card",
+      "preconditions": "User has a post with Arabic title.",
+      "steps": "Given the user is on Posts tab\nWhen the post card renders\nThen the RTL title aligns to the right and is fully visible",
+      "expected_result": "Proper RTL support",
+      "priority": "P2",
+      "tags": [
+        "weird",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "RTL text"
+      ]
+    },
+    {
+      "case_id": "S6-TC-020",
+      "title": "Zero-Width Space in Media Filename Does Not Break Lightbox",
+      "preconditions": "Media item filename contains zero-width space.",
+      "steps": "Given the user clicks the media thumbnail\nWhen the lightbox opens\nThen the image loads correctly without broken link",
+      "expected_result": "Filename sanitization works",
+      "priority": "P2",
+      "tags": [
+        "weird",
+        "UI"
+      ],
+      "platform": "WEB",
+      "test_type": "regression",
+      "ai_generated": true,
+      "edge_cases": [
+        "Zero-width space"
+      ]
+    }
+  ]
+}

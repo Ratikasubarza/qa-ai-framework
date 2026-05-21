@@ -1,0 +1,1 @@
+INFO     httpx:_client.py:1773 HTTP Request: GET https://api-dev.thehono.com/v1/search/posts?query=hono&tab=recent "HTTP/1.1 401 Unauthorized"

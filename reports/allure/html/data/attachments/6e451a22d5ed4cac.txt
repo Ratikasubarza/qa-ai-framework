@@ -1,0 +1,5 @@
+2026-05-16 09:48:00 [info     ] api_post                       path=/v1/users/login status=200
+2026-05-16 09:48:01 [info     ] api_post                       path=/v1/users/register status=200
+2026-05-16 09:48:02 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:48:02 [info     ] db_disconnected
+2026-05-16 09:48:03 [info     ] api_post                       path=/v1/users/4556703c-50c9-11f1-852f-021fe5155c2f/approve status=200

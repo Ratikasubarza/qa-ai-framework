@@ -1,0 +1,4 @@
+INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/register "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/login "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/1ef42dc3-5498-11f1-852f-021fe5155c2f/approve "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/00000000-0000-0000-0000-000000000000/follow "HTTP/1.1 401 Unauthorized"

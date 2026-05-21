@@ -1,0 +1,2 @@
+2026-05-16 03:58:16 [info     ] api_put                        path=/v1/users/me/password status=401
+2026-05-16 03:58:16 [debug    ] assert_status                  actual=401 expected=401

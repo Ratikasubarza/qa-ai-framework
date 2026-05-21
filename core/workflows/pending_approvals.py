@@ -95,7 +95,7 @@ class PendingApprovalStore:
 
         # Best-effort: trigger pipeline resume via GitHub Actions workflow_dispatch
         try:
-            from mcp_tools.github_client import github_client as gh
+            from integrations.github_client import github_client as gh
             gh.trigger_workflow(
                 workflow_id="resume_pipeline.yml",
                 inputs={

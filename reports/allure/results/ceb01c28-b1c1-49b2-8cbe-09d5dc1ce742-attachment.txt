@@ -1,0 +1,5 @@
+INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/register "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/login "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/3f2b02e6-5498-11f1-852f-021fe5155c2f/approve "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/login "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1773 HTTP Request: PUT https://api-dev.thehono.com/v1/users/me/email "HTTP/1.1 500 Internal Server Error"

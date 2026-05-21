@@ -1,0 +1,16 @@
+2026-05-18 07:37:35 [info     ] test_user_registered           email=testonboard+1779061054774@mailinator.com
+2026-05-18 07:37:36 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-18 07:37:36 [info     ] db_verified_set                affected=1 email=testonboard+1779061054774@mailinator.com
+2026-05-18 07:37:36 [info     ] db_disconnected
+2026-05-18 07:37:37 [info     ] test_user_approved             email=testonboard+1779061054774@mailinator.com status=200
+2026-05-18 07:37:39 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-18 07:37:39 [info     ] db_password_set                affected=1 email=testonboard+1779061054774@mailinator.com
+2026-05-18 07:37:39 [info     ] db_disconnected
+2026-05-18 07:37:39 [info     ] test_user_ready                email=testonboard+1779061054774@mailinator.com status=APPROVED
+2026-05-18 07:37:39 [info     ] api_post                       path=/v1/users/login status=200
+2026-05-18 07:37:39 [info     ] api_put                        path=/v1/users/onboarding status=200
+
+  First onboarding: 200
+2026-05-18 07:37:39 [info     ] api_put                        path=/v1/users/onboarding status=422
+  Second onboarding: 422 {'code': 'NOKUNPROC', 'message': 'failed to create membership: Membership already exists for this user', 'data': None}
+  ✓ Double onboarding handled correctly: 422

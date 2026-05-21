@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints, ReferenceIDs
 
 pytestmark = allure.feature("Master Data")
@@ -56,7 +56,7 @@ async def test_TC_MSTR_003_get_industries_no_api_key():
         timeout=30,
     ) as client:
         response = await client.get("/v1/master/industries")
-    APIAssertions(response).status_in(401, 403)
+    SchemaValidator(response).status_in(401, 403)
 
 
 # ── GET /v1/master/business-areas ────────────────────────────────────────────
@@ -112,7 +112,7 @@ async def test_TC_MSTR_007_get_personal_interests_no_token():
     """TC-MSTR-007 | Security | Personal interests without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.MASTER_PERSONAL_INTERESTS)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/master/social-causes ─────────────────────────────────────────────
@@ -137,7 +137,7 @@ async def test_TC_MSTR_009_get_social_causes_no_token():
     """TC-MSTR-009 | Security | Social causes without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.MASTER_SOCIAL_CAUSES)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/master/countries ──────────────────────────────────────────────────
@@ -166,7 +166,7 @@ async def test_TC_MSTR_011_get_countries_no_token():
     """TC-MSTR-011 | Security | Countries without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.MASTER_COUNTRIES)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/master/cities ─────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ async def test_TC_MSTR_013_get_cities_missing_country_id(master_data_token):
             APIEndpoints.MASTER_CITIES,
             headers=_auth_header(master_data_token),
         )
-    APIAssertions(response).status_in(400, 422, 200)
+    SchemaValidator(response).status_in(400, 422, 200)
 
 
 @pytest.mark.negative
@@ -209,7 +209,7 @@ async def test_TC_MSTR_014_get_cities_no_token():
             APIEndpoints.MASTER_CITIES,
             params={"country_id": ReferenceIDs.INDONESIA},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/master/relationship-types ────────────────────────────────────────
@@ -237,4 +237,4 @@ async def test_TC_MSTR_016_get_relationship_types_no_token():
     """TC-MSTR-016 | Security | Relationship types without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.MASTER_RELATIONSHIP_TYPES)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)

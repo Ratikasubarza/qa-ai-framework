@@ -1,0 +1,13 @@
+2026-05-18 07:39:06 [info     ] test_user_registered           email=testonboard+1779061146969@mailinator.com
+2026-05-18 07:39:08 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-18 07:39:08 [info     ] db_verified_set                affected=1 email=testonboard+1779061146969@mailinator.com
+2026-05-18 07:39:08 [info     ] db_disconnected
+2026-05-18 07:39:09 [info     ] test_user_approved             email=testonboard+1779061146969@mailinator.com status=200
+2026-05-18 07:39:10 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-18 07:39:10 [info     ] db_password_set                affected=1 email=testonboard+1779061146969@mailinator.com
+2026-05-18 07:39:10 [info     ] db_disconnected
+2026-05-18 07:39:10 [info     ] test_user_ready                email=testonboard+1779061146969@mailinator.com status=APPROVED
+2026-05-18 07:39:10 [info     ] api_post                       path=/v1/users/login status=200
+2026-05-18 07:39:11 [info     ] api_put                        path=/v1/users/onboarding status=200
+
+[DEV-BUG?] social_cause_ids below min(1): 200 {'code': 'OK', 'message': 'Data saved', 'data': {'id': '983cc1b6-5249-11f1-852f-021fe5155c2f', 'name': 'Test User 1779061146969', 'onboarding_completed_at': '2026-05-17T23:39:11Z'}}

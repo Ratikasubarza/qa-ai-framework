@@ -5,15 +5,17 @@ Handles browser setup, teardown, and common page operations.
 import structlog
 from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 from typing import Optional
+from config.test_config import TestConfig
 from config.settings import settings
 
 logger = structlog.get_logger(__name__)
 
 # Target environments
 URLS = {
-    "staging": "https://app-dev.thehono.com",
-    "api":     "https://api-dev.thehono.com",
-    "cms":     "https://cms-dev.thehono.com",
+    "staging": TestConfig.WEB_APP_URL,
+    "web":     TestConfig.WEB_APP_URL,
+    "api":     TestConfig.API_URL,
+    "cms":     TestConfig.CMS_URL,
 }
 
 
@@ -32,10 +34,13 @@ class PlaywrightDriver:
             headless=self.headless,
             slow_mo=self.slow_mo,
         )
+        # ignore_https_errors is intentional for staging (self-signed certs).
+        # Controlled via PLAYWRIGHT_IGNORE_HTTPS_ERRORS env var (default: False).
+        _ignore_tls = settings.playwright_ignore_https_errors
         self._context = self._browser.new_context(
             base_url=URLS.get(env, URLS["staging"]),
             viewport={"width": 1280, "height": 720},
-            ignore_https_errors=True,
+            ignore_https_errors=_ignore_tls,
         )
         self._page = self._context.new_page()
         logger.info("playwright_started", env=env, headless=self.headless)

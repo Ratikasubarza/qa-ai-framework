@@ -1,0 +1,92 @@
+Case ID,Title,Preconditions,Steps,Expected Result,Priority,Tags,Platform,AI Generated
+TC-001,View profile page after successful login,User is logged in with a valid session token,"Given Given the user is on the dashboard page
+When When the user clicks the profile icon in the header
+When Then the profile page is displayed
+Then And the user's name, email, and profile picture are visible",Profile page loads within 2 seconds and displays correct user data,P1,"functional, UI, smoke",WEB,true
+TC-002,Edit profile with valid data and save,User is on the profile page with editable fields,"Given Given the user is on the profile page
+When When the user clicks ""Edit"" and changes the display name to ""John Doe""
+When And updates the bio to ""Software engineer at Acme Corp.""
+When And clicks ""Save""
+When Then a success toast ""Profile updated"" appears
+Then And the new name and bio are displayed",Profile updates persist and are shown immediately,P1,"functional, UI, regression",WEB,true
+TC-003,Attempt to save profile with empty required name field,User is on the profile page in edit mode,"Given Given the user is editing the profile
+When When the user clears the display name field
+When And clicks ""Save""
+When Then an inline error ""Name is required"" is shown next to the field
+Then And the profile is not updated",Validation prevents empty required fields,P1,"negative, validation, boundary",WEB,true
+TC-004,Save profile with maximum allowed name length (255 chars),User is on the profile page in edit mode,"Given Given the user is editing the profile
+When When the user enters a 255-character string into the display name field
+When And clicks ""Save""
+When Then the profile updates successfully
+Then And the name is displayed correctly",Maximum length accepted without truncation,P2,"boundary, functional",WEB,true
+TC-005,Attempt to save profile with name exceeding maximum length (256 chars),User is on the profile page in edit mode,"Given Given the user is editing the profile
+When When the user enters a 256-character string into the display name field
+When And clicks ""Save""
+When Then an inline error ""Name cannot exceed 255 characters"" is shown
+Then And the profile is not updated",Server-side validation blocks over-length input,P1,"negative, boundary",WEB,true
+TC-006,Save profile with special characters in name field,User is on the profile page in edit mode,"Given Given the user is editing the profile
+When When the user enters ""Jöhn Dœ!@#"" into the display name field
+When And clicks ""Save""
+When Then the profile updates successfully
+Then And the name is displayed exactly as entered",Special characters are preserved and displayed,P1,"functional, combination",WEB,true
+TC-007,Save profile with whitespace-only name field,User is on the profile page in edit mode,"Given Given the user is editing the profile
+When When the user enters a single space into the display name field
+When And clicks ""Save""
+When Then an inline error ""Name cannot be empty"" is shown
+Then And the profile is not updated",Whitespace-only input is treated as empty,P1,"negative, boundary",WEB,true
+TC-008,Rapidly click save button multiple times,User is on the profile page in edit mode with valid changes,"Given Given the user is editing the profile
+When When the user clicks ""Save"" five times in quick succession
+When Then only one API request is sent
+When And the profile updates once
+Then And no duplicate success toasts appear",Debounce prevents duplicate submissions,P1,"weird, negative, functional",WEB,true
+TC-009,Navigate back after successful profile update,User has just saved profile changes and is on the profile page,"Given Given the user is on the profile page after a successful update
+When When the user presses the browser back button
+When Then the previous page (e.g., dashboard) is displayed
+Then And the profile page reloads with updated data when navigated forward again",Back navigation preserves state and data integrity,P1,"weird, functional",WEB,true
+TC-010,Session expires while editing profile,User is logged in and editing profile; session timeout set to 1 minute,"Given Given the user is editing the profile
+When When 60 seconds pass without activity
+When And the user clicks ""Save""
+When Then a modal ""Session expired"" appears
+Then And the user is redirected to the login page",Session timeout handled gracefully during edit,P1,"security, negative, functional",WEB,true
+TC-011,Paste HTML/JS into name field and attempt to save,User is on the profile page in edit mode,"Given Given the user is editing the profile
+When When the user pastes ""<script>alert('xss')</script>"" into the display name field
+When And clicks ""Save""
+When Then the input is sanitized and stored as plain text
+Then And no script executes on the page",XSS protection prevents script execution,P1,"security, negative, weird",WEB,true
+TC-012,Profile page renders correctly in RTL language (Arabic),User has language preference set to Arabic,"Given Given the user logs in with Arabic locale
+When When the user navigates to the profile page
+When Then all text aligns right-to-left
+Then And the layout is not broken",RTL support renders correctly,P1,"accessibility, ui, weird",WEB,true
+TC-013,Profile page accessible via keyboard navigation only,User has disabled mouse input,"Given Given the user focuses on the profile icon using Tab key
+When When the user presses Enter
+When Then the profile page loads
+Then And all interactive elements are reachable via Tab order",Keyboard navigation works end-to-end,P1,"accessibility, ui",WEB,true
+TC-014,Profile picture upload with unsupported file type (PDF),User is on the profile page in edit mode,"Given Given the user is editing the profile
+When When the user selects a PDF file for profile picture
+When And clicks ""Save""
+When Then an error toast ""Unsupported file type"" appears
+Then And the profile picture is not changed",File type validation blocks non-image uploads,P1,"negative, validation",WEB,true
+TC-015,Profile picture upload exceeding size limit (5MB),User is on the profile page in edit mode,"Given Given the user is editing the profile
+When When the user selects a 6MB JPEG file for profile picture
+When And clicks ""Save""
+When Then an error toast ""File size exceeds 5MB"" appears
+Then And the profile picture is not changed",File size validation enforced,P1,"negative, validation",WEB,true
+TC-016,Profile page loads correctly on mobile viewport (375x667),User accesses site from a mobile device,"Given Given the user opens the site on a 375x667 viewport
+When When the user navigates to the profile page
+When Then all elements are visible without horizontal scrolling
+Then And the layout adapts to mobile size",Responsive design passes mobile viewport,P1,"ui, accessibility",WEB,true
+TC-017,Profile page displays correctly when user has no bio,User's bio field is empty in the database,"Given Given the user logs in
+When When the user navigates to the profile page
+Then Then the bio section shows ""No bio provided"" placeholder",Graceful handling of empty optional fields,P1,"functional, boundary",WEB,true
+TC-018,Attempt to access profile page without authentication,No valid session cookie present,"Given Given the user is not logged in
+When When the user navigates to /profile
+When Then the user is redirected to the login page
+Then And a flash message ""Please log in"" is shown",Unauthenticated access is blocked,P1,"security, negative",WEB,true
+TC-019,Profile page displays correct user data after concurrent update by another session,User A is viewing profile; User B updates profile in a separate session,"Given Given User A is on the profile page
+When When User B updates the display name to ""Alice""
+When And User A clicks the refresh button on the profile page
+Then Then User A sees the updated name ""Alice"" without page reload",Concurrent updates reflected correctly,P1,"combination, functional",WEB,true
+TC-020,Profile page shows loading indicator during API call,User is on the profile page and initiates an edit,"Given Given the user clicks ""Edit""
+When When the user changes the name and clicks ""Save""
+When Then a spinner appears on the save button
+Then And the button is disabled until the API response returns",User receives visual feedback during async operation,P1,"ui, functional",WEB,true

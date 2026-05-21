@@ -15,7 +15,10 @@ Usage:
 from playwright.sync_api import Page
 from platforms.web.pages.base_page import BasePage
 from features.login.locators.web.login_web_locators import (
-    EMAIL_FIELD, PASSWORD_FIELD, LOGIN_BUTTON, ERROR_MESSAGE, SUCCESS_URL,
+    EMAIL_FIELD, EMAIL_LABEL,
+    PASSWORD_FIELD, PASSWORD_LABEL,
+    LOGIN_BUTTON, LOGIN_BUTTON_NAME,
+    ERROR_MESSAGE, SUCCESS_URL,
 )
 
 
@@ -33,15 +36,21 @@ class LoginPage(BasePage):
         return self
 
     def enter_email(self, email: str) -> "LoginPage":
-        self.fill(EMAIL_FIELD, email, description="Email field")
+        self.fill_by_locator(
+            self.page.get_by_label(EMAIL_LABEL), email, description="Email field"
+        )
         return self
 
     def enter_password(self, password: str) -> "LoginPage":
-        self.fill(PASSWORD_FIELD, password, description="Password field")
+        self.fill_by_locator(
+            self.page.get_by_label(PASSWORD_LABEL), password, description="Password field"
+        )
         return self
 
     def submit(self) -> "LoginPage":
-        self.click(LOGIN_BUTTON, description="Login button")
+        self.click_by_locator(
+            self.page.get_by_role("button", name=LOGIN_BUTTON_NAME), description="Login button"
+        )
         return self
 
     def login(self, email: str, password: str) -> "LoginPage":

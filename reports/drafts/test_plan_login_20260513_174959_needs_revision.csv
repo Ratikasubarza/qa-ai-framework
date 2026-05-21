@@ -1,0 +1,2 @@
+scenario_id,name,precondition,steps,expected_result,priority,test_type,platforms,tags,regression_candidate,regression_risk_area
+TC-001,Valid login,,,,,,,,,

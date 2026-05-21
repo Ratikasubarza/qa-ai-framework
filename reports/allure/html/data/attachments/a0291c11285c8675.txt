@@ -1,0 +1,3 @@
+2026-05-18 07:37:04 [info     ] api_put                        path=/v1/users/onboarding status=401
+
+✓ No token blocked: 401

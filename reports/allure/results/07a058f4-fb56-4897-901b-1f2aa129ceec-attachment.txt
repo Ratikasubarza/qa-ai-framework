@@ -1,0 +1,2 @@
+2026-05-18 07:36:55 [info     ] api_post                       path=/v1/users/register status=200
+2026-05-18 07:36:55 [debug    ] assert_response_time           elapsed_ms=740.5260000000001 limit_ms=3000

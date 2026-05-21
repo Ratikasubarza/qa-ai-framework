@@ -1,0 +1,2 @@
+2026-05-18 07:36:48 [info     ] api_post                       path=/v1/users/login status=200
+2026-05-18 07:36:48 [debug    ] assert_response_time           elapsed_ms=375.68 limit_ms=3000

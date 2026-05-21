@@ -37,13 +37,15 @@ addopts = [
     "--tb=short",
     "--strict-markers",
     "-v",
-    "-n auto",
+    "-n",
+    "auto"
 ]
 testpaths = ["tests", "features"]
 log_cli = true
 log_cli_level = "INFO"
 markers = [
     "smoke:       happy-path end-to-end — run first",
+    "sanity:      core user flows — run after smoke before full regression",
     "regression:  full regression suite — merge gate / nightly",
     "security:    auth, RBAC, and access-control assertions",
     "negative:    expected rejection and error cases",

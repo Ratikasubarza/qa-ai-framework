@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PYTHONPATH=. ./venv/bin/python3.11 -m pytest features/login/steps/api/ features/register/steps/api/ features/cms_login/steps/api/ features/cms_users/steps/api/ features/onboarding/steps/api/ features/users_account/steps/api/ features/users_email/steps/api/ features/users_password/steps/api/ -v --tb=short)",
+      "Bash(PYTHONPATH=. ./venv/bin/python3.11 -m pytest features/posts/steps/api/create_post_api_test.py --collect-only -q)",
+      "Bash(PYTHONPATH=. ./venv/bin/python3.11 -m py_compile config/test_config.py config/error_messages.py config/test_data.py features/login/steps/api/login_api_test.py features/register/steps/api/register_api_test.py features/onboarding/steps/api/onboarding_api_test.py features/login/steps/web/login_web_app_test.py pytest.ini .pre-commit-config.yaml README.md)",
+      "Bash(tee /tmp/compile_check.txt)",
+      "Read(//tmp/**)",
+      "Bash(PYTHONPATH=. ./venv/bin/python3.11 -m py_compile orchestrator/pipeline.py cli.py)",
+      "Bash(git commit -m ' *)",
+      "Bash(PYTHONPATH=. ./venv/bin/python3.11 -c ' *)",
+      "Bash(PYTHONPATH=. ./venv/bin/python3.11 -m py_compile skills/auth/auth_helper.py skills/data/data_generator.py features/login/test_data/login_test_data.py features/register/test_data/register_test_data.py features/onboarding/test_data/onboarding_test_data.py)",
+      "Bash(PYTHONPATH=. ./venv/bin/python3.11 -m pytest features/login/steps/api/login_api_test.py features/register/steps/api/register_api_test.py features/onboarding/steps/api/onboarding_api_test.py -v --tb=short -x)",
+      "Bash(PYTHONPATH=. ./venv/bin/python3.11 -m pytest features/login/steps/api/login_api_test.py features/register/steps/api/register_api_test.py features/onboarding/steps/api/onboarding_api_test.py --collect-only -q)",
+      "Bash(git rm *)"
+    ]
+  }
+}

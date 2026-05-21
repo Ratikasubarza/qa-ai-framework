@@ -22,10 +22,10 @@ Runtime source adapters live in:
 
 | Source | Adapter |
 | --- | --- |
-| Jira | `mcp_tools/jira_client/jira_client.py` |
-| Confluence | `mcp_tools/confluence_client/confluence_client.py` |
-| Telegram | `mcp_tools/telegram_bot/run_bot.py` |
-| Jira webhook | `mcp_tools/jira_webhook/webhook_server.py` |
+| Jira | `integrations/jira_client/jira_client.py` |
+| Confluence | `integrations/confluence_client/confluence_client.py` |
+| Telegram | `integrations/telegram_bot/run_bot.py` |
+| Jira webhook | `integrations/jira_webhook/webhook_server.py` |
 
 This mode reads credentials from `.env`. It does not require starting an
 external MCP server for normal Jira/Confluence pipeline runs.
@@ -157,7 +157,7 @@ Do not start external MCP just to run:
 PYTHONPATH=. ./venv/bin/python3.11 cli.py pipeline ...
 ```
 
-The CLI pipeline already uses the Python adapters in `mcp_tools/`.
+The CLI pipeline already uses the Python adapters in `integrations/`.
 
 ## Safety Rules
 

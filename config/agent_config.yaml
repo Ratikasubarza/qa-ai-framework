@@ -5,7 +5,7 @@
 agents:
   test_case_agent:
     tier: standard
-    max_tokens: 2000
+    max_tokens: 3000
     prompt: test_case_gen
     prompt_version: "2.0.0"
     description: "Generates scoped QA test cases from Jira / PRD / story text"

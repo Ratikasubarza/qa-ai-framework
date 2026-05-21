@@ -1,0 +1,67 @@
+# Login — Android Locators
+# Source: features/login/locators/mobile/login_android_locators.py
+# Flutter app: elements identified by accessibility ID (content-desc) or EditText index.
+
+feature: login
+platform: android
+app_package: app.thehono.development
+last_audited: "2026-05-18"
+
+locators:
+  - name: ONBOARDING_LOGIN_LINK
+    primary: "Already have an account? Log in"
+    fallbacks:
+      - "Log in"
+      - "Sign in"
+    strategy: accessibility_id
+    description: "Link from onboarding screen to login"
+    required: true
+    confidence: 0.90
+    last_verified: "2026-05-18"
+    healing_history: []
+
+  - name: EMAIL_FIELD
+    primary: "android.widget.EditText"
+    index: 0
+    fallbacks: []
+    strategy: class_name_index
+    description: "Email input (EditText index 0) — Flutter app uses class index"
+    required: true
+    confidence: 0.75
+    last_verified: "2026-05-18"
+    healing_history: []
+    note: "Flutter does not expose resource-id; index may shift if form fields change"
+
+  - name: PASSWORD_FIELD
+    primary: "android.widget.EditText"
+    index: 1
+    fallbacks: []
+    strategy: class_name_index
+    description: "Password input (EditText index 1)"
+    required: true
+    confidence: 0.75
+    last_verified: "2026-05-18"
+    healing_history: []
+
+  - name: LOGIN_BUTTON
+    primary: "Login to my account"
+    fallbacks:
+      - "Login"
+      - "Sign in"
+    strategy: accessibility_id
+    description: "Login submit button"
+    required: true
+    confidence: 0.90
+    last_verified: "2026-05-18"
+    healing_history: []
+
+  - name: FEED_SCREEN
+    primary: "Home"
+    fallbacks:
+      - "HONO"
+    strategy: accessibility_id
+    description: "Bottom nav Home tab — confirms feed screen is visible after login"
+    required: true
+    confidence: 0.85
+    last_verified: "2026-05-18"
+    healing_history: []

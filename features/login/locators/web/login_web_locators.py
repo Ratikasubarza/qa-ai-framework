@@ -1,14 +1,20 @@
 """
 Login Page Locators — single source of truth for login page elements.
-Priority order: data-testid > role > attribute > placeholder > CSS
+Priority order: role > label > placeholder > CSS attribute
 All locators verified against app-dev.thehono.com
+
+Preferred: role-based locators via page.get_by_role() / page.get_by_label()
+Fallback:  CSS attribute selectors kept for self-healer snapshot context
 """
 
-# ── Form Fields ───────────────────────────────────────────────────────
+# ── Semantic role specs — use with BasePage.get_by_role() / page.get_by_label()
+EMAIL_LABEL       = "Email"              # page.get_by_label("Email")
+PASSWORD_LABEL    = "Password"           # page.get_by_label("Password")
+LOGIN_BUTTON_NAME = "Login to my account"  # page.get_by_role("button", name=...)
+
+# ── CSS fallback — kept for Self-Healer snapshot and wait_for() compatibility
 EMAIL_FIELD    = 'input[type="email"]'
 PASSWORD_FIELD = 'input[type="password"]'
-
-# ── Buttons ───────────────────────────────────────────────────────────
 LOGIN_BUTTON   = 'button[type="submit"]'
 
 # ── Messages ──────────────────────────────────────────────────────────

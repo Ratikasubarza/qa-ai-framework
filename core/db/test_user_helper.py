@@ -17,6 +17,47 @@ logger = structlog.get_logger(__name__)
 
 TEST_PASSWORD = os.getenv("TEST_USER_PASSWORD", "TestPass123!")
 
+def parse_json_response(resp: httpx.Response, action: str) -> dict:
+    """
+    Safely parse HTTP response as JSON with useful debugging info.
+    Prevents raw JSONDecodeError without context.
+    """
+    content_type = resp.headers.get("content-type", "")
+    body_preview = resp.text[:1000] if resp.text else "<empty body>"
+
+    if resp.status_code >= 400:
+        raise AssertionError(
+            f"{action} failed. "
+            f"Status={resp.status_code}, "
+            f"Content-Type={content_type}, "
+            f"Body={body_preview}"
+        )
+
+    if not resp.text.strip():
+        raise AssertionError(
+            f"{action} returned empty body. "
+            f"Status={resp.status_code}, "
+            f"Content-Type={content_type}"
+        )
+
+    if "application/json" not in content_type.lower():
+        raise AssertionError(
+            f"{action} response is not JSON. "
+            f"Status={resp.status_code}, "
+            f"Content-Type={content_type}, "
+            f"Body={body_preview}"
+        )
+
+    try:
+        return resp.json()
+    except ValueError as exc:
+        raise AssertionError(
+            f"{action} returned invalid JSON. "
+            f"Status={resp.status_code}, "
+            f"Content-Type={content_type}, "
+            f"Body={body_preview}"
+        ) from exc
+
 
 async def create_approved_user(
     fullname: str = None,
@@ -25,14 +66,14 @@ async def create_approved_user(
 ) -> dict:
     """
     Create a fully approved test user ready to login.
-    
+
     Returns:
         dict with email, password, user_id
-    
+
     Flow:
         1. Register via API
-        2. set_verified in DB
-        3. Approve via CMS API  
+        2. Set verified in DB
+        3. Approve via CMS API
         4. Override password in DB
     """
     ts = suffix or int(time.time())
@@ -40,86 +81,137 @@ async def create_approved_user(
     phone = str(ts)[-8:]
     pwd = password or TEST_PASSWORD
 
+    api_url = os.getenv("HONO_API_URL")
+    api_key = os.getenv("HONO_API_KEY")
+
+    if not api_url:
+        raise EnvironmentError("HONO_API_URL must be set in .env")
+
+    if not api_key:
+        raise EnvironmentError("HONO_API_KEY must be set in .env")
+
     # Step 1: Register
     async with httpx.AsyncClient(
-        base_url=os.getenv("HONO_API_URL"),
-        headers={"x-api-key": os.getenv("HONO_API_KEY")},
-        timeout=30
+        base_url=api_url,
+        headers={"x-api-key": api_key},
+        timeout=30,
     ) as client:
         resp = await client.post("/v1/users/register", json={
             "fullname": fullname or f"Test User {ts}",
             "email": email,
             "phone_number": f"81{phone}",
             "phone_country_code": "ID",
-            "linkedin": f"https://linkedin.com/in/testuser{ts}"
+            "linkedin": f"https://linkedin.com/in/testuser{ts}",
         })
+
     if resp.status_code == 500 and "email sending quota" in resp.text:
         raise pytest.skip.Exception("Resend daily email quota reached — skip test")
-    assert resp.status_code == 200, f"Register failed: {resp.status_code} {resp.json()}"
+
+    register_data = parse_json_response(resp, "Register user")
+
+    assert resp.status_code == 200, (
+        f"Register failed. "
+        f"Status={resp.status_code}, "
+        f"Body={register_data}"
+    )
+
     logger.info("test_user_registered", email=email)
 
-    # Step 2: Set verified in DB — poll until row appears (up to 5s)
+    # Step 2: Set verified in DB — poll until row appears
     deadline = time.monotonic() + 5.0
     user = None
+
     while time.monotonic() < deadline:
         with DBClient() as db:
             user = db.get_user_by_email(email)
+
         if user:
             break
+
         time.sleep(0.3)
+
     assert user, f"User not found in DB after 5s: {email}"
+
     with DBClient() as db:
         db.set_verified(email)
 
     # Step 3: Get CMS token + approve
     async with httpx.AsyncClient(
-        base_url=os.getenv("HONO_API_URL"),
-        headers={"x-api-key": os.getenv("HONO_API_KEY")},
-        timeout=30
+        base_url=api_url,
+        headers={"x-api-key": api_key},
+        timeout=30,
     ) as client:
-        # CMS login
-        _cms_email    = os.getenv("CMS_EMAIL", "")
+        _cms_email = os.getenv("CMS_EMAIL", "")
         _cms_password = os.getenv("CMS_PASSWORD", "")
+
         if not _cms_email or not _cms_password:
             raise EnvironmentError("CMS_EMAIL and CMS_PASSWORD must be set in .env")
+
         login_resp = await client.post("/v1/users/login", json={
-            "email":    _cms_email,
+            "email": _cms_email,
             "password": _cms_password,
-            "resource": "admin"
+            "resource": "admin",
         })
-        login_data = login_resp.json()
+
+        login_data = parse_json_response(login_resp, "CMS login")
+
         body = login_data.get("data", login_data)
         cms_token = body.get("accessToken") or body.get("token", "")
-        assert cms_token, f"CMS token empty: {login_data}"
 
-        # Approve user
+        assert cms_token, (
+            f"CMS token empty. "
+            f"Status={login_resp.status_code}, "
+            f"Body={login_data}"
+        )
+
         approve_resp = await client.post(
             f"/v1/users/{user['id']}/approve",
-            headers={"Authorization": f"Bearer {cms_token}"}
+            headers={"Authorization": f"Bearer {cms_token}"},
         )
-    logger.info("test_user_approved",
-        email=email, status=approve_resp.status_code)
+
+    if approve_resp.status_code >= 400:
+        raise AssertionError(
+            f"Approve user failed. "
+            f"Status={approve_resp.status_code}, "
+            f"Content-Type={approve_resp.headers.get('content-type')}, "
+            f"Body={approve_resp.text[:1000] if approve_resp.text else '<empty body>'}"
+        )
+
+    logger.info(
+        "test_user_approved",
+        email=email,
+        status=approve_resp.status_code,
+    )
 
     # Step 4: Override password — poll until approved status is persisted
     deadline = time.monotonic() + 5.0
+
     while time.monotonic() < deadline:
         with DBClient() as db:
             _u = db.get_user_by_email(email)
+
         if _u and _u.get("status") == "APPROVED":
             break
+
         time.sleep(0.3)
+
     with DBClient() as db:
         db.set_password(email, pwd)
         final_user = db.get_user_by_email(email)
 
-    logger.info("test_user_ready",
-        email=email, status=final_user["status"])
+    assert final_user, f"Final user not found in DB: {email}"
+
+    logger.info(
+        "test_user_ready",
+        email=email,
+        status=final_user["status"],
+    )
 
     return {
-        "email":    email,
+        "email": email,
         "password": pwd,
-        "user_id":  user["id"],
-        "status":   final_user["status"],
+        "user_id": user["id"],
+        "status": final_user["status"],
         "fullname": fullname or f"Test User {ts}",
     }
 

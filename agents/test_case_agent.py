@@ -29,8 +29,8 @@ from core.prompt_manager import prompt_manager
 from knowledge_base.rag_engine import rag_engine
 from core.workflows.approval_workflow import review_queue
 from config.settings import settings
-from mcp_tools.jira_client.jira_client import jira_client
-from mcp_tools.confluence_client.confluence_client import ConfluenceClient
+from integrations.jira_client.jira_client import jira_client
+from integrations.confluence_client.confluence_client import ConfluenceClient
 import asyncio
 
 logger = structlog.get_logger(__name__)

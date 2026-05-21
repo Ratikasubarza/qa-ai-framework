@@ -1,0 +1,28 @@
+{
+  "feature": "Login",
+  "run_id": "20260513_195312",
+  "status": "needs_revision",
+  "case_review": {
+    "status": "needs_revision",
+    "quality_score": 5.5,
+    "quality_score_raw": 5.5,
+    "coverage_percentage": 60.0,
+    "findings": {
+      "critical": 1,
+      "major": 2,
+      "minor": 0
+    },
+    "missing_test_cases": [
+      "Missing invalid password test"
+    ],
+    "prd_clarifications": [],
+    "recommendation": "revise",
+    "traceability_matrix": []
+  },
+  "test_cases": [
+    {
+      "scenario_id": "TC-001",
+      "name": "Valid login"
+    }
+  ]
+}

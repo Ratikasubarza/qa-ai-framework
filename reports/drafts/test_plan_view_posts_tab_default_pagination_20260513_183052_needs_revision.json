@@ -1,0 +1,4218 @@
+{
+  "feature": "View Posts Tab (Default & Pagination)",
+  "run_id": "20260513_183052",
+  "status": "needs_revision",
+  "case_review": {
+    "status": "needs_revision",
+    "quality_score": 7.4,
+    "quality_score_raw": 7.4,
+    "coverage_percentage": 92.9,
+    "findings": {
+      "critical": 2,
+      "major": 7,
+      "minor": 5
+    },
+    "missing_test_cases": [
+      {
+        "priority": "P0",
+        "title": "Verify API payload excludes muted/blocked user IDs",
+        "reason": "PRD requires backend filtering; current tests only check UI.",
+        "covers_requirement": "REQ-005"
+      },
+      {
+        "priority": "P0",
+        "title": "Rate\u2011limit back\u2011off and successful retry after 429",
+        "reason": "PRD expects graceful handling and ability to retry; existing test only checks toast.",
+        "covers_requirement": "REQ-012"
+      },
+      {
+        "priority": "P1",
+        "title": "Validate localisation of all UI strings (empty states, toasts, labels)",
+        "reason": "Multiple tests use hard\u2011coded English strings; localisation not verified.",
+        "covers_requirement": "REQ-006, REQ-007"
+      },
+      {
+        "priority": "P1",
+        "title": "Confirm that tapping a missing\u2011media placeholder does not navigate or crash",
+        "reason": "PRD specifies graceful handling of unavailable media; test missing.",
+        "covers_requirement": "REQ-011"
+      },
+      {
+        "priority": "P2",
+        "title": "Verify that scroll position is preserved after device orientation change",
+        "reason": "User experience edge case not covered; could affect pagination state.",
+        "covers_requirement": "REQ-003"
+      }
+    ],
+    "prd_clarifications": [
+      "Should the \"Read more\" link toggle to \"Show less\" and collapse the text, or is expansion one\u2011way only?",
+      "When a post is deleted while the user is on the Posts tab, must the UI remove it in real\u2011time or only on next pagination request?",
+      "Is there a maximum number of topics per post that impacts the Posts tab UI (e.g., layout overflow)?",
+      "For rate\u2011limit handling, does the client need to implement exponential back\u2011off, or is a simple retry sufficient?"
+    ],
+    "recommendation": "The test suite provides solid coverage of the happy\u2011path pagination and UI rendering requirements, but it lacks depth in API contract validation, error\u2011recovery flows, and localisation. Address the critical gaps around muted/blocked filtering verification and rate\u2011limit retry logic, and add the missing test cases outlined above. Once these are incorporated, the coverage will be near\u2011complete and the suite will be robust for regression testing.",
+    "traceability_matrix": [
+      {
+        "requirement_id": "REQ-001",
+        "requirement_summary": "Default Posts tab loads first page (10) sorted reverse\u2011chronologically",
+        "covering_test_cases": [
+          "TC-001",
+          "TC-009",
+          "TC-019",
+          "TC-029",
+          "TC-047",
+          "TC-056",
+          "TC-081",
+          "TC-083"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-002",
+        "requirement_summary": "Post text truncation at 200 characters with tappable \"Read more\" (expand/collapse)",
+        "covering_test_cases": [
+          "TC-011",
+          "TC-035",
+          "TC-057",
+          "TC-080",
+          "TC-081",
+          "TC-082"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-003",
+        "requirement_summary": "Infinite scroll pagination loads subsequent pages, respects pageSize=10, appends without duplication",
+        "covering_test_cases": [
+          "TC-002",
+          "TC-010",
+          "TC-020",
+          "TC-047",
+          "TC-048",
+          "TC-054",
+          "TC-059",
+          "TC-072",
+          "TC-082",
+          "TC-083"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-004",
+        "requirement_summary": "End\u2011of\u2011feed indicator when no more posts are available",
+        "covering_test_cases": [
+          "TC-004",
+          "TC-042",
+          "TC-044",
+          "TC-048",
+          "TC-074",
+          "TC-082"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-005",
+        "requirement_summary": "Posts from muted/blocked users are filtered out on all pages",
+        "covering_test_cases": [
+          "TC-003",
+          "TC-007",
+          "TC-015",
+          "TC-031",
+          "TC-076"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-006",
+        "requirement_summary": "Empty state messages for own profile and for other users",
+        "covering_test_cases": [
+          "TC-012",
+          "TC-025",
+          "TC-030",
+          "TC-039",
+          "TC-083"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-007",
+        "requirement_summary": "Network/API error handling \u2013 toast with retry, no duplicate posts",
+        "covering_test_cases": [
+          "TC-014",
+          "TC-027",
+          "TC-028",
+          "TC-033",
+          "TC-045",
+          "TC-050",
+          "TC-061",
+          "TC-070"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-008",
+        "requirement_summary": "Session expiry handling during pagination \u2013 401 leads to login redirect",
+        "covering_test_cases": [
+          "TC-045",
+          "TC-052",
+          "TC-064",
+          "TC-078",
+          "TC-064"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-009",
+        "requirement_summary": "Visibility icon reflects post visibility (Everyone, Followers Only, Mentioned, Anonymous)",
+        "covering_test_cases": [
+          "TC-017",
+          "TC-036",
+          "TC-065",
+          "TC-066",
+          "TC-076"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-010",
+        "requirement_summary": "Engagement stats (views, likes, comments) displayed correctly, null \u2192 0 handling",
+        "covering_test_cases": [
+          "TC-018",
+          "TC-037",
+          "TC-046",
+          "TC-069"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-011",
+        "requirement_summary": "Media preview thumbnails on post cards, lightbox opening, View Post link",
+        "covering_test_cases": [
+          "TC-058",
+          "TC-022",
+          "TC-032",
+          "TC-058"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-012",
+        "requirement_summary": "Rate\u2011limit (429) handling \u2013 graceful toast, no crash",
+        "covering_test_cases": [
+          "TC-070"
+        ],
+        "status": "covered"
+      }
+    ]
+  },
+  "test_cases": [
+    {
+      "scenario_id": "TC-001",
+      "name": "Default Posts Tab loads first page sorted by recency",
+      "precondition": "User is authenticated and navigates to their Profile Page; no existing posts in cache",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user opens the Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the first 10 posts are fetched from the Post API with page=1 and pageSize=10",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the posts are displayed in reverse chronological order (newest first)",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And each post card shows truncated text (200 chars) with a \"Read more\" link if necessary",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The UI shows a list of up to 10 posts sorted by recency, with correct truncation and \"Read more\" links where applicable",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "smoke",
+        "UI",
+        "API"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "first page contains fewer than 10 posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-002",
+      "name": "Infinite scroll loads subsequent pages when user reaches bottom",
+      "precondition": "User is on the Posts tab with at least 15 posts available from the API",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user scrolls to the bottom of the first page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the scroll event triggers the pagination logic",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the app requests page=2 with pageSize=10 from the Post API",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the next 10 posts are appended to the list without duplication",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The list now contains 20 posts, maintaining order and without gaps",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "e2e",
+        "API"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "exactly 10 posts on first page, 5 on second"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-003",
+      "name": "Pagination excludes posts from muted and blocked users",
+      "precondition": "User has muted UserA and blocked UserB; UserA and UserB have authored posts in the last 30 days",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user opens the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the first page is fetched",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the API response contains posts only from users not in the muted/blocked list",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI does not render any posts authored by UserA or UserB",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No muted or blocked user posts appear in the list; the list length reflects only allowed posts",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "negative",
+        "API",
+        "security"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "all posts are from muted/blocked users"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-004",
+      "name": "Pagination UI indicates end of feed when no more posts",
+      "precondition": "User has 12 posts in total; pageSize=10",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user scrolls to the bottom of the second page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the API returns an empty array for page=3",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI displays a footer message \"No more posts\" and disables further scroll loading",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The user sees a clear end-of-feed indicator and cannot trigger additional pagination requests",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "boundary",
+        "UI"
+      ],
+      "test_type": "boundary",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "exactly 20 posts, no more pages"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-005",
+      "name": "Rapid consecutive scrolls do not trigger duplicate pagination requests",
+      "precondition": "User has 30 posts; pageSize=10; network latency 200ms",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user quickly scrolls to the bottom multiple times",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the pagination logic fires for each scroll event",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the app queues only one request per page and ignores subsequent scrolls until the current request completes",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No duplicate posts appear; only pages 2, 3, 4 are fetched sequentially without overlap",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "negative",
+        "API",
+        "combination edge"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [
+        "multiple scroll events before first request completes"
+      ],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-006",
+      "name": "Pagination respects maximum page size limit of 10 posts",
+      "precondition": "API enforces pageSize=10; user has 25 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user opens the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the first page is fetched",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the API response contains exactly 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI displays 10 posts without exceeding the limit",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The list shows 10 posts; subsequent pages also respect the limit",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "boundary",
+        "API"
+      ],
+      "test_type": "boundary",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "API returns more than 10 posts due to misconfiguration"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-007",
+      "name": "Posts tab correctly filters out muted/blocked users on subsequent pages",
+      "precondition": "User has muted UserC; UserC has 5 posts spread across pages 1-3",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user scrolls to page 2 and page 3",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When each page is fetched",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then no posts authored by UserC appear in any page",
+          "expected": ""
+        }
+      ],
+      "expected_result": "All pages exclude muted user posts; list length adjusts accordingly",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "negative",
+        "API"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "muted user posts are the only posts on a page"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-008",
+      "name": "Pagination UI shows loading indicator during fetch and hides after completion",
+      "precondition": "User is on Posts tab; network latency 500ms",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user scrolls to bottom to trigger pagination",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the request is in-flight",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then a spinner appears at the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When the response returns",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then the spinner disappears and new posts are rendered",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The loading indicator is visible only during the fetch and does not block interaction",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "request fails and spinner remains"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-009",
+      "name": "Default Posts Tab loads initial 10 posts in reverse chronological order",
+      "precondition": "User is authenticated and navigates to their own Profile Page",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Profile Page is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab is automatically selected",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system queries the Post API for page 1 with limit 10",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI renders exactly 10 post cards sorted from newest to oldest",
+          "expected": ""
+        }
+      ],
+      "expected_result": "10 post cards displayed in correct order, each showing truncated text, media preview, topics, visibility icon, timestamp, and engagement stats",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "smoke"
+      ],
+      "test_type": "smoke",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "initial load with exactly 10 posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-010",
+      "name": "Infinite scroll fetches next page of posts after scrolling to bottom",
+      "precondition": "User has more than 10 posts; initial 10 posts are displayed",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Posts tab shows 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system requests page 2 from the Post API",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI appends the next set of posts to the list",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Post list now contains 20 posts (or less if fewer available), maintaining reverse chronological order",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "e2e"
+      ],
+      "test_type": "e2e",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "exactly 10 posts, no further fetch"
+      ],
+      "combination_edge_cases": [
+        "scrolling before previous fetch completes"
+      ],
+      "weird_edge_cases": [
+        "rapid double\u2011tap scroll trigger"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-011",
+      "name": "Post text exceeding 200 characters is truncated with a tappable Read more link",
+      "precondition": "User has at least one post with 250 characters of text",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Posts tab is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post card is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the text is truncated to 200 characters followed by '\u2026'",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And a 'Read more' link is visible",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Clicking 'Read more' expands the full 250\u2011character text inline without navigation",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "post text exactly 200 chars"
+      ],
+      "combination_edge_cases": [
+        "post with 200 chars + media"
+      ],
+      "weird_edge_cases": [
+        "post text with zero\u2011width spaces"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-012",
+      "name": "Empty state message displays when user has no posts",
+      "precondition": "User has zero posts in their profile",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Post API returns an empty list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI shows the message 'You haven\u2019t posted yet.'",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No post cards are rendered and the empty state is visible",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "exactly 0 posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-013",
+      "name": "Manual refresh reloads posts and resets pagination",
+      "precondition": "User has at least 15 posts; page 1 and page 2 are loaded",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Posts tab shows 20 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user performs a pull\u2011to\u2011refresh gesture",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system re\u2011queries page 1 from the Post API",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI replaces the list with the latest 10 posts, clearing any previously loaded pages",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Post list shows the newest 10 posts only, and infinite scroll can load subsequent pages again",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "refresh when no new posts"
+      ],
+      "combination_edge_cases": [
+        "refresh during an ongoing pagination request"
+      ],
+      "weird_edge_cases": [
+        "refresh while network is flaky"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-014",
+      "name": "API error during pagination shows retry toast and does not duplicate posts",
+      "precondition": "User has more than 10 posts; initial 10 posts are displayed",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Posts tab shows 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom and the Post API returns a 500 error",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI displays a toast 'Unable to load posts. Retry.'",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no duplicate posts are added to the list",
+          "expected": ""
+        }
+      ],
+      "expected_result": "User can tap Retry to attempt fetching the next page again",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "UI",
+        "API"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "API timeout"
+      ],
+      "combination_edge_cases": [
+        "scroll trigger while offline"
+      ],
+      "weird_edge_cases": [
+        "toast persists after retry"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-015",
+      "name": "Posts from blocked users are not displayed in the Posts tab",
+      "precondition": "User has blocked UserA; UserA has 5 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Posts tab is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Post API returns posts including those from UserA",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI filters out all posts authored by UserA",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Only posts from non\u2011blocked users appear in the list",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "negative",
+        "API"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "blocked user has all posts"
+      ],
+      "combination_edge_cases": [
+        "blocked user + muted user"
+      ],
+      "weird_edge_cases": [
+        "user blocks themselves"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-016",
+      "name": "Rapid scrolling triggers only one pagination request per page boundary",
+      "precondition": "User has 30 posts; initial 10 posts displayed",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Posts tab shows 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls rapidly to the bottom multiple times before the first pagination request completes",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system queues only one request for page 2",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And subsequent scrolls after page 2 loads trigger page 3",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No duplicate requests or duplicate posts appear in the list",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "combination edge"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "low",
+      "edge_cases": [
+        "scroll before previous fetch completes"
+      ],
+      "combination_edge_cases": [
+        "rapid scroll + network latency"
+      ],
+      "weird_edge_cases": [
+        "scrolling while device is locked"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-017",
+      "name": "Visibility icon correctly reflects post visibility setting",
+      "precondition": "User has a post with visibility set to 'Followers Only'",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Posts tab is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post card is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the visibility icon matches the 'Followers Only' symbol",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Icon is displayed and accessible via content description for screen readers",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "accessibility",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "visibility set to 'Everyone'"
+      ],
+      "combination_edge_cases": [
+        "visibility + anonymous identity"
+      ],
+      "weird_edge_cases": [
+        "icon missing on low\u2011resolution device"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-018",
+      "name": "Engagement stats are displayed and updated after pagination",
+      "precondition": "User has posts with view counts and reaction counts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the Posts tab shows 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to load page 2",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then each post card displays correct view and reaction counts",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Counts are accurate and formatted consistently across pages",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "post with zero engagements"
+      ],
+      "combination_edge_cases": [
+        "post with high engagement + truncated text"
+      ],
+      "weird_edge_cases": [
+        "counts displayed as negative numbers"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-019",
+      "name": "Default Posts Tab loads with newest posts and truncates long text",
+      "precondition": "User is authenticated and has at least 5 public posts with varying lengths, including one exceeding 200 characters.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the \"Posts\" tab must be selected by default",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the system queries the Post API for the user's posts",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And the first 10 posts are displayed in reverse chronological order",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "And each post card shows the text truncated at 200 characters with a \"Read more\" link if longer",
+          "expected": ""
+        },
+        {
+          "step_number": 7,
+          "action": "And media preview, topics, visibility icon, timestamp, and engagement stats are visible",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The first 10 newest posts appear correctly, long posts are truncated with a tappable link, and all UI elements are present.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "post text exactly 200 characters",
+        "post with no media",
+        "post with maximum allowed topics"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-020",
+      "name": "Infinite scroll loads additional posts correctly and stops at end of list",
+      "precondition": "User has 25 posts; API supports pagination with pageSize=10.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Profile Page with the Posts tab selected",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system requests the next 10 posts via the Post API",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the next 10 posts are appended to the list",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "When the user scrolls again to the bottom",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "Then the system requests the remaining 5 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 7,
+          "action": "And the list now contains all 25 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 8,
+          "action": "When the user scrolls to the bottom again",
+          "expected": ""
+        },
+        {
+          "step_number": 9,
+          "action": "Then no further API calls are made and a \"No more posts\" indicator is shown",
+          "expected": ""
+        }
+      ],
+      "expected_result": "All posts are loaded in batches of 10 until the end, with no duplicate or missing items.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "boundary",
+        "e2e"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "exactly 10 posts total",
+        "exactly 20 posts total"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "user scrolls rapidly to bottom before first load completes"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-021",
+      "name": "Media tab displays all images from user posts and handles missing media gracefully",
+      "precondition": "User has 3 posts with images and 1 post with a deleted image file.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the \"Media\" tab on their profile",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the system aggregates images from all posts",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then a responsive 3-column thumbnail grid is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And thumbnails for existing images are shown",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And a placeholder thumbnail with label \"Post unavailable.\" appears for the deleted image",
+          "expected": ""
+        }
+      ],
+      "expected_result": "All available images are visible; missing media is represented by a placeholder without breaking the grid.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "no images at all",
+        "exactly 3 images to fill one row"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "image file is corrupted but not deleted"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-022",
+      "name": "Lightbox opens correctly from Media tab and includes View Post link",
+      "precondition": "User has at least one image in the Media tab.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Media tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user taps an image thumbnail",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then a fullscreen lightbox viewer opens",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the image is displayed with swipe and pinch-to-zoom",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And a \"View Post\" link is present",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "When the user taps \"View Post\"",
+          "expected": ""
+        },
+        {
+          "step_number": 7,
+          "action": "Then the Post Detail view for the originating post opens",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Lightbox functions as described and navigation to Post Detail works.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "image is the only one in the grid"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "user taps View Post while zoomed in"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-023",
+      "name": "Anonymous post displays correct label for profile owner and others",
+      "precondition": "User has authored an anonymous post; another user views the profile.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the profile owner navigates to their own Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the anonymous post appears in the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the post is labeled \"You (Anonymous)\"",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When another user navigates to the same profile",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then the anonymous post is labeled \"Anonymous\" and media is visible",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Labels correctly reflect viewer context without exposing identity.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "anonymous post with no media",
+        "anonymous post with multiple topics"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "viewer toggles between logged-in and guest view mid-session"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-024",
+      "name": "Deleted post is excluded from Posts tab and Media grid",
+      "precondition": "User has a post that was deleted after creation.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the system fetches posts",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the deleted post is not displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the total count of displayed posts decreases accordingly",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "When the user navigates to the Media tab",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "Then the image from the deleted post is not shown in the grid",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Deleted content is fully removed from both tabs.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "post deleted before first load",
+        "post deleted after initial load"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "post deleted via API while user is scrolling"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-025",
+      "name": "Empty state displays correct message when no posts exist",
+      "precondition": "User has not authored any posts.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the system fetches posts and receives an empty array",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI displays the message \"You haven\u2019t posted yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Empty state message is visible and correctly localized.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "profile of another user with no posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-026",
+      "name": "Empty state displays correct message when no media exists",
+      "precondition": "User has no images attached to any posts.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the Media tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the system aggregates images and finds none",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI displays the message \"You haven\u2019t uploaded any media yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Empty state message is visible and correctly localized.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "profile of another user with no media"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-027",
+      "name": "Network failure during posts load shows retry toast and works after retry",
+      "precondition": "User has 15 posts; API will timeout on first request.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the API times out",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then an inline toast appears with message \"Unable to load posts. Retry.\" and a Retry button",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When the user taps Retry",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then the API is called again",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "And the posts load successfully",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Error toast appears and retry functionality restores the feed.",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "functional",
+        "UI"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "API times out on subsequent retry",
+        "network restored after initial failure"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "user taps Retry rapidly multiple times"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-028",
+      "name": "Network failure during media load shows retry toast and works after retry",
+      "precondition": "User has 5 images; API will timeout on first request.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the Media tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the API times out",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then an inline toast appears with message \"Unable to load media. Retry.\" and a Retry button",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When the user taps Retry",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then the API is called again",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "And the media grid loads successfully",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Error toast appears and retry functionality restores the media grid.",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "functional",
+        "UI"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "API times out on subsequent retry"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "user taps Retry rapidly multiple times"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-029",
+      "name": "Default Posts Tab loads with latest 10 posts and supports infinite scroll",
+      "precondition": "User is authenticated and has at least 15 public or followers-only posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the \"Posts\" tab must be selected by default",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the system must query the Post API and display the first 10 posts in reverse chronological order",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And each post card must show truncated text at 200 characters with a \"Read more\" link, media preview if present, topics, visibility icon, timestamp, and engagement stats",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 7,
+          "action": "Then the next 10 posts must be fetched and appended to the list",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The first 10 posts appear correctly; scrolling loads subsequent posts until all are displayed",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "e2e"
+      ],
+      "test_type": "e2e",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "initial load with exactly 10 posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-030",
+      "name": "Posts Tab displays empty state when user has no posts",
+      "precondition": "User is authenticated and has zero posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the \"Posts\" tab must be selected by default",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the system must display the empty state message \"You haven\u2019t posted yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Empty state message is visible and no post cards are rendered",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "no posts at all"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-031",
+      "name": "Posts Tab shows correct anonymity label for owner and others",
+      "precondition": "User A has an anonymous post; User B is a follower of User A",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given User A navigates to their own Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the anonymous post appears in the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the post must be labeled \"You (Anonymous)\"",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And when User B navigates to User A\u2019s Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then the same post must be labeled \"Anonymous\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Correct labels displayed based on viewer context",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "anonymous post visibility to non-follower"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-032",
+      "name": "Media Tab aggregates images from all posts and displays placeholder for unavailable media",
+      "precondition": "User has 3 posts with images; one image is from a deleted post",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the \"Media\" tab on their profile",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the system aggregates images",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then a 3-column thumbnail grid must display 3 thumbnails",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the thumbnail from the deleted post must show a placeholder with label \"Post unavailable.\"",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "When the user taps the available thumbnail",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "Then a fullscreen lightbox opens with swipe and pinch-to-zoom",
+          "expected": ""
+        },
+        {
+          "step_number": 7,
+          "action": "And a \"View Post\" link navigates to the original post detail",
+          "expected": ""
+        }
+      ],
+      "expected_result": "All available images displayed; placeholder for deleted media; lightbox functions correctly",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "image from deleted post"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-033",
+      "name": "Posts Tab handles network timeout during initial load",
+      "precondition": "User is authenticated; API is configured to timeout on posts request",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Post API times out",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then an inline toast must display \"Unable to load posts. Retry.\"",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the toast includes a functional Retry button",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Error toast appears and Retry button re-attempts the request",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "UI",
+        "API"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "API timeout on initial load"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-034",
+      "name": "Posts Tab does not display deleted or draft posts",
+      "precondition": "User has 5 posts: 3 published, 1 deleted, 1 draft",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then only the 3 published posts must be displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the deleted and draft posts must be excluded from the list",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Only published posts appear; deleted/draft posts are absent",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "deleted and draft posts present"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-035",
+      "name": "Posts Tab truncates post text at 200 characters with Read more link",
+      "precondition": "User has a post with 250 characters of text",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post appears in the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the displayed text must be truncated to 200 characters followed by a \"Read more\" link",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And tapping \"Read more\" expands the full text inline",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Truncation and expansion work as specified",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "post length exactly 200 chars",
+        "post length 201 chars"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-036",
+      "name": "Posts Tab displays correct visibility icon for each post",
+      "precondition": "User has posts with visibility: Everyone, Followers Only, Mentioned",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then each post card must display the appropriate visibility icon matching its visibility setting",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Visibility icons match post settings",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "visibility icon for Mentioned posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-037",
+      "name": "Posts Tab shows engagement stats correctly for posts with zero interactions",
+      "precondition": "User has a post with 0 views, 0 likes, 0 comments",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the engagement stats displayed must show 0 views, 0 likes, 0 comments",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Zero engagement stats are displayed accurately",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "low",
+      "edge_cases": [
+        "zero engagement"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-038",
+      "name": "Posts Tab handles rapid scrolling beyond available posts without errors",
+      "precondition": "User has 12 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user rapidly scrolls to the bottom and beyond the last post",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI must not crash or display duplicate posts",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the end of list indicator must appear after the 12th post",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No crashes; correct end-of-list handling",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "boundary",
+        "UI"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "scroll beyond last post"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "rapid scrolling"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-039",
+      "name": "Posts Tab displays correct empty state message for another user's profile with no posts",
+      "precondition": "User B has zero posts; User A is viewing User B\u2019s profile",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given User A navigates to User B\u2019s Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the empty state message must read \"User B hasn\u2019t posted yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Correct personalized empty state message",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "empty state for other user"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-040",
+      "name": "Media Tab shows placeholder when user has no media",
+      "precondition": "User has no posts with images",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to the \"Media\" tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the empty state message must read \"You haven\u2019t uploaded any media yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Empty state message displayed correctly",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "no media at all"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-041",
+      "name": "Media Tab displays correct personalized empty state for another user with no media",
+      "precondition": "User B has no media; User A views User B\u2019s profile",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given User A navigates to User B\u2019s \"Media\" tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the empty state message must read \"User B hasn\u2019t uploaded any media yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Correct personalized empty state message",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "empty media for other user"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-042",
+      "name": "Posts Tab shows correct pagination when total posts are exactly 10",
+      "precondition": "User has exactly 10 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the list displays 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no further pagination or loading indicator appears when scrolling to bottom",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No unnecessary load more indicator; list ends correctly",
+      "test_data": {},
+      "tags": [
+        "boundary",
+        "functional",
+        "UI"
+      ],
+      "test_type": "boundary",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "exactly 10 posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-043",
+      "name": "Posts Tab displays correct pagination when total posts are 0",
+      "precondition": "User has no posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the empty state message appears",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no pagination controls or loading indicators are shown",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No pagination UI when no posts",
+      "test_data": {},
+      "tags": [
+        "boundary",
+        "functional",
+        "UI"
+      ],
+      "test_type": "boundary",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "zero posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-044",
+      "name": "Posts Tab shows correct pagination when total posts are 11 (one page + one extra)",
+      "precondition": "User has 11 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the first 10 posts are displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And scrolling to bottom triggers a load of the 11th post without duplicate or error",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Pagination loads remaining post correctly",
+      "test_data": {},
+      "tags": [
+        "boundary",
+        "functional",
+        "UI"
+      ],
+      "test_type": "boundary",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "11 posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-045",
+      "name": "Posts Tab handles session expiry during pagination",
+      "precondition": "User is authenticated; session token expires after 5 minutes of inactivity",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page and scrolls to load the second page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the session token expires during the API call",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the API returns 401",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI displays a toast \"Session expired. Please log in again.\" and redirects to login screen",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Graceful session expiry handling during pagination",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "security",
+        "UI"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "session expiry mid-pagination"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-046",
+      "name": "Posts Tab displays correct engagement stats when API returns null values",
+      "precondition": "User has a post; API returns null for likes and comments counts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the engagement stats must display 0 for likes and comments instead of null",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Null values are converted to zero in UI",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "low",
+      "edge_cases": [
+        "null engagement values"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-047",
+      "name": "Default Posts Tab loads first page with 10 posts and supports infinite scroll",
+      "precondition": "User is authenticated and has at least 15 public or followers\u2011only posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the \"Posts\" tab is selected by default",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the system queries the Post API for the first 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And the UI displays a scrollable list of 10 post cards in reverse chronological order",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 7,
+          "action": "Then the next 10 posts are fetched and appended to the list",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The first 10 posts appear immediately and subsequent posts load seamlessly as the user scrolls",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "e2e",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "initial load with exactly 10 posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-048",
+      "name": "Pagination stops when no more posts are available and shows appropriate message",
+      "precondition": "User has 12 posts total",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system fetches the first 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When the user scrolls to the bottom",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then the system requests the next page and receives 2 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "When the user scrolls again to the bottom",
+          "expected": ""
+        },
+        {
+          "step_number": 7,
+          "action": "Then the system attempts to fetch the next page and receives an empty array",
+          "expected": ""
+        },
+        {
+          "step_number": 8,
+          "action": "And the UI displays a non\u2011intrusive message \"No more posts\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The user sees all 12 posts and a clear indication that the list is complete",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "exactly 12 posts, last page has 2 posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-049",
+      "name": "Posts tab displays empty state when user has no posts",
+      "precondition": "User has zero posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system queries the Post API and receives an empty array",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI shows the empty state message \"You haven\u2019t posted yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The empty state is displayed correctly without any post cards",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "no posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-050",
+      "name": "Pagination request fails due to network error and retry works",
+      "precondition": "User has at least 20 posts; network is temporarily unavailable",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads and the first page request times out",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI shows an inline error toast \"Unable to load posts. Retry.\"",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When the user taps Retry",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then the system re\u2011issues the request and the first 10 posts load successfully",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The error toast appears and retry restores normal functionality",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "API",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "network timeout on initial load"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-051",
+      "name": "Rapid scroll triggers multiple pagination requests but only one set of posts is displayed",
+      "precondition": "User has 50 posts; API supports pagination with page size 10",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user quickly scrolls to the bottom multiple times before the first pagination response returns",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system queues only the latest pagination request",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI eventually displays posts 11\u201120 without duplicates or gaps",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No duplicate posts appear and the list remains consistent",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "boundary",
+        "weird edge"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [
+        "multiple rapid scrolls"
+      ],
+      "weird_edge_cases": [
+        "race condition between scroll events and API responses"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-052",
+      "name": "Session expires mid\u2011pagination and UI handles graceful fallback",
+      "precondition": "User is authenticated; session token expires after 5 minutes of inactivity",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page and the first page loads",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to trigger the second page request and the session expires before the API responds",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the API returns 401 Unauthorized",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI shows a toast \"Session expired. Please log in again.\" and redirects to the login screen",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The user is prompted to re\u2011authenticate without data loss",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "security",
+        "API",
+        "UI"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "session timeout during pagination"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-053",
+      "name": "Default Posts Tab loads latest posts with correct order and truncation",
+      "precondition": "User is authenticated and has at least 5 public posts with varying lengths and media attachments",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the \"Posts\" tab must be selected by default",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the system must query the Post API to display the first 10 posts in reverse chronological order",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And each post card must display the text truncated at 200 characters with a \"Read more\" link if longer",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "And media preview, topics, visibility icon, timestamp, and engagement stats are visible for each post",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The first 10 posts appear correctly ordered, truncated, and fully populated with UI elements",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "smoke"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "web"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "posts with exactly 200 characters"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-054",
+      "name": "Infinite scroll loads additional posts correctly and stops at end of list",
+      "precondition": "User has 25 posts; API supports pagination with pageSize=10",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab and the first 10 posts are displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must request the next 10 posts via the Post API",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the next 10 posts are appended to the list",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "When the user scrolls again to the bottom",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "Then the system must request the remaining 5 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 7,
+          "action": "And the list now shows all 25 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 8,
+          "action": "When the user scrolls to the bottom again",
+          "expected": ""
+        },
+        {
+          "step_number": 9,
+          "action": "Then no further API calls are made and a \"No more posts\" indicator is shown",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Pagination loads correctly, stops after all posts are fetched, and no duplicate or missing items appear",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "boundary",
+        "e2e"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "web"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "exactly 10 posts, no more pages"
+      ],
+      "combination_edge_cases": [
+        "pagination while network latency high"
+      ],
+      "weird_edge_cases": [
+        "user scrolls rapidly to bottom before first load completes"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-055",
+      "name": "Unauthenticated user cannot access Posts tab and receives redirect to login",
+      "precondition": "User is not authenticated (no session token)",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user attempts to navigate to their Profile Page via URL or menu",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the system checks authentication status",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the user is redirected to the Onboarding/Login screen",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no Posts tab or content is displayed",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Unauthenticated access is blocked and user is prompted to log in",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "security",
+        "functional"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "web"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-056",
+      "name": "Default Posts tab is selected and displays latest posts on profile load",
+      "precondition": "User is authenticated and navigates to their own profile page",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on their profile page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the page loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the \"Posts\" tab is highlighted as selected",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the first 10 posts are fetched from the Post API in reverse chronological order",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The UI shows the \"Posts\" tab active and displays the newest posts first",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "smoke"
+      ],
+      "test_type": "smoke",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-057",
+      "name": "Post card displays truncated text with Read more link for posts over 200 characters",
+      "precondition": "Profile contains at least one post with 250 characters of text",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post list renders",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the post card shows only the first 200 characters followed by a \"Read more\" link",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And tapping \"Read more\" expands the full text inline",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Full post text is revealed without navigating away",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "Post text exactly 200 characters"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-058",
+      "name": "Media preview thumbnail renders correctly on post cards with images",
+      "precondition": "Profile has a post with 2 attached images",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post list renders",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then each image thumbnail is displayed in the card",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And tapping a thumbnail opens the image in a lightbox",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Lightbox shows the correct image and navigation controls",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-059",
+      "name": "Lazy loading fetches next 10 posts when user scrolls to bottom of list",
+      "precondition": "Profile has 25 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom of the current list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the app requests the next 10 posts from the API",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the new posts are appended to the list",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Total of 20 posts displayed after first scroll, 25 after second",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "e2e"
+      ],
+      "test_type": "e2e",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "Exactly 10 posts total"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-060",
+      "name": "Empty state message displays when user has no posts",
+      "precondition": "Profile has zero posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the page loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI shows the message \"You haven\u2019t posted yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No post cards are rendered",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-061",
+      "name": "Network error during initial post load shows retry toast",
+      "precondition": "Profile has posts but API is set to timeout",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the API request times out",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then an inline toast appears with message \"Unable to load posts. Retry.\"",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And a functional Retry button is present",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Retry triggers a new API call",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "UI",
+        "API"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-062",
+      "name": "Pagination stops after all posts are loaded",
+      "precondition": "Profile has 15 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom twice",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the app does not request more posts",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And a \"No more posts\" indicator is shown",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No additional API calls are made after 15 posts",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "Exactly 10 posts total"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-063",
+      "name": "Rapid scrolling triggers debounced pagination without duplicate posts",
+      "precondition": "Profile has 50 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls rapidly to the bottom multiple times",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the app queues a single pagination request per 500ms window",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the resulting list contains unique posts only",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No duplicate posts appear in the list",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "weird edge"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "User scrolls faster than API response time"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-064",
+      "name": "Session expiry during pagination reverts to login screen",
+      "precondition": "User is authenticated but token expires during scroll",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the token expires while fetching next page",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the app redirects to the login screen",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No partial data is displayed; user must re-authenticate",
+      "test_data": {},
+      "tags": [
+        "security",
+        "negative",
+        "API"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "Token expires mid-request"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-065",
+      "name": "Post card shows correct visibility icon for public posts",
+      "precondition": "Profile has a public post",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post list renders",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the visibility icon displayed is the public icon",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Icon matches design spec for public visibility",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-066",
+      "name": "Post card displays \"You (Anonymous)\" label when user posts anonymously",
+      "precondition": "User has an anonymous post on their profile",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post list renders",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the post card shows the label \"You (Anonymous)\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Label is visible and correctly formatted",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-067",
+      "name": "Pagination request includes correct page token for subsequent loads",
+      "precondition": "Profile has 30 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the first 10 posts load",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "And the user scrolls to bottom",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "Then the API request includes pageToken from the previous response",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Server returns next 10 posts",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-068",
+      "name": "Post list scroll position is preserved after orientation change",
+      "precondition": "User has scrolled to 3rd page of posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the device orientation changes from portrait to landscape",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the scroll position remains at the same post",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No jump or reload occurs",
+      "test_data": {},
+      "tags": [
+        "accessibility",
+        "UI",
+        "weird edge"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "low",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "Orientation change mid-scroll"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-069",
+      "name": "Post list shows correct engagement stats for each post",
+      "precondition": "Profile has posts with known view counts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post list renders",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then each post card displays the correct view count next to the eye icon",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Engagement numbers match backend data",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-070",
+      "name": "Pagination handles API rate limit exceeded gracefully",
+      "precondition": "API is configured to return 429 after 5 requests",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to load 6th page",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the app shows a toast \"Rate limit exceeded. Please try again later.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No crash; user can retry after backoff",
+      "test_data": {},
+      "tags": [
+        "negative",
+        "API",
+        "security"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-071",
+      "name": "Default Posts tab loads with newest posts and truncates long text",
+      "precondition": "User is authenticated and has at least 5 public posts with varying lengths, including one post >200 characters",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the \"Posts\" tab must be selected by default",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the system must query the Post API and return the 10 newest posts",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And each post card displays the text truncated at 200 characters with a \"Read more\" link for the long post",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "And the \"Read more\" link expands the full text inline when tapped",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The first 10 posts appear in reverse chronological order, long text is truncated with a functional \"Read more\" link that expands correctly",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "boundary"
+      ],
+      "test_type": "smoke",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "post text length exactly 200 characters"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-072",
+      "name": "Infinite scroll loads next set of posts after scrolling to bottom",
+      "precondition": "User has 25 posts; API supports pagination with pageSize=10",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Profile Page with the Posts tab selected",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must request the next 10 posts via the Post API",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the new posts are appended to the list maintaining reverse chronological order",
+          "expected": ""
+        }
+      ],
+      "expected_result": "15 posts are visible after first scroll, 25 after second scroll, no duplicates, order preserved",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "e2e"
+      ],
+      "test_type": "e2e",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "exactly 10 posts total; no further load"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "rapid scroll to bottom multiple times before API response"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-073",
+      "name": "Posts tab shows empty state when user has no posts",
+      "precondition": "User has zero posts in the system",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the \"Posts\" tab must display the empty state message \"You haven\u2019t posted yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Empty state message is visible and no post cards are rendered",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "no posts"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-074",
+      "name": "Pagination stops after last page and shows no more posts",
+      "precondition": "User has 12 posts; pageSize=10",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Profile Page with the Posts tab selected",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must request the next 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And only 2 posts are returned",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And no further load indicator appears after scrolling past the last post",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Total 12 posts displayed; scrolling beyond last post does not trigger additional API calls",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "last page with less than pageSize items"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-075",
+      "name": "Deleted posts are excluded from the Posts tab list",
+      "precondition": "User has 5 posts, 2 of which are marked as deleted in the backend",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the screen loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must query the Post API and exclude any posts with status \"deleted\"",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And only 3 posts are displayed in the list",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Deleted posts are not rendered; list contains only non-deleted posts",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "negative"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "post status exactly \"deleted\""
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-076",
+      "name": "Visibility filter respects follower-only posts for non-followers",
+      "precondition": "User A has a follower-only post; User B does not follow User A",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given User B navigates to User A\u2019s Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must filter out any posts with visibility \"Followers Only\" that User B does not have access to",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Only public or everyone posts are displayed; follower-only post is hidden",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "negative"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "visibility exactly \"Followers Only\""
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-077",
+      "name": "Rapid scroll triggers multiple pagination requests but results are deduplicated",
+      "precondition": "User has 30 posts; API latency 1s",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls rapidly to the bottom multiple times before the first pagination response returns",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must queue or coalesce pagination requests to avoid duplicate posts",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the final list contains 30 unique posts in correct order",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No duplicate posts; pagination handled gracefully under rapid user interaction",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "weird edge",
+        "API"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "low",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "rapid scroll before API response"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-078",
+      "name": "Session expiry during pagination does not crash the list",
+      "precondition": "User is authenticated; session token expires after 5 minutes; user has 20 posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Profile Page and has scrolled to load the first 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the session token expires while the user is scrolling to load the next page",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the API call must return 401",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI must display an inline error toast \"Session expired. Please log in again.\" with a Retry button that redirects to login",
+          "expected": ""
+        }
+      ],
+      "expected_result": "No crash; graceful error handling and redirection",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "negative",
+        "security"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "session expiry mid-pagination"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-079",
+      "name": "Posts tab respects maximum allowed posts per page when API returns more than requested",
+      "precondition": "API is misconfigured to return 50 posts per request despite pageSize=10",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the system requests the first page of posts",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the UI must display only the first 10 posts from the response and ignore the rest",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Only 10 posts are rendered; excess data is discarded",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "boundary",
+        "negative"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "API returns more items than requested"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-080",
+      "name": "Read more link collapses expanded text when tapped again",
+      "precondition": "User has a post with 250 characters",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Profile Page and the post is truncated with a \"Read more\" link",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user taps the \"Read more\" link",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the full text is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the link text changes to \"Show less\"",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "When the user taps \"Show less\"",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "Then the text truncates back to 200 characters",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Toggle between expanded and collapsed states works correctly",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "exactly 200 chars after collapse"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-081",
+      "name": "Display latest 10 posts in reverse chronological order with correct UI elements",
+      "precondition": "User is authenticated and has at least 15 posts (mix of public, followers-only, and anonymous) in their profile.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must query the Post API with parameters: page=1, limit=10, order=desc",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the first 10 posts are displayed in reverse chronological order",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And each post card shows truncated text at 200 characters with a \"Read more\" link, media preview if present, topic tags, visibility icon, timestamp, and engagement stats",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The UI renders the first 10 posts correctly, with all specified elements visible and functional, and the \"Read more\" link expands the full text inline.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "API",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "Boundary: exactly 200 characters truncation"
+      ],
+      "combination_edge_cases": [
+        "Combination of public, followers-only, and anonymous posts in same page"
+      ],
+      "weird_edge_cases": [
+        "Post text containing zero-width spaces that should not affect truncation"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-082",
+      "name": "Infinite scroll loads next set of posts after reaching bottom of first page",
+      "precondition": "User has 25 posts in total and is on the Posts tab with the first 10 loaded.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user scrolls to the bottom of the first 10 posts",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the infinite scroll trigger fires",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must request the next page of posts (page=2, limit=10)",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the next 10 posts are appended to the list in correct order",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And the loading indicator appears during the API call",
+          "expected": ""
+        },
+        {
+          "step_number": 6,
+          "action": "And no duplicate posts are shown",
+          "expected": ""
+        }
+      ],
+      "expected_result": "After scrolling, posts 11-20 appear appended, loading indicator disappears, and the list continues to grow without duplication.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "API",
+        "boundary",
+        "e2e"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "Boundary: exactly 10 posts per page"
+      ],
+      "combination_edge_cases": [
+        "Scrolling while a previous load is still pending"
+      ],
+      "weird_edge_cases": [
+        "User scrolls rapidly to bottom before first load completes"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-083",
+      "name": "Empty state displays correctly when user has no posts and anonymous posts are labeled appropriately",
+      "precondition": "User has zero posts in their profile.",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user navigates to their Profile Page",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Posts tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the system must query the Post API and receive an empty list",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the UI displays the empty state message: \"You haven\u2019t posted yet.\"",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And if the user is viewing another user\u2019s profile with no posts, the message shows: \"[User Name] hasn't posted yet.\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "The empty state message appears exactly as specified, with correct user name interpolation, and no post cards are rendered.",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI",
+        "negative",
+        "boundary"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "api"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "Boundary: zero posts"
+      ],
+      "combination_edge_cases": [
+        "Viewing another user's profile with no posts"
+      ],
+      "weird_edge_cases": [
+        "User name contains special characters that could break interpolation"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    }
+  ]
+}

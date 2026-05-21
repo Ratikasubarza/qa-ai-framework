@@ -1,0 +1,302 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"TC-API-009 | Performance | Search response under SLA","43","test_TC_API_009_search_response_time","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-CMS-USERS-007 | Functional | Order by created_at ASC and DESC","359","test_TC_CMS_USERS_007_orderby_created_at","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"
+    TC-ONB-API-002 | Security | Onboarding without token returns 401
+    ","169","test_TC_ONB_API_002_onboarding_without_token","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"
+    TC-ONB-API-010 | Boundary | Complete onboarding twice (idempotent?)
+    ","735","test_TC_ONB_API_010_onboarding_twice_same_user","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-CMS-REJECT-005 | Negative | Reject with invalid user ID returns 404","167","test_TC_CMS_REJECT_005_reject_nonexistent_user","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"TC-FEED-WEB-007 | Regression | Rapid Art topic clicks do not crash the feed","0","test_TC_FEED_WEB_007_art_rapid_clicks","features.feed.steps.web","2026-05-21","broken","2026-05-21","","Web","",""
+"TC-ONB-API-013 | Boundary | industry_ids min 1 — should pass","601","test_TC_ONB_API_013_industry_min_1","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-REG-API-008 | Combination | Duplicate email + valid phone → blocked","178","test_TC_REG_API_008_duplicate_email_valid_phone","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-REG-API-005 | Boundary | Register with empty body returns 400
+    ","173","test_TC_REG_API_005_register_empty_body","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-ONB-API-017 | Boundary | business_area_ids min 2 — should pass","587","test_TC_ONB_API_017_business_area_min_2","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"
+    TC-REG-API-004 | Negative | Register with invalid email format
+    ","177","test_TC_REG_API_004_register_invalid_email_format","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-CMS-APPROVE-002 | Negative | Approve PENDING user (not verified)
+    ","2744","test_TC_CMS_APPROVE_002_approve_without_verification","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_approve_user_test","",""
+"TC-ONB-API-018 | Boundary | business_area_ids max 5 — should pass","555","test_TC_ONB_API_018_business_area_max_5","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-API-006 | Regression | Search with auth token returns 200/400","43","test_TC_API_006_search_authenticated","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-REG-API-030 | Combination | Null values in email and fullname return 400","190","test_TC_REG_API_030_null_values_in_required_fields","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-REG-API-006 | Negative | Duplicate email returns error","177","test_TC_REG_API_006_duplicate_email","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-API-012 | Security | Login without x-api-key header returns 401","156","test_TC_API_012_login_without_api_key","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-CMS-API-009 | Negative | CMS login with empty password returns 4xx","170","test_TC_CMS_API_009_login_empty_password","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-REG-API-020 | Negative | Invalid phone country code (XX) returns 400","175","test_TC_REG_API_020_invalid_phone_country_code","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-API-013 | Negative | Login with empty email string returns 400","166","test_TC_API_013_login_empty_email","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"
+    TC-USERS-EMAIL-001 | Smoke/Security
+    Given an approved synthetic user is authenticated
+    When PUT /v1/users/me/email with a unique new_email
+    Then the email change request is saved
+    ","708","test_TC_USERS_EMAIL_001_request_email_change_success","features.users_email.steps.api","2026-05-16","passed","2026-05-16","","users_email_api_test","",""
+"TC-API-011 | Security | Get profile without token returns 401","159","test_TC_API_011_get_profile_unauthenticated","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-API-016 | Performance | Login response time under 3s","386","test_TC_API_016_login_response_time","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"
+    TC-ONB-API-009 | Negative | Non-existent industry IDs
+    ","569","test_TC_ONB_API_009_onboarding_invalid_industry_ids","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"
+    TC-ONB-API-011 | Boundary | Empty body returns 400
+    ","545","test_TC_ONB_API_011_onboarding_empty_body","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-REG-API-012 | Security | Missing x-api-key header returns 401","176","test_TC_REG_API_012_missing_api_key","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-ONB-API-028 | Boundary | social_cause_ids only 1 — should fail (min=2)
+    [DEV-BUG] If API accepts 1, min validation is missing","558","test_TC_ONB_API_028_social_causes_below_min_1","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-REG-API-024 | Boundary | Valid LinkedIn URL is accepted","735","test_TC_REG_API_024_valid_linkedin_url","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-CMS-API-008 | Negative | CMS login with empty email returns 400","173","test_TC_CMS_API_008_login_empty_email","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-REG-API-023 | Security | XSS payload in fullname is handled safely","163","test_TC_REG_API_023_xss_in_fullname","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-ONB-API-006 | Negative | Invalid city_id returns error
+    ","553","test_TC_ONB_API_006_onboarding_invalid_city_id","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-API-017 | Security | SQL injection in email is blocked","170","test_TC_API_017_login_sql_injection_email","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-REG-API-018 | Negative | Missing fullname field returns 400","170","test_TC_REG_API_018_missing_fullname","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-REG-API-007 | Negative | Duplicate phone number returns error","179","test_TC_REG_API_007_duplicate_phone","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-USERS-ACCOUNT-003 | Regression
+    Given an authenticated user exists
+    When GET /v1/users/me/account
+    Then legacy nullable metadata remains contract-safe
+    ","42","test_TC_USERS_ACCOUNT_003_account_optional_fields_allow_legacy_nulls","features.users_account.steps.api","2026-05-16","skipped","2026-05-16","","users_account_api_test","",""
+"TC-REG-API-022 | Boundary | Phone number too long (21 digits) — documents behavior","173","test_TC_REG_API_022_phone_too_long","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-REG-API-019 | Negative | Missing linkedin field — documents API behavior","164","test_TC_REG_API_019_missing_linkedin","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-CMS-APPROVE-001 | Smoke | Full E2E flow
+    Register → DB set verified → CMS approve → Verify APPROVED in DB
+    ","4533","test_TC_CMS_APPROVE_001_full_flow_register_verify_approve","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_approve_user_test","",""
+"
+    TC-USERS-ACCOUNT-004 | Smoke
+    Given an approved synthetic user is authenticated
+    When PUT /v1/users/me/account with valid phone and country metadata
+    Then the API saves the account update and GET reflects phone metadata
+    ","93","test_TC_USERS_ACCOUNT_004_update_account_information_success","features.users_account.steps.api","2026-05-16","passed","2026-05-16","","users_account_api_test","",""
+"
+    TC-ONB-API-008 | Boundary | Empty arrays for ids
+    ","572","test_TC_ONB_API_008_onboarding_empty_arrays","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-REG-API-021 | Boundary | Phone number too short (3 digits) returns 400","173","test_TC_REG_API_021_phone_too_short","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-CMS-USERS-004 | Functional | Pagination — page 1, size 5","177","test_TC_CMS_USERS_004_list_users_pagination","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"
+    TC-REG-API-001 | Smoke | Register with valid data returns OK
+    ","943","test_TC_REG_API_001_register_valid_data","features.register.steps.api","2026-05-18","failed","2026-05-18","","register_api_test","",""
+"
+    TC-CMS-API-003 | Boundary | CMS login without resource field
+    Given: resource field is missing
+    Then: 400 or 401 returned
+    ","173","test_TC_CMS_API_003_login_missing_resource","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-API-014 | Negative | Login with empty password string returns 4xx","171","test_TC_API_014_login_empty_password","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-REG-API-025 | Negative | Invalid LinkedIn URL — documents API behavior","164","test_TC_REG_API_025_invalid_linkedin_url","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-REG-API-010 | Negative | Invalid email format","670","test_TC_REG_API_010_invalid_email_format","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-CMS-API-007 | Negative | CMS login with invalid email format returns 400","177","test_TC_CMS_API_007_login_invalid_email_format","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-ONB-API-025 | Boundary | social_cause_ids min 2 — should pass","534","test_TC_ONB_API_025_social_causes_min_2","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-CMS-APPROVE-005 | Boundary | Approve already approved user","469","test_TC_CMS_APPROVE_005_approve_already_approved","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_approve_user_test","",""
+"TC-API-005 | Regression | Empty body returns 400/422","168","test_TC_API_005_login_empty_body","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-REG-API-015 | Combination | Both email AND phone duplicate → blocked","176","test_TC_REG_API_015_both_email_and_phone_duplicate","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-USERS-ACCOUNT-005 | Security
+    Given no bearer token is provided
+    When PUT /v1/users/me/account
+    Then the API returns 401
+    ","171","test_TC_USERS_ACCOUNT_005_update_account_without_token","features.users_account.steps.api","2026-05-16","passed","2026-05-16","","users_account_api_test","",""
+"TC-ONB-API-026 | Boundary | social_cause_ids max 5 — should pass","556","test_TC_ONB_API_026_social_causes_max_5","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-REG-API-029 | Combination | Register same user twice — second attempt blocked","789","test_TC_REG_API_029_register_same_user_twice","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-CMS-API-002 | Negative | CMS login with wrong password returns 401
+    ","357","test_TC_CMS_API_002_login_wrong_password","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-API-020 | Security | Three consecutive wrong-password attempts all return 401","846","test_TC_API_020_login_multiple_failed_attempts","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"
+    TC-ONB-API-007 | Boundary | More than 2 industries
+    [DEV-BUG?] Should be blocked if max is 2
+    ","598","test_TC_ONB_API_007_onboarding_over_max_industries","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"
+    TC-CMS-USERS-001 | Smoke | List users with valid CMS token
+    Given: CMS admin is authenticated
+    When: GET /v1/users with pagination params
+    Then: 200 + list of users returned
+    ","181","test_TC_CMS_USERS_001_list_users_authenticated","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"
+    TC-CMS-REJECT-010 | Combination | Reject then approve same user
+    [DEV-BUG] Should rejected user be approvable? Business rule unclear.
+    ","2737","test_TC_CMS_REJECT_010_reject_then_approve","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"
+    TC-USERS-ACCOUNT-006 | Negative
+    Given an approved synthetic user is authenticated
+    When PUT /v1/users/me/account with invalid phone_code
+    Then the API returns an exact validation error without forcing a workaround
+    ","43","test_TC_USERS_ACCOUNT_006_update_account_rejects_invalid_phone_code","features.users_account.steps.api","2026-05-16","passed","2026-05-16","","users_account_api_test","",""
+"TC-REG-API-026 | Performance | Register response time under 3s","747","test_TC_REG_API_026_response_time","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-ONB-API-022 | Boundary | personal_interest_ids max 5 — should pass","579","test_TC_ONB_API_022_personal_interests_max_5","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-ONB-API-020 | Boundary | business_area_ids only 1 — should fail (min=2)
+    [DEV-BUG] If API accepts 1, min validation is missing","586","test_TC_ONB_API_020_business_area_below_min_1","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-API-018 | Boundary | 500-char email is handled gracefully","176","test_TC_API_018_login_very_long_email","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-ONB-API-024 | Boundary | personal_interest_ids only 1 — should fail (min=2)
+    [DEV-BUG] If API accepts 1, min validation is missing","546","test_TC_ONB_API_024_personal_interests_below_min_1","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-CMS-API-010 | Boundary | Three consecutive wrong-password CMS logins all blocked","860","test_TC_CMS_API_010_login_multiple_failed_attempts","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-CMS-USERS-003 | Functional | Filter users by status=APPROVED","167","test_TC_CMS_USERS_003_list_users_filter_by_status","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"TC-API-008 | Regression | Empty search query returns 200/400/422","41","test_TC_API_008_search_empty_query","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-ONB-API-027 | Boundary | social_cause_ids over max (6) — should fail
+    [DEV-BUG] If API accepts 6, validation is missing","591","test_TC_ONB_API_027_social_causes_over_max_6","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-API-002 | Sanity | Wrong password returns 401","396","test_TC_API_002_login_wrong_password","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-REG-API-016 | Boundary | Register with minimum required fields returns 200","870","test_TC_REG_API_016_minimum_valid_data","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-CMS-REJECT-002 | Boundary | Reject without reason body","2264","test_TC_CMS_REJECT_002_reject_without_reason","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"TC-ONB-API-019 | Boundary | business_area_ids over max (6) — should fail
+    [DEV-BUG] If API accepts 6, validation is missing","576","test_TC_ONB_API_019_business_area_over_max_6","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-ONB-API-016 | Boundary | industry_ids empty [] — should fail (min=1)
+    [DEV-BUG] If API accepts 0 industries, min validation is missing","569","test_TC_ONB_API_016_industry_zero","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"
+    TC-CMS-REJECT-006 | Boundary | Reject already approved user
+    [DEV-BUG] Should this be allowed? Business rule unclear.
+    ","461","test_TC_CMS_REJECT_006_reject_already_approved_user","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"TC-REG-API-017 | Boundary | Special characters in fullname","174","test_TC_REG_API_017_special_chars_fullname","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-ONB-API-004 | Boundary | Missing full_name returns 400
+    ","583","test_TC_ONB_API_004_onboarding_missing_full_name","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-CMS-USERS-008 | Functional | Navigate through pages — no overlap","340","test_TC_CMS_USERS_008_page_navigation","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"TC-CMS-USERS-012 | Boundary | Invalid order value (not ASC/DESC)","182","test_TC_CMS_USERS_012_invalid_order_value","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"
+    TC-USERS-EMAIL-005 | Negative
+    Given an approved synthetic user requested an email change
+    And the latest verification code is expired in DB
+    When GET /v1/users/verify-email with the expired code
+    Then the API returns the expired-link response
+    ","1454","test_TC_USERS_EMAIL_005_verify_email_change_rejects_expired_code","features.users_email.steps.api","2026-05-16","skipped","2026-05-16","","users_email_api_test","",""
+"TC-API-019 | Boundary | Uppercase email — documents case sensitivity behavior","397","test_TC_API_019_login_email_case_sensitivity","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"
+    TC-REG-API-002 | Negative | Register with existing email returns error
+    ","175","test_TC_REG_API_002_register_duplicate_email","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-USERS-EMAIL-004 | Smoke
+    Given an approved synthetic user requested an email change
+    When GET /v1/users/verify-email with the latest verification code
+    Then the API updates the email successfully
+    ","1151","test_TC_USERS_EMAIL_004_verify_email_change_success","features.users_email.steps.api","2026-05-16","skipped","2026-05-16","","users_email_api_test","",""
+"TC-CMS-API-006 | Security | CMS login without x-api-key header returns 401","175","test_TC_CMS_API_006_login_without_api_key","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-API-010 | Smoke | Get profile with valid token returns 200","44","test_TC_API_010_get_profile_authenticated","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"
+    TC-USERS-PASSWORD-004 | Boundary/Negative
+    Given an authenticated synthetic user
+    When a required password field is absent from the request body
+    Then the API returns a validation error (400 or 422)
+    ","43","test_TC_USERS_PASSWORD_004_missing_required_field[missing_new_password]","features.users_password.steps.api","2026-05-16","passed","2026-05-16","","users_password_api_test","",""
+"TC-CMS-USERS-010 | Boundary | No query params — API uses defaults","177","test_TC_CMS_USERS_010_no_params_uses_defaults","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"
+    TC-REG-API-003 | Boundary | Register with missing fields returns 400
+    ","168","test_TC_REG_API_003_register_missing_required_fields","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-CMS-REJECT-001 | Smoke | Full flow: Register → Verify → Reject
+    ","3894","test_TC_CMS_REJECT_001_reject_verified_user","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"
+    TC-ONB-API-001 | Smoke | Complete onboarding with valid data
+    Given: Approved user logged in
+    When: PUT /v1/users/onboarding with valid payload
+    Then: 200 + onboarding_completed_at set in DB
+    ","1871","test_TC_ONB_API_001_complete_onboarding_valid_data","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-ONB-API-021 | Boundary | personal_interest_ids min 2 — should pass","565","test_TC_ONB_API_021_personal_interests_min_2","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-API-001 | Smoke | Valid credentials return 200 + accessToken","1818","test_TC_API_001_login_valid_credentials","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-CMS-REJECT-009 | Boundary | Very long rejection reason (1000+ chars)","2590","test_TC_CMS_REJECT_009_reject_with_very_long_reason","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"TC-CMS-USERS-002 | Security | List users without token returns 401","170","test_TC_CMS_USERS_002_list_users_unauthenticated","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"TC-REG-API-009 | Combination | Valid email + duplicate phone → blocked","181","test_TC_REG_API_009_valid_email_duplicate_phone","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-USERS-ACCOUNT-002 | Security
+    Given no bearer token is provided
+    When GET /v1/users/me/account
+    Then the API returns 401
+    ","175","test_TC_USERS_ACCOUNT_002_get_account_without_token","features.users_account.steps.api","2026-05-16","passed","2026-05-16","","users_account_api_test","",""
+"TC-ONB-API-014 | Boundary | industry_ids max 2 — should pass","800","test_TC_ONB_API_014_industry_max_2","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"
+    TC-USERS-PASSWORD-001 | Smoke/Security
+    Given an approved synthetic user is authenticated
+    When PUT /v1/users/me/password with current_password and new_password
+    Then the password is changed: old credentials rejected, new credentials accepted
+    After: DB reset to CURRENT_PASSWORD so user stays reusable
+    ","1713","test_TC_USERS_PASSWORD_001_change_password_success","features.users_password.steps.api","2026-05-16","passed","2026-05-16","","users_password_api_test","",""
+"TC-REG-API-014 | Boundary | Very long fullname (500+ chars)","746","test_TC_REG_API_014_very_long_fullname","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-USERS-PASSWORD-003 | Negative
+    Given an authenticated synthetic user
+    When current_password field contains the wrong value
+    Then the request is rejected and the original password still works
+    ","526","test_TC_USERS_PASSWORD_003_wrong_current_password_preserves_password","features.users_password.steps.api","2026-05-16","passed","2026-05-16","","users_password_api_test","",""
+"
+    TC-USERS-PASSWORD-002 | Security
+    Given no bearer token is provided
+    When PUT /v1/users/me/password
+    Then the API returns 401
+    ","200","test_TC_USERS_PASSWORD_002_change_password_without_token","features.users_password.steps.api","2026-05-16","passed","2026-05-16","","users_password_api_test","",""
+"TC-CMS-USERS-005 | Functional | Order by name DESC","171","test_TC_CMS_USERS_005_list_users_order_desc","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"
+    TC-USERS-ACCOUNT-001 | Smoke
+    Given an approved synthetic user is authenticated
+    When GET /v1/users/me/account
+    Then account information is returned for the authenticated user
+    ","43","test_TC_USERS_ACCOUNT_001_get_account_information_success","features.users_account.steps.api","2026-05-16","passed","2026-05-16","","users_account_api_test","",""
+"
+    TC-ONB-API-012 | Performance | Onboarding response under 3s
+    ","582","test_TC_ONB_API_012_onboarding_response_time","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"
+    TC-CMS-API-001 | Smoke | CMS login with valid credentials returns token
+    Given: API available
+    When: POST /v1/users/login with email + password + resource=admin
+    Then: 200 + accessToken returned
+    ","424","test_TC_CMS_API_001_login_valid_credentials","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-ONB-API-023 | Boundary | personal_interest_ids over max (6) — should fail
+    [DEV-BUG] If API accepts 6, validation is missing","592","test_TC_ONB_API_023_personal_interests_over_max_6","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-API-003 | Sanity | Invalid email format returns 400/422","172","test_TC_API_003_login_invalid_email","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-REG-API-028 | Boundary | Whitespace-only fullname — documents API behavior","812","test_TC_REG_API_028_whitespace_only_fullname","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-ONB-API-003 | Security | Onboarding with invalid token returns 401
+    ","175","test_TC_ONB_API_003_onboarding_invalid_token","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-ONB-API-015 | Boundary | industry_ids over max (3) — should fail
+    [DEV-BUG] If API accepts 3 industries, validation is missing","572","test_TC_ONB_API_015_industry_over_max_3","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"TC-CMS-APPROVE-003 | Negative | Approve with invalid user ID","172","test_TC_CMS_APPROVE_003_approve_nonexistent_user","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_approve_user_test","",""
+"
+    TC-CMS-API-005 | Performance | CMS login response under 3s
+    ","380","test_TC_CMS_API_005_login_response_time","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""
+"TC-CMS-REJECT-003 | Boundary | Reject with empty string reason","2404","test_TC_CMS_REJECT_003_reject_with_empty_reason","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"
+    TC-CMS-REJECT-007 | Boundary | Reject already rejected user
+    [DEV-BUG] Double reject — should be idempotent or return error?
+    ","2740","test_TC_CMS_REJECT_007_reject_already_rejected_user","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"
+    TC-USERS-EMAIL-003 | Negative
+    Given an approved synthetic user is authenticated
+    And another approved user already owns the requested email
+    When PUT /v1/users/me/email with the existing user's email
+    Then the API rejects the duplicate email request
+    ","45","test_TC_USERS_EMAIL_003_request_email_change_rejects_existing_email","features.users_email.steps.api","2026-05-16","passed","2026-05-16","","users_email_api_test","",""
+"TC-CMS-REJECT-004 | Security | Reject without CMS token returns 401","2259","test_TC_CMS_REJECT_004_reject_without_token","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"TC-REG-API-013 | Security | SQL injection in fullname is sanitized","787","test_TC_REG_API_013_sql_injection_fullname","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-CMS-REJECT-008 | Edge | Reject PENDING user (not verified yet)
+    [DEV-BUG] Should admin be able to reject unverified users?
+    ","2473","test_TC_CMS_REJECT_008_reject_pending_unverified_user","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_reject_user_test","",""
+"TC-CMS-USERS-011 | Boundary | Invalid page number","172","test_TC_CMS_USERS_011_invalid_page_number","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"TC-REG-API-027 | Boundary | Empty string fullname returns 400","169","test_TC_REG_API_027_empty_string_fullname","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"TC-API-007 | Sanity | Search without auth returns 401/403","166","test_TC_API_007_search_unauthenticated","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-CMS-APPROVE-004 | Security | Approve without CMS token","476","test_TC_CMS_APPROVE_004_approve_without_token","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_approve_user_test","",""
+"TC-CMS-USERS-009 | Functional | Filter by each status value","558","test_TC_CMS_USERS_009_all_status_values","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"TC-CMS-USERS-006 | Functional | Different page sizes return correct count","577","test_TC_CMS_USERS_006_size_variations","features.cms_users.steps.api","2026-05-16","passed","2026-05-16","","cms_users_api_test","",""
+"
+    TC-USERS-EMAIL-002 | Security
+    Given no bearer token is provided
+    When PUT /v1/users/me/email
+    Then the API returns 401
+    ","176","test_TC_USERS_EMAIL_002_request_email_change_without_token","features.users_email.steps.api","2026-05-16","passed","2026-05-16","","users_email_api_test","",""
+"
+    TC-USERS-PASSWORD-004 | Boundary/Negative
+    Given an authenticated synthetic user
+    When a required password field is absent from the request body
+    Then the API returns a validation error (400 or 422)
+    ","52","test_TC_USERS_PASSWORD_004_missing_required_field[missing_current_password]","features.users_password.steps.api","2026-05-16","passed","2026-05-16","","users_password_api_test","",""
+"TC-API-004 | Sanity | Missing password returns 400/422","170","test_TC_API_004_login_missing_password","features.login.steps.api","2026-05-18","passed","2026-05-18","","login_api_test","",""
+"TC-REG-API-011 | Negative | Non-numeric phone number","163","test_TC_REG_API_011_phone_non_numeric","features.register.steps.api","2026-05-18","passed","2026-05-18","","register_api_test","",""
+"
+    TC-ONB-API-005 | Boundary | Missing city_id returns 400
+    ","656","test_TC_ONB_API_005_onboarding_missing_city","features.onboarding.steps.api","2026-05-18","passed","2026-05-18","","onboarding_api_test","",""
+"
+    TC-CMS-API-004 | Negative | CMS login with wrong resource value
+    Given: resource is not ""admin""
+    Then: 400 or 401 returned
+    ","178","test_TC_CMS_API_004_login_wrong_resource","features.cms_login.steps.api","2026-05-16","passed","2026-05-16","","cms_login_api_test","",""

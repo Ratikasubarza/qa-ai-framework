@@ -1,0 +1,1173 @@
+{
+  "feature": "HM-516 View Posts Tab Default Pagination Android",
+  "run_id": "20260513_192854",
+  "status": "needs_revision",
+  "case_review": {
+    "status": "needs_revision",
+    "quality_score": 7.4,
+    "quality_score_raw": 7.4,
+    "coverage_percentage": 90,
+    "findings": {
+      "critical": 2,
+      "major": 4,
+      "minor": 3
+    },
+    "missing_test_cases": [
+      {
+        "priority": "P0",
+        "title": "Owner view of anonymous post shows author name",
+        "reason": "Requirement REQ-008 states that anonymity is stripped only for non\u2011owner viewers; the owner must still see their own name.",
+        "covers_requirement": "REQ-008"
+      },
+      {
+        "priority": "P1",
+        "title": "Visibility enum handling when post_mentions records are missing for MENTIONED visibility",
+        "reason": "The backend should reject a MENTIONED post without corresponding post_mentions; UI must display an error placeholder.",
+        "covers_requirement": "REQ-010"
+      },
+      {
+        "priority": "P2",
+        "title": "Attempt to load next page after reaching end does not trigger additional network calls",
+        "reason": "Ensures pagination stop condition is enforced at the client side, preventing unnecessary API traffic.",
+        "covers_requirement": "REQ-007"
+      }
+    ],
+    "prd_clarifications": [
+      "Is the default page size fixed at 10 or configurable per device?",
+      "When an anonymous post is viewed by its owner, should the UI display the actual author name or a generic \"You\" label?",
+      "For FOLLOWERS_ONLY visibility, are posts from private accounts treated differently, or is follower relationship the sole criterion?"
+    ],
+    "recommendation": "The test suite covers the majority of the functional requirements for the Posts tab, especially pagination and visibility features. However, critical gaps exist around security\u2011related anonymity checks and proper isolation of user contexts for visibility filters. Address the critical findings, add the missing owner\u2011view anonymous test, and clarify the open PRD questions before the next release to ensure robust validation of the new visibility enum and anonymity logic.",
+    "traceability_matrix": [
+      {
+        "requirement_id": "REQ-001",
+        "requirement_summary": "Posts tab loads first page with default pagination (page size 10)",
+        "covering_test_cases": [
+          "TC-001",
+          "TC-022"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-002",
+        "requirement_summary": "Infinite scroll loads next page when user reaches bottom",
+        "covering_test_cases": [
+          "TC-002",
+          "TC-008",
+          "TC-017"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-003",
+        "requirement_summary": "Empty state UI is shown when no posts exist",
+        "covering_test_cases": [
+          "TC-003"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-004",
+        "requirement_summary": "Media placeholder is displayed while images load and removed after load",
+        "covering_test_cases": [
+          "TC-004",
+          "TC-011"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-005",
+        "requirement_summary": "\"Read more\" expands truncated text and toggles to \"Read less\"",
+        "covering_test_cases": [
+          "TC-005",
+          "TC-010"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-006",
+        "requirement_summary": "Scroll position and UI state (e.g., expanded posts) are preserved when navigating away and back",
+        "covering_test_cases": [
+          "TC-006",
+          "TC-017"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-007",
+        "requirement_summary": "Tab navigation between Posts, Explore, Profile works without data loss",
+        "covering_test_cases": [
+          "TC-007"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-008",
+        "requirement_summary": "Anonymous posts hide author identity for non\u2011owner viewers",
+        "covering_test_cases": [
+          "TC-019",
+          "TC-023"
+        ],
+        "status": "partial"
+      },
+      {
+        "requirement_id": "REQ-009",
+        "requirement_summary": "FOLLOWERS_ONLY visibility filters posts to followers only",
+        "covering_test_cases": [
+          "TC-020"
+        ],
+        "status": "covered"
+      },
+      {
+        "requirement_id": "REQ-010",
+        "requirement_summary": "MENTIONED visibility shows post only to mentioned users",
+        "covering_test_cases": [
+          "TC-021"
+        ],
+        "status": "covered"
+      }
+    ]
+  },
+  "test_cases": [
+    {
+      "scenario_id": "TC-001",
+      "name": "Open Posts tab and verify first page loads with posts",
+      "precondition": "User is logged in and has at least 5 posts in the feed",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Home screen",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user taps the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the first page of posts is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the list contains at least 5 items",
+          "expected": ""
+        }
+      ],
+      "expected_result": "First page posts are visible and count >= 5",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "smoke",
+        "UI"
+      ],
+      "test_type": "smoke",
+      "platforms": [
+        "android"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-002",
+      "name": "Scroll to bottom of Posts list and load next page",
+      "precondition": "User is on Posts tab with at least 2 pages of posts",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the next page of posts is appended to the list",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the total item count increases by page size",
+          "expected": ""
+        }
+      ],
+      "expected_result": "New posts appear after scroll",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-003",
+      "name": "Verify empty state is shown when no posts exist",
+      "precondition": "User has no posts in the feed",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the feed is empty",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then an empty state message \"No posts yet\" is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no list items are visible",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Empty state UI appears correctly",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "high",
+      "edge_cases": [
+        "empty data state"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-004",
+      "name": "Media placeholder displays while image is loading",
+      "precondition": "User has a post with an image that takes >1s to load",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post image starts loading",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then a gray placeholder is shown until the image fully loads",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the placeholder disappears once the image is rendered",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Placeholder visibility toggles correctly",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-005",
+      "name": "Read more expands truncated post text when tapped",
+      "precondition": "User has a post with text > 200 characters",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user taps the \"Read more\" link on a truncated post",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the full post text is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the link changes to \"Read less\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Full text is shown and link toggles",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-006",
+      "name": "Scroll position preserved after navigating away and back to Posts tab",
+      "precondition": "User has scrolled to item 15 on the Posts tab",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab and scrolled to item 15",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user switches to the Profile tab",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "And then returns to the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "Then the list scrolls back to item 15",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And the previously expanded \"Read more\" state is retained",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Scroll and UI state persist across tab switches",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-007",
+      "name": "Tab navigation switches correctly between Posts and other tabs",
+      "precondition": "User is on the Home screen with Posts, Explore, and Profile tabs",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Home screen",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user taps the Explore tab",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the Explore screen is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When the user taps the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then the Posts screen is displayed again",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Tabs switch without data loss",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "UI"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-008",
+      "name": "Pagination stops when no more posts are available",
+      "precondition": "User has exactly 12 posts and page size is 10",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to the bottom of the list",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then a loading indicator appears",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And after loading, no new items are added",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "And a \"No more posts\" message is shown",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Pagination ends gracefully",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "boundary"
+      ],
+      "test_type": "boundary",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "exact page boundary"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-009",
+      "name": "Verify posts with zero-length text do not crash UI",
+      "precondition": "User has a post with empty string as content",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post with empty text is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the post container is displayed without error",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no placeholder text is shown",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Empty text handled gracefully",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "negative"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "empty string content"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-010",
+      "name": "Rapidly tapping Read more does not duplicate content",
+      "precondition": "User has a long post with Read more link",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user taps the Read more link 5 times quickly",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the post expands only once",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no duplicate text or UI glitches appear",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Debounce or idempotent expand behavior",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "weird edge"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "low",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "rapid repeated tap"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-011",
+      "name": "Post with image exceeding max size shows error placeholder",
+      "precondition": "User has a post with an image > 5MB",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the oversized image starts loading",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then an error placeholder with retry icon is displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And tapping retry attempts to reload the image",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Large images handled without crash",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "negative"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "image size > max"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-012",
+      "name": "Session expiry mid-pagination shows login prompt",
+      "precondition": "User is logged in, session expires after 5 minutes of inactivity",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab and has scrolled to page 2",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the session expires while loading page 3",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then a login prompt overlays the screen",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the user can re-authenticate to continue pagination",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Graceful handling of session expiry during pagination",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "security"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "mid-action session expiry"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-013",
+      "name": "Verify RTL text displays correctly in post content",
+      "precondition": "User has a post with Arabic text",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the Arabic post is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the text aligns right-to-left",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no layout shift occurs",
+          "expected": ""
+        }
+      ],
+      "expected_result": "RTL support in post content",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "accessibility"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "low",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [
+        "RTL text"
+      ],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-014",
+      "name": "Verify screen reader reads post author and content correctly",
+      "precondition": "User has a post with author name and text",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When a screen reader is activated",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the author name is announced first",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And then the post content is read aloud",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Screen reader accessibility compliance",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "accessibility"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "low",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-015",
+      "name": "Verify posts with special characters do not break pagination logic",
+      "precondition": "User has 15 posts, 5 of which contain emojis and zero-width spaces",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the user scrolls to load all pages",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then all posts are displayed correctly",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And pagination continues without errors",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Special characters handled in list rendering",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "edge cases"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "special characters in content"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-016",
+      "name": "Verify that tapping back button from Posts tab returns to previous screen",
+      "precondition": "User navigated from Home to Posts tab",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the device back button is pressed",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the previous screen (Home) is displayed",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Back navigation works as expected",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "negative"
+      ],
+      "test_type": "negative",
+      "platforms": [
+        "android"
+      ],
+      "priority": "high",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-017",
+      "name": "Verify posts list does not duplicate items after orientation change",
+      "precondition": "User is on Posts tab with 20 items loaded",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the device orientation changes from portrait to landscape",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the list retains the same items without duplication",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And scroll position is preserved",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Orientation change handled gracefully",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "boundary"
+      ],
+      "test_type": "boundary",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "orientation change"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-018",
+      "name": "Verify that posts with zero likes still display like icon correctly",
+      "precondition": "User has a post with 0 likes",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the post is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the like icon is shown in inactive state",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the like count displays \"0\"",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Zero like count handled",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "edge cases"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "low",
+      "edge_cases": [
+        "zero likes"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-019",
+      "name": "Verify that tapping a post with anonymous visibility shows no author name",
+      "precondition": "User has a post with visibility EVERYONE but is marked is_anonymous=true",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the anonymous post is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the author name is hidden or replaced with \"Anonymous\"",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the rest of the post content is visible",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Anonymous visibility UI correct",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "security"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "anonymous post"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-020",
+      "name": "Verify that posts with FOLLOWERS_ONLY visibility are hidden from non-followers",
+      "precondition": "User A follows User B; User B posts with FOLLOWERS_ONLY visibility",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given User A is logged in and on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When User B's post is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the post is visible because User A follows User B",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When User C (not following User B) logs in",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then User C does not see User B's FOLLOWERS_ONLY post",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Visibility filtering works",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "security"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "visibility filter"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-021",
+      "name": "Verify that posts with MENTIONED visibility show only to mentioned users",
+      "precondition": "User D is mentioned in a post by User E with MENTIONED visibility",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given User D is logged in and on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the mentioned post is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then User D sees the post",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "When User F (not mentioned) logs in",
+          "expected": ""
+        },
+        {
+          "step_number": 5,
+          "action": "Then User F does not see the post",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Mentioned visibility filtering correct",
+      "test_data": {},
+      "tags": [
+        "functional",
+        "security"
+      ],
+      "test_type": "functional",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [
+        "mentioned visibility"
+      ],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": false,
+      "regression_risk_area": []
+    },
+    {
+      "scenario_id": "TC-022",
+      "name": "Regression: Verify that existing Posts tab still loads when visibility enum added",
+      "precondition": "User has posts with various visibility settings",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the tab loads",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then all posts that the user is allowed to see are displayed",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And no crash occurs due to new visibility field",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Existing functionality intact after enum change",
+      "test_data": {},
+      "tags": [
+        "regression",
+        "functional"
+      ],
+      "test_type": "regression",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": true,
+      "regression_risk_area": [
+        "Posts tab UI rendering"
+      ]
+    },
+    {
+      "scenario_id": "TC-023",
+      "name": "Regression: Verify that anonymous posts still show correct like counts",
+      "precondition": "User has an anonymous post with 10 likes",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Given the user is on the Posts tab",
+          "expected": ""
+        },
+        {
+          "step_number": 2,
+          "action": "When the anonymous post is rendered",
+          "expected": ""
+        },
+        {
+          "step_number": 3,
+          "action": "Then the like count displays \"10\"",
+          "expected": ""
+        },
+        {
+          "step_number": 4,
+          "action": "And the author name is hidden",
+          "expected": ""
+        }
+      ],
+      "expected_result": "Like counts unaffected by anonymity",
+      "test_data": {},
+      "tags": [
+        "regression",
+        "functional"
+      ],
+      "test_type": "regression",
+      "platforms": [
+        "android"
+      ],
+      "priority": "medium",
+      "edge_cases": [],
+      "combination_edge_cases": [],
+      "weird_edge_cases": [],
+      "regression_candidate": true,
+      "regression_risk_area": [
+        "Like count display"
+      ]
+    }
+  ]
+}

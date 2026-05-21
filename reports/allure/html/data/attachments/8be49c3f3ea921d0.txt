@@ -1,0 +1,7 @@
+2026-05-16 09:48:27 [info     ] api_post                       path=/v1/users/login status=200
+2026-05-16 09:48:28 [info     ] api_post                       path=/v1/users/register status=200
+2026-05-16 09:48:29 [info     ] db_connected                   host=hono-mysql-public-dev.cxy6q0we47e0.ap-southeast-1.rds.amazonaws.com
+2026-05-16 09:48:29 [info     ] db_verified_set                affected=1 email=testregister+1778896107@mailinator.com
+2026-05-16 09:48:29 [info     ] db_disconnected
+2026-05-16 09:48:30 [info     ] api_post                       path=/v1/users/559af46f-50c9-11f1-852f-021fe5155c2f/reject status=200
+2026-05-16 09:48:30 [info     ] api_post                       path=/v1/users/559af46f-50c9-11f1-852f-021fe5155c2f/approve status=400

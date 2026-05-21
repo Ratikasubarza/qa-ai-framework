@@ -1,4 +1,4 @@
-from mcp_tools.confluence_client.confluence_client import ConfluenceClient
+from integrations.confluence_client.confluence_client import ConfluenceClient
 
 
 def test_extract_page_id_from_confluence_url():

@@ -1,0 +1,436 @@
+Case ID,Title,Preconditions,Steps,Expected Result,Priority,Tags,Platform,AI Generated
+S1-TC-001,Default Posts tab selected and posts displayed in reverse chronological order,User is authenticated and has at least 5 public posts,"Given Given the user navigates to their Profile Page
+When When the screen loads
+When Then the ""Posts"" tab must be selected by default
+When And the system queries the Post API and returns posts sorted newest to oldest
+Then And the first 10 posts are rendered in the list",The Posts tab is active and the list shows the 10 most recent posts with correct order,P1,"functional, UI, API, smoke",WEB,true
+S1-TC-002,Infinite scroll loads next set of posts when scrolled to bottom,User has 25 posts,"Given Given the user is on the Profile Page with the Posts tab active
+When When the user scrolls to the bottom of the post list
+When Then the system requests the next 10 posts via the Post API
+Then And the new posts are appended to the list","15 posts are visible after first scroll, 25 after second scroll",P1,"functional, UI, API, regression",WEB,true
+S1-TC-003,"Post text truncated at 200 characters with ""Read more"" link",User has a post with 250 characters of text,"Given Given the user is on the Profile Page
+When When the post list is rendered
+When Then the post card displays only the first 200 characters followed by ""Read more""
+Then And clicking ""Read more"" expands to full text",200-char preview shown; full text revealed on click,P1,"functional, UI, regression",WEB,true
+S1-TC-004,Post card displays media preview correctly for image posts,User has a post with an image URL,"Given Given the user is on the Profile Page
+When When the post list is rendered
+When Then the media preview area shows the image thumbnail
+Then And clicking the thumbnail opens the image in a lightbox",Thumbnail visible and lightbox opens with full image,P1,"functional, UI, regression",WEB,true
+S1-TC-005,Post card shows visibility icon for followers-only posts,User has a followers-only post,"Given Given the user is on the Profile Page
+When When the post list is rendered
+When Then the visibility icon indicates ""followers-only""
+Then And the post is not visible to non-followers in API response",Icon displayed; API respects visibility,P1,"functional, API, regression",WEB,true
+S1-TC-006,Empty profile shows no posts and displays placeholder message,User has zero posts,"Given Given the user navigates to their Profile Page
+When When the screen loads
+When Then the system queries the Post API and receives an empty list
+Then And the UI displays ""You have no posts yet"" message",No post cards rendered; placeholder visible,P1,"functional, UI, regression",WEB,true
+S1-TC-007,API returns error 500 during post fetch shows error banner,Post API is mocked to return 500,"Given Given the user navigates to their Profile Page
+When When the system requests posts
+When Then the API returns 500
+Then And the UI displays an error banner with retry option",Error banner visible; retry button functional,P1,"negative, API, regression",WEB,true
+S1-TC-008,User with 11 posts sees pagination load 10 then 1,User has 11 posts,"Given Given the user is on the Profile Page
+When When the user scrolls to bottom once
+When Then the system fetches the next 10 posts
+Then And only 1 additional post is displayed",Total 11 posts displayed after scroll,P1,"boundary, functional, UI",WEB,true
+S1-TC-009,Rapid scrolling triggers multiple API calls but no duplicate posts,User has 30 posts,"Given Given the user is on the Profile Page
+When When the user scrolls rapidly to bottom multiple times
+Then Then the system queues API requests but ensures each post appears only once",30 unique posts displayed; no duplicates,P1,"negative, boundary, functional",WEB,true
+S1-TC-010,Session expires during infinite scroll and user is redirected to login,User session expires after 5 minutes,"Given Given the user is on the Profile Page and has scrolled halfway
+When When the session token expires
+When Then subsequent API calls return 401
+Then And the UI redirects to the login page",Login page displayed; no stale data shown,P1,"security, negative, regression",WEB,true
+S1-TC-011,Post with zero-width space in text renders correctly and truncates,Post text contains zero-width spaces,"Given Given the user is on the Profile Page
+When When the post list is rendered
+When Then the text is displayed without visible gaps
+Then And truncation occurs at 200 visible characters",Text appears continuous; truncation logic works,P1,"weird, functional, UI",WEB,true
+S1-TC-012,RTL language post displays correctly and truncates at 200 chars,User has a post in Arabic with 250 chars,"Given Given the user switches locale to Arabic
+When When the Profile Page loads
+When Then the post card displays RTL text
+Then And truncation occurs after 200 chars",RTL rendering correct; truncation applied,P1,"weird, functional, UI",WEB,true
+S1-TC-013,Copy-paste HTML into post text field is sanitized and stored as plain text,User is creating a new post,"Given Given the user is on the New Post form
+When When the user pastes '<script>alert(1)</script>' into the text area
+When Then the system sanitizes input to plain text
+Then And the stored post contains 'alert(1)' without script tags",No script execution; plain text stored,P1,"security, negative, functional",WEB,true
+S1-TC-014,Back button after viewing post detail returns to correct scroll position,User has scrolled 3 posts down and opens a post detail,"Given Given the user is on the Profile Page and scrolled to post #3
+When When the user clicks on the post to view details
+When And then clicks the browser back button
+Then Then the Profile Page reloads with scroll position at post #3",User returns to same spot without losing context,P1,"weird, functional, UI",WEB,true
+S1-TC-015,"Keyboard navigation can focus and activate ""Read more"" link",User has a post with truncated text,"Given Given the user is on the Profile Page
+When When the user tabs through post cards
+When And focuses on the ""Read more"" link
+Then Then pressing Enter expands the post text",Keyboard accessible; post expands,P1,"accessibility, functional, UI",WEB,true
+S1-TC-016,Responsive layout shows single column on mobile and two columns on tablet,User accesses Profile Page on different viewports,"Given Given the user opens the Profile Page on a 375px width device
+When When the page renders
+When Then posts are displayed in a single column
+When And on a 768px width device
+Then Then posts are displayed in two columns",Layout adapts correctly,P1,"accessibility, UI, regression",WEB,true
+S1-TC-017,API injection attempt in post ID returns 400 and no data leak,User attempts to fetch post with ID '<script>',"Given Given the user navigates to /profile/posts?postId=<script>
+When When the system queries the Post API
+When Then the API returns 400 Bad Request
+Then And no post data is returned",Injection prevented; safe error response,P1,"security, negative, API",WEB,true
+S1-TC-018,User with maximum allowed posts (1000) can scroll without performance degradation,User has 1000 posts,"Given Given the user is on the Profile Page
+When When the user scrolls to load all posts
+Then Then the UI remains responsive and no memory leaks occur",Smooth scrolling; no crashes,P1,"boundary, regression, performance",WEB,true
+S1-TC-019,Post card shows engagement stats correctly even when zero likes/comments,User has a post with 0 likes and 0 comments,"Given Given the user is on the Profile Page
+When When the post list is rendered
+Then Then the engagement stats display '0 likes • 0 comments'",Zero values displayed correctly,P1,"functional, UI, regression",WEB,true
+S1-TC-020,Switching between Posts and Media tabs preserves scroll position per tab,User has scrolled in both tabs,"Given Given the user scrolls to post #5 in Posts tab
+When When the user switches to Media tab and scrolls to media #3
+When Then the user switches back to Posts tab
+Then Then the scroll position is at post #5",Per-tab scroll state preserved,P1,"functional, UI, regression",WEB,true
+S2-TC-001,Default Posts Tab Selected on Profile Load,User is authenticated and has at least one public post,"Given Given the user navigates to /profile
+When When the profile page loads
+When Then the ""Posts"" tab must be highlighted
+Then And the first 10 posts are displayed in reverse chronological order","""Posts"" tab active and 10 posts rendered",P1,"functional, UI, API, regression",WEB,true
+S2-TC-002,Infinite Scroll Loads Next 10 Posts on Scroll Bottom,"User has 25 posts, authenticated","Given Given the user is on the profile page with 10 posts loaded
+When When the user scrolls to the bottom of the list
+When Then the next 10 posts are fetched and appended
+Then And the total displayed posts count is 20",20 posts displayed after scroll,P1,"functional, API, regression",WEB,true
+S2-TC-003,Post Text Truncation at 200 Characters with Read More Link,User has a post with 250 characters of text,"Given Given the user is on the profile page
+When When the post card is rendered
+When Then the displayed text is truncated to 200 characters
+Then And a ""Read more"" link is present",200 chars + ellipsis + link,P0,"functional, UI, regression",WEB,true
+S2-TC-004,Media Tab Aggregates All Images from User Posts,"User has 3 posts with 2, 1, and 4 images respectively","Given Given the user navigates to the ""Media"" tab
+When When the tab loads
+Then Then a 3-column grid displays 7 image thumbnails sorted by post date",7 thumbnails in grid,P1,"functional, UI, API, regression",WEB,true
+S2-TC-005,Thumbnail Click Opens Fullscreen Lightbox with Correct Image,User is on Media tab with at least one thumbnail,"Given Given the user clicks on the third thumbnail
+When When the lightbox opens
+When Then the displayed image matches the thumbnail source
+Then And the image is fullscreen",Correct image in lightbox,P1,"functional, UI, regression",WEB,true
+S2-TC-006,Lightbox Swipe Navigation Works Between Images,Lightbox open with at least 3 images,"Given Given the user swipes left on the lightbox
+When When the swipe gesture completes
+When Then the next image is displayed
+Then And the image index updates accordingly",Image index increments by 1,P1,"functional, UI, regression",WEB,true
+S2-TC-007,Lightbox Pinch-to-Zoom Respects Minimum and Maximum Scale,Lightbox open with an image,"Given Given the user performs a pinch gesture to zoom in
+When When the gesture exceeds 3x scale
+When Then the zoom level caps at 3x
+Then And the image does not overflow the viewport",Zoom capped at 3x,P1,"functional, UI, regression",WEB,true
+S2-TC-008,View Post Link Navigates to Correct Post Detail,Lightbox open for an image belonging to post ID 42,"Given Given the user clicks the ""View Post"" link
+When When navigation occurs
+When Then the URL contains /posts/42
+Then And the post detail page displays post ID 42 content",Correct post detail displayed,P1,"functional, UI, API, regression",WEB,true
+S2-TC-009,Media Tab Loads Zero Images Gracefully When No Media Exists,User has posts but none contain images,"Given Given the user navigates to the ""Media"" tab
+When When the tab loads
+When Then a message ""No media found"" is displayed
+Then And no thumbnails appear",Graceful empty state,P1,"functional, UI, regression",WEB,true
+S2-TC-010,Media Tab Handles 1000 Images Without Performance Degradation,User has 1000 images across posts,"Given Given the user navigates to the ""Media"" tab
+When When the grid renders
+Then Then all 1000 thumbnails are displayed within 5 seconds",Load time < 5s,P1,"functional, UI, regression",WEB,true
+S2-TC-011,Unauthorized User Cannot Access Profile Media Tab,User is not authenticated,"Given Given the user attempts to navigate to /profile/media
+When When the request is made
+When Then the response status is 401
+Then And the user is redirected to the login page",Access denied,P1,"security, negative, API",WEB,true
+S2-TC-012,Session Expiry Mid-Lightbox Navigation,"User is authenticated, session expires after 5 minutes","Given Given the user opens a lightbox and waits 6 minutes
+When When the user attempts to swipe to next image
+When Then the lightbox closes
+Then And the user is redirected to the login page",Session timeout handled,P1,"security, negative, API, weird",WEB,true
+S2-TC-013,Rapid Thumbnail Clicks Do Not Trigger Multiple Lightbox Instances,User is on Media tab with thumbnails,"Given Given the user clicks the same thumbnail 5 times quickly
+When When the clicks are processed
+Then Then only one lightbox instance opens",Single lightbox,P1,"functional, UI, weird",WEB,true
+S2-TC-014,Copy-Paste Image URL into Search Field Does Not Trigger XSS,Search field accepts text input,"Given Given the user copies <script>alert('xss')</script> and pastes into the search field
+When When the form is submitted
+When Then the script does not execute
+Then And the search results page loads normally",No XSS execution,P1,"security, negative, API",WEB,true
+S2-TC-015,Keyboard Navigation Through Media Thumbnails Accessible,User is on Media tab,"Given Given the user tabs through thumbnails using the keyboard
+When When the focus lands on a thumbnail
+When Then pressing Enter opens the lightbox
+Then And focus is trapped within the lightbox until closed",Keyboard accessibility,P1,"accessibility, UI, regression",WEB,true
+S2-TC-016,Screen Reader Announces Lightbox Image and Navigation Controls,"User is on Media tab, screen reader enabled","Given Given the user opens a lightbox
+When When the screen reader reads the page
+Then Then it announces ""Image 2 of 7, zoom in, zoom out, close""",Screen reader content,P1,"accessibility, UI, regression",WEB,true
+S2-TC-017,Responsive Grid Adjusts to 2 Columns on Tablet Width,User device width set to 768px,"Given Given the user navigates to the Media tab
+When When the viewport width is 768px
+Then Then the thumbnail grid displays 2 columns",2-column layout,P1,"accessibility, UI, regression",WEB,true
+S2-TC-018,Media Tab Handles Unicode Filenames with Emoji,"User uploads an image named ""sun🌞.jpg""","Given Given the user navigates to the Media tab
+When When the grid renders
+When Then the thumbnail displays the image correctly
+Then And the filename is shown as ""sun🌞.jpg""",Unicode filename displayed,P1,"functional, UI, regression",WEB,true
+S2-TC-019,Switching Language Mid-Session Does Not Break Lightbox,User is on lightbox in English,"Given Given the user changes language to Spanish while lightbox is open
+When When the language switch completes
+When Then the lightbox UI updates to Spanish
+Then And the image remains displayed",Language switch handled,P1,"functional, UI, regression",WEB,true
+S2-TC-020,Back Button After Lightbox Closes Redirects to Media Tab,User opened a lightbox and closed it,"Given Given the user presses the browser back button
+When When the navigation occurs
+Then Then the profile page shows the Media tab selected",Back navigation restores tab state,P1,"functional, UI, regression",WEB,true
+S3-TC-001,Default Posts Tab Selected and First 10 Posts Loaded,User is authenticated and has at least 15 public posts,"Given Given the user is on the Profile Page
+When When the page loads
+When Then the ""Posts"" tab must be selected by default
+When And the system must query the Post API and return the first 10 posts in reverse chronological order
+Then And each post card displays truncated text, media preview, topics, visibility icon, timestamp, and engagement stats",First 10 posts displayed correctly with all UI elements visible,P1,functional|UI|API|smoke,WEB,true
+S3-TC-002,Infinite Scroll Loads Next 10 Posts on Scroll,User has 25 posts and is on the Profile Page,"Given Given the user is on the Profile Page and the first 10 posts are displayed
+When When the user scrolls to the bottom of the list
+When Then the system must request the next 10 posts via the Post API
+Then And the next 10 posts are appended to the list in correct order",Posts 11-20 appear after scrolling,P1,functional|UI|API|regression,WEB,true
+S3-TC-003,Anonymous Post Labeled Correctly for Own Profile,User has authored an anonymous post,"Given Given the user navigates to their own Profile Page
+When When the anonymous post appears in the feed
+Then Then the post must be labeled as ""You (Anonymous)""","Label displays ""You (Anonymous)""",P1,functional|UI|security,WEB,true
+S3-TC-004,Anonymous Post Labeled Correctly for Other User,User A has an anonymous post; User B is logged in,"Given Given User B navigates to User A's Profile Page
+When When the anonymous post appears in the feed
+Then Then the post must be labeled strictly as ""Anonymous""","Label displays ""Anonymous"" only",P1,functional|UI|security,WEB,true
+S3-TC-005,Media Tab Displays All Uploaded Media Without Author Info,"User has uploaded 5 media items, including one from an anonymous post","Given Given the user clicks the ""Media"" tab
+When When the media list loads
+When Then each media item is displayed with its preview and metadata
+Then And no author identity is shown for any item","Media items visible, author hidden",P1,functional|UI|security,WEB,true
+S3-TC-006,Post Truncation at 200 Characters with Read More Link,User has a post with 250 characters of text,"Given Given the user is on the Profile Page
+When When the post card renders
+When Then the displayed text must be truncated to 200 characters
+Then And a ""Read more"" link must be present",Truncated text + link visible,P1,functional|UI|boundary,WEB,true
+S3-TC-007,Post Truncation with Exactly 200 Characters,User has a post with exactly 200 characters,"Given Given the user is on the Profile Page
+When When the post card renders
+When Then the full 200 characters are displayed
+Then And no ""Read more"" link appears","Full text shown, no link",P1,functional|UI|boundary,WEB,true
+S3-TC-008,Post Truncation with 199 Characters,User has a post with 199 characters,"Given Given the user is on the Profile Page
+When When the post card renders
+When Then the full 199 characters are displayed
+Then And no ""Read more"" link appears","Full text shown, no link",P1,functional|UI|boundary,WEB,true
+S3-TC-009,Anonymous Post Visibility Icon Correct for Own Profile,User has an anonymous post,"Given Given the user is on their own Profile Page
+When When the anonymous post appears
+Then Then the visibility icon must indicate ""followers-only"" if set",Correct icon displayed,P1,functional|UI,WEB,true
+S3-TC-010,Anonymous Post Visibility Icon Correct for Other User,User A has an anonymous post set to followers-only; User B follows A,"Given Given User B navigates to User A's Profile Page
+When When the anonymous post appears
+Then Then the visibility icon must indicate ""followers-only""",Icon matches visibility setting,P1,functional|UI,WEB,true
+S3-TC-011,Rapid Scroll Does Not Trigger Duplicate API Calls,User has 50 posts,"Given Given the user is on the Profile Page
+When When the user scrolls rapidly to the bottom multiple times
+When Then the system must not issue duplicate requests for the same page
+Then And the final list contains 50 unique posts","No duplicate posts, single API call per page",P1,functional|API|negative,WEB,true
+S3-TC-012,Session Expiry Mid-Scroll,User is authenticated; session expires after 5 minutes of inactivity,"Given Given the user is on the Profile Page and has scrolled halfway
+When When the session expires and the user scrolls further
+Then Then the system must redirect to the login page and preserve scroll position on return","Redirect to login, session cleared, resume after login",P1,functional|security|negative,WEB,true
+S3-TC-013,Back Button After Viewing Profile Does Not Re-Load Posts,User navigated from Home to Profile,"Given Given the user is on the Profile Page
+When When the user clicks the browser back button
+Then Then the previous page must load without re-fetching posts from the Profile API","No unnecessary API call, state preserved",P1,functional|UI|negative,WEB,true
+S3-TC-014,Copy-Paste HTML into Post Text Field,User is creating a new post,"Given Given the user pastes '<script>alert(1)</script>' into the post text field
+When When the user submits the post
+Then Then the system must sanitize the input and store plain text","No script execution, stored text is plain",P1,functional|security|negative,WEB,true
+S3-TC-015,Unicode Emoji in Post Text,User is creating a new post,"Given Given the user types 'Hello 🌟 world' into the post text field
+When When the user submits the post
+Then Then the post must display the emoji correctly in the feed",Emoji rendered without corruption,P1,functional|UI|weird,WEB,true
+S3-TC-016,Right-to-Left Text in Post,User is creating a new post,"Given Given the user types 'مرحبا بالعالم' into the post text field
+When When the user submits the post
+Then Then the post must display RTL text correctly in the feed",RTL rendering correct,P1,functional|UI|weird,WEB,true
+S3-TC-017,Keyboard Navigation to Posts Tab,User is on the Profile Page,"Given Given the user focuses the tab list with the Tab key
+When When the user presses ArrowRight to select the ""Posts"" tab
+Then Then the Posts tab content must load and focus must move to the first post card","Keyboard navigation works, focus correct",P1,accessibility|UI,WEB,true
+S3-TC-018,Screen Reader Announces Anonymous Label Correctly,User is on their own Profile Page with an anonymous post,"Given Given a screen reader is active
+When When the user navigates to the anonymous post
+Then Then the screen reader must announce ""You (Anonymous)""",Correct ARIA label read,P1,accessibility|UI,WEB,true
+S3-TC-019,Media Lightbox Opens with Correct Image and Caption,"User has uploaded an image with caption ""Sunset""","Given Given the user clicks the image preview in the Media tab
+When When the lightbox opens
+Then Then the image must display with the caption ""Sunset"" and navigation controls",Lightbox content correct,P1,functional|UI|regression,WEB,true
+S3-TC-020,Anonymous Post Not Visible to Non-Followers,User A has an anonymous post set to followers-only; User B does not follow A,"Given Given User B navigates to User A's Profile Page
+When When the profile loads
+Then Then the anonymous post must not appear in the feed",Post hidden from non-followers,P1,functional|security|negative,WEB,true
+S4-TC-001,Default Posts Tab Selected on Profile Load,User is authenticated and has at least one public post,"Given Given the user navigates to /profile
+When When the profile page loads
+When Then the ""Posts"" tab is highlighted
+Then And the Posts API is called with limit=10, offset=0",Posts tab is active and first 10 posts are displayed,P1,"functional, UI, API, smoke",WEB,true
+S4-TC-002,Lazy Loading Fetches Next 10 Posts on Scroll,User has 25 public posts,"Given Given the user is on the Posts tab with 10 posts displayed
+When When the user scrolls to the bottom of the list
+When Then the Posts API is called with limit=10, offset=10
+Then And posts 11-20 are appended to the list",Total 20 posts displayed after scroll,P1,"functional, UI, API, regression",WEB,true
+S4-TC-003,Post Card Truncates Text at 200 Characters,User has a post with 250 characters of text,"Given Given the user is on the Posts tab
+When When the post card is rendered
+When Then the displayed text is exactly 200 characters followed by ""…""
+Then And a ""Read more"" link is present",Text truncation works correctly,P1,"functional, UI, regression",WEB,true
+S4-TC-004,Deleted Post Media Shows Placeholder Thumbnail,User has a media attachment linked to a post that was deleted,"Given Given the user navigates to the Media tab
+When When the media grid renders
+Then Then the placeholder thumbnail with label ""Post unavailable."" is displayed for the deleted media","No crash, placeholder visible",P1,"functional, UI, negative",WEB,true
+S4-TC-005,Draft Post Excluded from Posts Tab,User has a draft post,"Given Given the user navigates to the Posts tab
+When When the posts list is rendered
+Then Then the draft post is not present in the list",Drafts are hidden from public view,P1,"functional, API, negative",WEB,true
+S4-TC-006,Posts Tab Shows Only Public and Followers-Only Posts,"User has 5 public, 3 followers-only, 2 private posts","Given Given the user navigates to the Posts tab
+When When the posts list is rendered
+When Then only the 8 public/followers-only posts are displayed
+Then And private posts are absent",Privacy filters applied,P1,"functional, API, regression",WEB,true
+S4-TC-007,Pagination Boundary: Exactly 10 Posts,User has exactly 10 public posts,"Given Given the user navigates to the Posts tab
+When When the posts list is rendered
+When Then only 10 posts are displayed
+Then And no ""Load more"" button appears",Boundary handled correctly,P1,"functional, boundary, API",WEB,true
+S4-TC-008,Pagination Boundary: 11 Posts Triggers Load More,User has 11 public posts,"Given Given the user navigates to the Posts tab
+When When the posts list is rendered
+When Then 10 posts are displayed
+Then And a ""Load more"" button is present",Load more appears when needed,P1,"functional, boundary, API",WEB,true
+S4-TC-009,Rapid Clicks on Load More Do Not Duplicate Posts,User has 30 public posts,"Given Given the user is on the Posts tab with 10 posts displayed
+When When the user clicks ""Load more"" five times rapidly
+When Then the Posts API is called only once per scroll event
+Then And the final list contains 30 unique posts",No duplicate entries,P1,"functional, negative, combination",WEB,true
+S4-TC-010,Session Expiry Mid-Scroll Does Not Crash,User has 50 public posts and session expires after 5 minutes,"Given Given the user is scrolling through posts
+When When the session token expires during scroll
+When Then the UI shows a session expired modal
+Then And no crash occurs",Graceful session handling,P1,"functional, weird, security",WEB,true
+S4-TC-011,Non-ASCII Unicode Characters in Post Text Render Correctly,User has a post containing emoji and RTL text,"Given Given the user navigates to the Posts tab
+When When the post card is rendered
+When Then the text displays correctly with proper alignment
+Then And no layout shift occurs",Unicode support,P1,"functional, weird, accessibility",WEB,true
+S4-TC-012,Back Button After Viewing Media Lightbox Returns to Same Scroll Position,"User is on Media tab, scrolled to 5th page","Given Given the user opens a media item in lightbox
+When When the browser back button is pressed
+When Then the Media tab is displayed
+Then And the scroll position is restored to the 5th page",State persistence,P1,"functional, weird, regression",WEB,true
+S4-TC-013,Keyboard Navigation Through Media Grid Accessible,User has 15 media items,"Given Given the user focuses on the Media tab
+When When the user presses Tab to navigate thumbnails
+When Then each thumbnail receives focus sequentially
+Then And pressing Enter opens the lightbox",Keyboard accessibility,P1,"accessibility, UI, regression",WEB,true
+S4-TC-014,Screen Reader Announces Placeholder for Deleted Media,User has a deleted media attachment,"Given Given the user navigates to the Media tab
+When When a screen reader focuses on the placeholder thumbnail
+Then Then the announcement reads ""Post unavailable""",Screen reader support,P1,"accessibility, UI, regression",WEB,true
+S4-TC-015,SQL Injection Attempt in Post ID Parameter Fails Gracefully,User is authenticated,"Given Given the user manually edits the URL to /profile?postId=1;DROP TABLE Posts
+When When the page loads
+When Then the system returns a 400 error page
+Then And no data is exposed",Injection prevented,P1,"security, negative, API",WEB,true
+S4-TC-016,Unauthorized User Cannot Access Another User's Private Posts,"User A has private posts, User B is not a follower","Given Given User B navigates to User A's profile
+When When the Posts tab is viewed
+When Then only public and followers-only posts are displayed
+Then And private posts are absent",Access control enforced,P1,"security, negative, API",WEB,true
+S4-TC-017,Responsive Breakpoint: Media Grid Adjusts to Mobile Width,User has 8 media items,"Given Given the browser width is set to 375px
+When When the Media tab is loaded
+When Then the grid displays 2 columns
+Then And thumbnails are fully visible",Responsive layout,P1,"accessibility, UI, regression",WEB,true
+S4-TC-018,Rapid Switching Between Posts and Media Tabs Does Not Leak State,User has 20 posts and 20 media items,"Given Given the user toggles between Posts and Media tabs 10 times quickly
+When When the final tab is Posts
+When Then the Posts list shows the correct 10 posts
+Then And no media thumbnails are displayed",No cross-tab leakage,P1,"functional, combination, regression",WEB,true
+S4-TC-019,Placeholder Thumbnail Appears for Media with Missing File URL,User has a media attachment with null file URL,"Given Given the user navigates to the Media tab
+When When the media grid renders
+Then Then a placeholder thumbnail with label ""Post unavailable."" is shown",Graceful handling of missing media,P1,"functional, negative",WEB,true
+S4-TC-020,Lightbox Opens Correctly for First Media Item,User has at least one media item,"Given Given the user is on the Media tab
+When When the user clicks the first thumbnail
+When Then the lightbox opens displaying the media
+Then And the URL hash updates to #media-1",Lightbox functionality,P1,"functional, UI, regression",WEB,true
+S5-TC-001,Default Posts Tab Selected on Profile Load,User is authenticated and navigates to /profile,"Given Given the user is on the Profile Page
+When When the page loads
+When Then the ""Posts"" tab must be highlighted as active
+Then And the Posts API is called with limit=10 and offset=0","""Posts"" tab active and first 10 posts displayed in reverse chronological order",P1,functional|UI|API|smoke,WEB,true
+S5-TC-002,Infinite Scroll Loads Next 10 Posts When Scrolled to Bottom,User has at least 15 posts,"Given Given the user is on the Profile Page and the first 10 posts are rendered
+When When the user scrolls to the bottom of the posts list
+When Then the system must call Posts API with offset=10 and limit=10
+Then And the next 5 posts are appended to the list",Total 15 posts displayed after scroll,P1,functional|UI|API|regression,WEB,true
+S5-TC-003,Posts Tab Shows Empty State When No Posts Exist,User has zero posts,"Given Given the user is on the Profile Page
+When When the Posts API returns an empty array
+Then Then the page must display ""You haven’t posted yet.""",Empty state message visible and no post cards rendered,P1,functional|UI|negative,WEB,true
+S5-TC-004,Media Tab Shows Empty State When No Media Uploaded,User has zero media items,"Given Given the user is on the Profile Page
+When When the user clicks the ""Media"" tab
+When And the Media API returns an empty array
+Then Then the page must display ""You haven’t uploaded any media yet.""",Empty state message visible and no media cards rendered,P1,functional|UI|negative,WEB,true
+S5-TC-005,Posts Tab Truncates Text at 200 Characters with Read More,User has a post with 250 characters of text,"Given Given the user is on the Profile Page
+When When the post card is rendered
+When Then the displayed text must be truncated to 200 characters
+Then And a ""Read more"" link must be present",Truncated text + link visible; full text shown on click,P1,functional|UI|boundary,WEB,true
+S5-TC-006,Posts API Returns Posts in Reverse Chronological Order,User has 3 posts with timestamps T1 < T2 < T3,"Given Given the user is on the Profile Page
+When When the Posts API is called
+Then Then the response array must be ordered [T3, T2, T1]",API response sorted correctly,P1,functional|API|regression,API,true
+S5-TC-007,Media Tab Lightbox Opens Correct Image on Click,User has at least one media item,"Given Given the user is on the Profile Page and the Media tab is active
+When When the user clicks on a media thumbnail
+Then Then a lightbox modal must open displaying the full image",Lightbox shows correct image and navigation controls,P1,functional|UI|regression,WEB,true
+S5-TC-008,Unauthorized User Cannot View Another User's Private Posts,User A is authenticated; User B has private posts,"Given Given User A navigates to User B's profile
+When When the Posts API is called
+Then Then the response must exclude User B's private posts",Only public and followers-only posts visible to User A,P1,security|negative|API,API,true
+S5-TC-009,Session Expiry Mid-Scroll Does Not Crash Infinite Scroll,User has 20 posts; session expires after 5 scrolls,"Given Given the user is on the Profile Page
+When When the user scrolls to load more posts and the session token expires
+Then Then the UI must display a session expired modal and halt further API calls",No crash; graceful session expiry handling,P1,weird|negative|UI,WEB,true
+S5-TC-010,Rapid Tab Switching Does Not Trigger Duplicate API Calls,User has posts and media,"Given Given the user is on the Profile Page
+When When the user quickly toggles between Posts and Media tabs 5 times
+Then Then each tab must call its API only once per visit and not duplicate requests",No duplicate network traffic; UI remains responsive,P1,weird|performance|UI,WEB,true
+S5-TC-011,Posts Tab Handles Zero-Width Space in Title Gracefully,User has a post with title containing zero-width space,"Given Given the user is on the Profile Page
+When When the post card is rendered
+Then Then the title must display correctly without breaking layout",No layout shift; title visible,P1,weird|UI,WEB,true
+S5-TC-012,Media Tab Shows Correct Empty State When Viewing Another User,User A views User B's profile; User B has no media,"Given Given User A is on User B's profile
+When When the Media tab is selected
+Then Then the page must display ""User B hasn’t uploaded any media yet.""",Correct personalized empty state message,P1,functional|UI|negative,WEB,true
+S5-TC-013,Posts Tab Handles 1 Post Exactly at Limit Boundary,User has exactly 1 post,"Given Given the user is on the Profile Page
+When When the Posts API returns 1 post
+Then Then the post card must be displayed and no pagination controls shown",Single post rendered correctly,P1,boundary|functional|UI,WEB,true
+S5-TC-014,Posts Tab Handles 11 Posts (One Above Pagination Limit),User has 11 posts,"Given Given the user is on the Profile Page
+When When the Posts API returns 11 posts
+Then Then the first 10 posts are displayed and infinite scroll loads the 11th on scroll",All 11 posts visible after scroll,P1,boundary|functional|UI,WEB,true
+S5-TC-015,Posts Tab Handles 0 Posts (Below Pagination Limit),User has 0 posts,"Given Given the user is on the Profile Page
+When When the Posts API returns an empty array
+Then Then the empty state message is shown and no pagination controls appear",Empty state rendered correctly,P1,boundary|functional|UI,WEB,true
+S5-TC-016,Keyboard Navigation to Posts Tab Works Correctly,User is on the Profile Page,"Given Given the user focuses on the tab list with Tab key
+When When the user presses ArrowRight to move to the Media tab
+Then Then the Media tab must become active and its content loaded",Keyboard navigation functional; focus outline visible,P1,accessibility|UI,WEB,true
+S5-TC-017,Screen Reader Announces Empty State in Posts Tab,User has no posts,"Given Given the user navigates to the Profile Page
+When When the Posts tab is active and empty state is displayed
+Then Then a screen reader must announce ""You haven’t posted yet.""",Accessible announcement present,P1,accessibility|UI,WEB,true
+S5-TC-018,API Rejects Posts Request with Invalid Offset Parameter,User is authenticated,"Given Given the user sends a Posts API request with offset=-5
+When When the server processes the request
+Then Then the response status must be 400 Bad Request with error message",Invalid parameter handled gracefully,P1,negative|API|security,API,true
+S5-TC-019,Media Tab Lightbox Handles Non-Image File Gracefully,User has a PDF uploaded as media,"Given Given the user is on the Profile Page and the Media tab is active
+When When the user clicks on the PDF thumbnail
+Then Then the lightbox must display a placeholder icon and a download link",Non-image media handled without crash,P1,negative|UI,WEB,true
+S5-TC-020,Profile Page Loads Correctly on Mobile Breakpoint,Viewport width set to 375px,"Given Given the user navigates to the Profile Page on mobile viewport
+When When the page renders
+Then Then the Posts and Media tabs must stack vertically and be fully accessible",Responsive layout correct,P1,accessibility|UI|regression,WEB,true
+S6-TC-001,Default Posts Tab Loads with 10 Posts on Profile Page,User is authenticated and has at least 15 posts.,"Given Given the user navigates to /profile
+When When the page loads
+When Then the Posts tab is selected by default
+When And the system queries the Post API with limit=10
+Then And 10 post cards are rendered in reverse chronological order","10 posts displayed, newest first, Posts tab active",P1,"functional, UI, API, smoke",WEB,true
+S6-TC-002,Infinite Scroll Loads Next 10 Posts When Scrolled to Bottom,User has 25 posts.,"Given Given the user is on the Posts tab with 10 posts displayed
+When When the user scrolls to the bottom of the list
+When Then the system requests the next 10 posts
+Then And 20 posts are displayed in total","20 posts rendered, no duplicate or missing items",P1,"functional, UI, API, regression",WEB,true
+S6-TC-003,Posts Tab Shows Truncated Text with Read More Link for 250-Char Posts,User has a post with 250 characters of text.,"Given Given the user is on the Posts tab
+When When the post card is rendered
+When Then the text is truncated to 200 characters
+Then And a 'Read more' link is visible","200-char preview + link, full text on click",P1,"functional, UI, boundary",WEB,true
+S6-TC-004,Posts Tab Handles Zero Posts Gracefully,User has no posts.,"Given Given the user navigates to /profile
+When When the Posts tab loads
+Then Then the system displays 'No posts to show' message","User sees friendly message, no errors",P1,"functional, UI, negative",WEB,true
+S6-TC-005,Media Tab Loads First 10 Media Items on Initial Render,User has 12 media items.,"Given Given the user clicks the Media tab
+When When the tab loads
+When Then the system queries Media API with limit=10
+Then And 10 media thumbnails are displayed","10 media items rendered, thumbnails visible",P1,"functional, UI, API, smoke",WEB,true
+S6-TC-006,Media Lightbox Opens with Correct Image on Thumbnail Click,User has at least one media item.,"Given Given the user is on the Media tab
+When When the user clicks a media thumbnail
+When Then a lightbox opens
+Then And the clicked image is displayed in full size","Lightbox shows correct image, navigation controls functional",P1,"functional, UI, regression",WEB,true
+S6-TC-007,Network Timeout While Loading Posts Displays Inline Retry,"User is on Posts tab, API times out.","Given Given the user navigates to /profile
+When When the Post API request times out
+When Then the system displays 'Unable to load posts. Retry.' inline
+Then And a Retry button is visible","Error message + Retry button, no crash",P1,"functional, negative, API",WEB,true
+S6-TC-008,Retry Button Re-fetches Posts After Network Failure,"Previous retry attempt failed, now network restored.","Given Given the user sees the retry message
+When When the user clicks Retry
+When Then the system re-queries the Post API
+Then And posts are displayed successfully","Posts load after retry, message disappears",P1,"functional, API, regression",WEB,true
+S6-TC-009,Retry Button Disabled When API Still Loading,User clicks Retry while request in flight.,"Given Given the user clicks Retry
+When When the API request is pending
+When Then the Retry button is disabled
+Then And a spinner is shown","No duplicate requests, UI indicates loading",P1,"functional, UI, negative",WEB,true
+S6-TC-010,Posts Tab Handles 1 Post Exactly at Pagination Boundary,User has exactly 10 posts.,"Given Given the user navigates to /profile
+When When the Posts tab loads
+When Then 10 posts are displayed
+Then And no 'Load more' indicator appears","Boundary condition handled, no extra request",P1,"functional, boundary",WEB,true
+S6-TC-011,Posts Tab Handles 11 Posts (One Above Boundary),User has 11 posts.,"Given Given the user navigates to /profile
+When When the Posts tab loads
+When Then 10 posts are displayed
+Then And scrolling loads the 11th post",Pagination works for one above boundary,P1,"functional, boundary",WEB,true
+S6-TC-012,Posts Tab Handles 9 Posts (One Below Boundary),User has 9 posts.,"Given Given the user navigates to /profile
+When When the Posts tab loads
+When Then 9 posts are displayed
+Then And no further load is attempted",No unnecessary API calls,P1,"functional, boundary",WEB,true
+S6-TC-013,Unauthorized User Cannot Access Profile Page,User is not authenticated.,"Given Given the user navigates to /profile
+When When the request is made
+Then Then the system redirects to /login","Access denied, redirect occurs",P1,"security, negative",WEB,true
+S6-TC-014,Session Expiry Mid-Scroll Triggers Re-authentication Prompt,"User is authenticated, session expires after 5 minutes.","Given Given the user scrolls to load more posts after session expiry
+When When the API returns 401
+Then Then the system shows a modal asking to re-login",User can re-authenticate without data loss,P1,"security, negative, regression",WEB,true
+S6-TC-015,Keyboard Navigation Through Posts Tab Works with Tab Key,User is on Posts tab.,"Given Given the user focuses on the page
+When When the user presses Tab repeatedly
+When Then focus moves through post cards sequentially
+Then And pressing Enter opens the post detail",Full keyboard accessibility,P1,"accessibility, UI",WEB,true
+S6-TC-016,Screen Reader Announces 'No posts to show' When Profile Is Empty,User has no posts.,"Given Given the user navigates to /profile
+When When the Posts tab loads
+Then Then the screen reader reads 'No posts to show'",Assistive tech compatibility,P1,"accessibility, UI",WEB,true
+S6-TC-017,Rapid Clicking Retry Button Does Not Trigger Multiple API Calls,Network failure on initial load.,"Given Given the user sees the retry message
+When When the user clicks Retry 5 times quickly
+When Then only one API request is sent
+Then And posts load once",Debounce logic prevents duplicate requests,P1,"negative, regression",WEB,true
+S6-TC-018,Copy-Paste HTML into Post Text Field Triggers Sanitization,User is composing a new post.,"Given Given the user pastes '<script>alert(1)</script>' into the text area
+When When the post is submitted
+Then Then the script tag is removed from stored content",No XSS injection possible,P1,"security, negative",WEB,true
+S6-TC-019,RTL Text in Post Title Renders Correctly in Post Card,User has a post with Arabic title.,"Given Given the user is on Posts tab
+When When the post card renders
+Then Then the RTL title aligns to the right and is fully visible",Proper RTL support,P1,"weird, UI",WEB,true
+S6-TC-020,Zero-Width Space in Media Filename Does Not Break Lightbox,Media item filename contains zero-width space.,"Given Given the user clicks the media thumbnail
+When When the lightbox opens
+Then Then the image loads correctly without broken link",Filename sanitization works,P1,"weird, UI",WEB,true

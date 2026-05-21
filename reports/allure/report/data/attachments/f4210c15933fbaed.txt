@@ -1,0 +1,2 @@
+2026-05-16 03:57:55 [info     ] api_post                       path=/v1/users/login status=200
+2026-05-16 03:57:56 [info     ] api_post                       path=/v1/users/register status=500

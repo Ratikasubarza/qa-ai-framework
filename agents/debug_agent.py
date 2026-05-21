@@ -38,29 +38,51 @@ ADDITIONAL CONTEXT:
 {context}
 
 ANALYSIS INSTRUCTIONS:
-1. Identify: Is this a product bug, API bug, test code issue, locator issue, test data issue, flaky sync issue, or environment issue?
-2. Root cause: What specifically caused the failure?
-3. Integrity rule: Do not optimize for passing tests. Optimize for truthful test results.
-   - Never suggest removing assertions, weakening expected results, skipping tests, catching exceptions and continuing, or changing steps to avoid a failing product path.
-   - Only allow automation fixes when evidence strongly shows a test bug, locator issue, or flaky sync issue.
-   - Product/API/developer bugs must preserve the failing signal and create a bug report.
-4. Severity based on user impact:
+1. Root cause: What specifically caused this failure?
+2. Integrity rule — NON-NEGOTIABLE:
+   - Do not optimize for passing tests. Optimize for truthful test results.
+   - NEVER suggest removing assertions, weakening expected values, skipping tests,
+     catching exceptions to continue, or changing steps to avoid a failing product path.
+   - Auto-fixes are ONLY allowed when evidence strongly shows TEST_SCRIPT_BUG,
+     LOCATOR_CHANGED, or FLAKY_TIMING (and confidence ≥ 0.80).
+   - PRODUCT_BUG and API_CONTRACT_CHANGED must preserve the failing signal.
+3. Classify using EXACTLY one of these 10 failure types:
+   - PRODUCT_BUG          — the product/API behaves incorrectly; test is correct
+   - TEST_SCRIPT_BUG      — the test code itself is wrong (bad assertion, wrong step)
+   - TEST_DATA_ISSUE       — missing/stale/mismatched test data caused the failure
+   - ENVIRONMENT_ISSUE     — infra, network, service dependency, or CI resource issue
+   - LOCATOR_CHANGED       — UI/DOM element moved/renamed; locator no longer finds it
+   - ASSERTION_TOO_WEAK    — assertion passed when it should not; hidden product defect
+   - API_CONTRACT_CHANGED  — API response shape/status changed without notice
+   - FLAKY_TIMING          — race condition, async timing, intermittent network
+   - DEPENDENCY_MISSING    — missing setup: package, service, fixture, or file not present
+   - UNKNOWN               — insufficient evidence; human triage required
+4. recommended_action mapping:
+   - PRODUCT_BUG           → create_bug_report
+   - TEST_SCRIPT_BUG       → fix_test_code
+   - TEST_DATA_ISSUE        → fix_test_data
+   - ENVIRONMENT_ISSUE      → report_environment_issue
+   - LOCATOR_CHANGED        → update_locator
+   - ASSERTION_TOO_WEAK     → strengthen_assertion
+   - API_CONTRACT_CHANGED   → create_bug_report
+   - FLAKY_TIMING           → investigate_flaky
+   - DEPENDENCY_MISSING     → fix_dependency
+   - UNKNOWN                → ask_human_triage
+5. Severity based on user impact:
    - P0: App crashes, data loss, security issue, blocks all users
    - P1: Major feature broken, affects most users
    - P2: Minor feature broken, workaround exists
    - P3: UI/cosmetic issue, edge case
-5. Steps to reproduce: Clear, numbered steps
-6. Expected vs Actual: Precise statements
 
 OUTPUT FORMAT — Return ONLY valid JSON:
 {{
   "root_cause": "string — specific cause of failure",
-  "bug_type": "ui_bug|api_bug|test_code|environment|regression",
-  "failure_classification": "product_bug|developer_bug|test_bug|locator_issue|test_data_issue|environment_issue|flaky_sync|unknown",
+  "bug_type": "ui_bug|api_bug|test_code|environment|regression|locator|data|contract|timing|unknown",
+  "failure_classification": "PRODUCT_BUG|TEST_SCRIPT_BUG|TEST_DATA_ISSUE|ENVIRONMENT_ISSUE|LOCATOR_CHANGED|ASSERTION_TOO_WEAK|API_CONTRACT_CHANGED|FLAKY_TIMING|DEPENDENCY_MISSING|UNKNOWN",
   "confidence": 0.0,
-  "recommended_action": "create_bug_report|fix_test_code|update_locator|fix_test_data|report_environment_issue|ask_human_triage",
+  "recommended_action": "create_bug_report|fix_test_code|fix_test_data|report_environment_issue|update_locator|strengthen_assertion|investigate_flaky|fix_dependency|ask_human_triage",
   "auto_fix_allowed": false,
-  "integrity_notes": ["string — why this should not hide product bugs"],
+  "integrity_notes": ["string — why this classification was chosen and what must not be hidden"],
   "severity": "P0|P1|P2|P3",
   "title": "string — concise bug title (max 100 chars)",
   "description": "string — detailed description",
@@ -68,11 +90,30 @@ OUTPUT FORMAT — Return ONLY valid JSON:
   "expected_behavior": "string",
   "actual_behavior": "string",
   "affected_component": "string",
-  "suggested_fix": "string — optional, if obvious",
+  "suggested_fix": "string — optional, only if non-obvious",
   "needs_dev_attention": true,
   "labels": ["string"]
 }}
 """
+
+# Mapping from classification to recommended action (deterministic fallback)
+_CLASSIFICATION_ACTION: dict[str, str] = {
+    "PRODUCT_BUG":          "create_bug_report",
+    "TEST_SCRIPT_BUG":      "fix_test_code",
+    "TEST_DATA_ISSUE":       "fix_test_data",
+    "ENVIRONMENT_ISSUE":     "report_environment_issue",
+    "LOCATOR_CHANGED":       "update_locator",
+    "ASSERTION_TOO_WEAK":    "strengthen_assertion",
+    "API_CONTRACT_CHANGED":  "create_bug_report",
+    "FLAKY_TIMING":          "investigate_flaky",
+    "DEPENDENCY_MISSING":    "fix_dependency",
+    "UNKNOWN":               "ask_human_triage",
+}
+
+# Only these classifications can ever allow auto-fix (and only at high confidence)
+_AUTO_FIX_ELIGIBLE: frozenset[str] = frozenset({
+    "TEST_SCRIPT_BUG", "LOCATOR_CHANGED", "FLAKY_TIMING"
+})
 
 
 @dataclass
@@ -174,10 +215,20 @@ class DebugAgent:
             elif any(k in _name for k in ["smoke", "login", "auth"]):
                 _sev = "P1"
 
-        failure_classification = data.get("failure_classification", "unknown")
+        failure_classification = data.get("failure_classification", "UNKNOWN").upper()
+        if failure_classification not in _CLASSIFICATION_ACTION:
+            failure_classification = "UNKNOWN"
+
         confidence = float(data.get("confidence", 0.0) or 0.0)
+
+        # Deterministic recommended_action: prefer LLM output but fall back to taxonomy map
+        recommended_action = data.get("recommended_action") or _CLASSIFICATION_ACTION.get(
+            failure_classification, "ask_human_triage"
+        )
+
+        # Auto-fix: only eligible types AND only at high confidence
         auto_fix_allowed = bool(data.get("auto_fix_allowed", False))
-        if failure_classification not in {"test_bug", "locator_issue", "flaky_sync"}:
+        if failure_classification not in _AUTO_FIX_ELIGIBLE:
             auto_fix_allowed = False
         if confidence < 0.8:
             auto_fix_allowed = False
@@ -200,7 +251,7 @@ class DebugAgent:
             labels=data.get("labels", ["ai-detected", "qa-automation"]),
             failure_classification=failure_classification,
             confidence=confidence,
-            recommended_action=data.get("recommended_action", "ask_human_triage"),
+            recommended_action=recommended_action,
             auto_fix_allowed=auto_fix_allowed,
             integrity_notes=data.get("integrity_notes", []) or [],
         )
@@ -329,6 +380,7 @@ class DebugAgent:
         """Send bug notification to Telegram #qa-bugs channel."""
         try:
             from core.secret_manager import secret_manager
+            from core.source_intake.security import redact_internal_text
             import httpx
 
             token   = secret_manager.get("telegram_bot_token")
@@ -337,12 +389,16 @@ class DebugAgent:
             severity_emoji = {"P0": "🔴", "P1": "🟠", "P2": "🟡", "P3": "🟢"}
             emoji = severity_emoji.get(report.severity, "⚪")
 
+            safe_test  = redact_internal_text(failure.test_name).text
+            safe_title = redact_internal_text(report.title).text
+            safe_comp  = redact_internal_text(report.affected_component).text
+
             message = (
                 f"{emoji} *New Bug Detected — {report.severity}*\n\n"
-                f"*Test:* `{failure.test_name}`\n"
-                f"*Title:* {report.title}\n"
+                f"*Test:* `{safe_test}`\n"
+                f"*Title:* {safe_title}\n"
                 f"*Type:* {report.bug_type}\n"
-                f"*Component:* {report.affected_component}\n"
+                f"*Component:* {safe_comp}\n"
             )
             if report.jira_key:
                 message += f"*Jira:* {report.jira_key}\n"

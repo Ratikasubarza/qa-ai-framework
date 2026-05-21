@@ -12,7 +12,7 @@ def test_debug_agent_disallows_auto_fix_for_product_bug(monkeypatch):
             {
               "root_cause": "API returns 500 for a valid request",
               "bug_type": "api_bug",
-              "failure_classification": "product_bug",
+              "failure_classification": "PRODUCT_BUG",
               "confidence": 0.95,
               "recommended_action": "create_bug_report",
               "auto_fix_allowed": true,
@@ -38,7 +38,7 @@ def test_debug_agent_disallows_auto_fix_for_product_bug(monkeypatch):
         platform="api",
     ))
 
-    assert report.failure_classification == "product_bug"
+    assert report.failure_classification == "PRODUCT_BUG"
     assert report.auto_fix_allowed is False
     assert report.recommended_action == "create_bug_report"
 
@@ -54,7 +54,7 @@ def test_debug_agent_allows_high_confidence_locator_fix(monkeypatch):
             {
               "root_cause": "Locator no longer matches the same Posts tab element",
               "bug_type": "test_code",
-              "failure_classification": "locator_issue",
+              "failure_classification": "LOCATOR_CHANGED",
               "confidence": 0.91,
               "recommended_action": "update_locator",
               "auto_fix_allowed": true,
@@ -80,6 +80,6 @@ def test_debug_agent_allows_high_confidence_locator_fix(monkeypatch):
         platform="android",
     ))
 
-    assert report.failure_classification == "locator_issue"
+    assert report.failure_classification == "LOCATOR_CHANGED"
     assert report.auto_fix_allowed is True
     assert report.recommended_action == "update_locator"

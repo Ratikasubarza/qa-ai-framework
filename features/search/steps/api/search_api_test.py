@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("Search")
@@ -51,7 +51,7 @@ async def test_TC_SRCH_003_search_posts_no_token():
             APIEndpoints.SEARCH_POSTS,
             params={"query": "hono", "tab": "recent"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/search/posts?tab=top ─────────────────────────────────────────────
@@ -81,7 +81,7 @@ async def test_TC_SRCH_005_search_posts_missing_query(search_token):
             params={"tab": "recent"},
             headers={"Authorization": f"Bearer {search_token}"},
         )
-    APIAssertions(response).status_in(400, 422, 200)
+    SchemaValidator(response).status_in(400, 422, 200)
 
 
 # ── GET /v1/search/typeahead ──────────────────────────────────────────────────
@@ -125,7 +125,7 @@ async def test_TC_SRCH_008_search_typeahead_no_token():
             APIEndpoints.SEARCH_TYPEAHEAD,
             params={"query": "test"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/search/users ─────────────────────────────────────────────────────
@@ -170,4 +170,4 @@ async def test_TC_SRCH_011_search_users_no_token():
             APIEndpoints.SEARCH_USERS,
             params={"query": "test"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)

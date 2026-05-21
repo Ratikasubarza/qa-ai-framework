@@ -139,7 +139,7 @@ PYTHONPATH=. ./venv/bin/python3.11 cli.py smoke
 .
 ├── agents/                 # LangGraph agents (test_case, code_gen, reviewer, debug)
 ├── config/
-│   ├── test_config.py      # TestConfig, APIEndpoints, Timeouts, ReferenceIDs
+│   ├── test_config.py      # Automation runtime config, APIEndpoints, Timeouts, ReferenceIDs
 │   ├── error_messages.py   # APIErrors, AndroidErrors, ValidationErrors
 │   ├── test_data.py        # BoundaryValues, KnownAccounts
 │   └── settings.py         # pydantic-settings (loaded from .env)
@@ -152,7 +152,7 @@ PYTHONPATH=. ./venv/bin/python3.11 cli.py smoke
 │   ├── indexer.py          # RAG indexer — reads from sources/
 │   ├── rag_engine.py       # ChromaDB retrieval
 │   └── vector_store/       # ChromaDB binary files
-├── mcp_tools/
+├── integrations/
 │   ├── jira_client/        # Jira REST API client
 │   ├── github_client/      # GitHub PR comment client
 │   └── figma_client/       # Figma design extraction client
@@ -168,6 +168,8 @@ PYTHONPATH=. ./venv/bin/python3.11 cli.py smoke
 ├── cli.py                  # CLI entry point
 └── pytest.ini
 ```
+
+See `docs/architecture/framework_maturity_plan.md` for the current config, API client, test data, locator, security, CI, and artifact governance plan.
 
 ---
 

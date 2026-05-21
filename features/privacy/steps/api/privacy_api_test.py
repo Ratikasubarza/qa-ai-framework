@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("Privacy")
@@ -26,7 +26,7 @@ async def test_TC_PRIV_001_follow_user(actor_token, target_user):
             json={"relationship_type_id": ""},
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(200, 201)
+    SchemaValidator(response).status_in(200, 201)
 
 
 @pytest.mark.negative
@@ -39,7 +39,7 @@ async def test_TC_PRIV_002_follow_user_no_token(target_user):
             APIEndpoints.user_follow(target_id),
             json={"relationship_type_id": ""},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 @pytest.mark.negative
@@ -52,7 +52,7 @@ async def test_TC_PRIV_003_follow_nonexistent_user(actor_token):
             json={"relationship_type_id": ""},
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(404, 400)
+    SchemaValidator(response).status_in(404, 400)
 
 
 # ── DELETE /v1/users/:id/follow ───────────────────────────────────────────────
@@ -69,7 +69,7 @@ async def test_TC_PRIV_004_unfollow_user(actor_token, target_user):
             APIEndpoints.user_follow(target_id),
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(200, 204, 404)
+    SchemaValidator(response).status_in(200, 204, 404)
 
 
 @pytest.mark.negative
@@ -79,7 +79,7 @@ async def test_TC_PRIV_005_unfollow_no_token(target_user):
     target_id = target_user.get("id", NONEXISTENT_UUID)
     async with HonoAPIClient() as client:
         response = await client.delete(APIEndpoints.user_follow(target_id))
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── POST /v1/settings/accounts/block ─────────────────────────────────────────
@@ -97,7 +97,7 @@ async def test_TC_PRIV_006_block_user(actor_token, target_user):
             json={"target_user_ids": [target_id]},
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(200, 201)
+    SchemaValidator(response).status_in(200, 201)
 
 
 @pytest.mark.negative
@@ -110,7 +110,7 @@ async def test_TC_PRIV_007_block_user_no_token(target_user):
             APIEndpoints.SETTINGS_ACCOUNTS_BLOCK,
             json={"target_user_ids": [target_id]},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 @pytest.mark.negative
@@ -123,7 +123,7 @@ async def test_TC_PRIV_008_block_empty_list(actor_token):
             json={"target_user_ids": []},
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(400, 422, 200)
+    SchemaValidator(response).status_in(400, 422, 200)
 
 
 # ── DELETE /v1/settings/accounts/block ───────────────────────────────────────
@@ -141,7 +141,7 @@ async def test_TC_PRIV_009_unblock_user(actor_token, target_user):
             json={"target_user_ids": [target_id]},
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(200, 204)
+    SchemaValidator(response).status_in(200, 204)
 
 
 @pytest.mark.negative
@@ -153,7 +153,7 @@ async def test_TC_PRIV_010_unblock_no_token():
             APIEndpoints.SETTINGS_ACCOUNTS_BLOCK,
             json={"target_user_ids": [NONEXISTENT_UUID]},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── POST /v1/settings/accounts/mute ──────────────────────────────────────────
@@ -171,7 +171,7 @@ async def test_TC_PRIV_011_mute_user(actor_token, target_user):
             json={"target_user_ids": [target_id]},
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(200, 201)
+    SchemaValidator(response).status_in(200, 201)
 
 
 @pytest.mark.negative
@@ -183,7 +183,7 @@ async def test_TC_PRIV_012_mute_no_token():
             APIEndpoints.SETTINGS_ACCOUNTS_MUTE,
             json={"target_user_ids": [NONEXISTENT_UUID]},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── DELETE /v1/settings/accounts/mute ────────────────────────────────────────
@@ -201,7 +201,7 @@ async def test_TC_PRIV_013_unmute_user(actor_token, target_user):
             json={"target_user_ids": [target_id]},
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(200, 204)
+    SchemaValidator(response).status_in(200, 204)
 
 
 @pytest.mark.negative
@@ -213,7 +213,7 @@ async def test_TC_PRIV_014_unmute_no_token():
             APIEndpoints.SETTINGS_ACCOUNTS_MUTE,
             json={"target_user_ids": [NONEXISTENT_UUID]},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── POST /v1/users/:user_id/mute ─────────────────────────────────────────────
@@ -230,7 +230,7 @@ async def test_TC_PRIV_015_mute_user_by_id(actor_token, target_user):
             APIEndpoints.user_mute_by_id(target_id),
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(200, 201)
+    SchemaValidator(response).status_in(200, 201)
 
 
 @pytest.mark.negative
@@ -245,7 +245,7 @@ async def test_TC_PRIV_016_mute_self_returns_400(actor_token, actor_user):
             APIEndpoints.user_mute_by_id(user_id),
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── GET /v1/settings/account/counts ──────────────────────────────────────────
@@ -272,7 +272,7 @@ async def test_TC_PRIV_018_get_counts_no_token():
     """TC-PRIV-018 | Security | Get counts without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.SETTINGS_ACCOUNT_COUNTS)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 # ── GET /v1/settings/account/list?section=BLOCKED ────────────────────────────
@@ -302,7 +302,7 @@ async def test_TC_PRIV_020_get_blocked_list_no_token():
             APIEndpoints.SETTINGS_ACCOUNT_LIST,
             params={"section": "BLOCKED"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status(401)
 
 
 @pytest.mark.negative
@@ -315,7 +315,7 @@ async def test_TC_PRIV_021_get_account_list_invalid_section(actor_token):
             params={"section": "INVALID_SECTION"},
             headers={"Authorization": f"Bearer {actor_token}"},
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── GET /v1/settings/account/list?section=MUTED ──────────────────────────────

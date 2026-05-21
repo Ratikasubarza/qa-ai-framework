@@ -55,8 +55,6 @@ async def auth_client(approved_email_user):
         yield client
 
 
-@allure.story("TC-USERS-EMAIL-001: Request email change success")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_EMAIL_001_request_email_change_success(
     approved_email_user,
@@ -84,8 +82,6 @@ async def test_TC_USERS_EMAIL_001_request_email_change_success(
     assert body.get("data") is None
 
 
-@allure.story("TC-USERS-EMAIL-002: Request email change without token")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_EMAIL_002_request_email_change_without_token():
     """
@@ -105,8 +101,6 @@ async def test_TC_USERS_EMAIL_002_request_email_change_without_token():
     SchemaValidator(response).status_unauthorized()
 
 
-@allure.story("TC-USERS-EMAIL-003: Request email change rejects existing email")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_EMAIL_003_request_email_change_rejects_existing_email(
     existing_email_user,
@@ -135,8 +129,6 @@ async def test_TC_USERS_EMAIL_003_request_email_change_rejects_existing_email(
     assert body.get("data") is None
 
 
-@allure.story("TC-USERS-EMAIL-004: Verify email change success")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
@@ -178,8 +170,6 @@ async def test_TC_USERS_EMAIL_004_verify_email_change_success(
     assert body.get("data") is None
 
 
-@allure.story("TC-USERS-EMAIL-005: Verify email change rejects expired code")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
