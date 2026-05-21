@@ -1,3 +1,0 @@
-2026-05-16 03:57:49 [info     ] api_post                       path=/v1/users/login status=200
-
-  Case sensitivity: TESTINGHONOA@MAILINATOR.COM → 200

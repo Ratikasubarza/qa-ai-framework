@@ -1,8 +1,0 @@
-2026-05-18 07:36:50 [info     ] api_post                       path=/v1/users/register status=400
-  ✓ 'notanemail' blocked: 400
-2026-05-18 07:36:50 [info     ] api_post                       path=/v1/users/register status=400
-  ✓ 'missing@' blocked: 400
-2026-05-18 07:36:50 [info     ] api_post                       path=/v1/users/register status=400
-  ✓ '@nodomain.com' blocked: 400
-2026-05-18 07:36:50 [info     ] api_post                       path=/v1/users/register status=400
-  ✓ 'spaces in@email.com' blocked: 400

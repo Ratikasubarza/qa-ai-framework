@@ -1,3 +1,0 @@
-2026-05-16 03:58:31 [info     ] api_post                       path=/v1/users/register status=400
-
-  21-digit phone → 400

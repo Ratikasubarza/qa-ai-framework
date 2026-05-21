@@ -1,3 +1,0 @@
-2026-05-18 07:36:50 [info     ] api_post                       path=/v1/users/register status=422
-
-✓ Valid email + duplicate phone blocked: 422

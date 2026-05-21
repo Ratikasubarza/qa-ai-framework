@@ -1,1 +1,0 @@
-INFO     httpx:_client.py:1773 HTTP Request: GET https://api-dev.thehono.com/v1/auth/reset-password/validate?code=00000000-0000-0000-0000-000000000000 "HTTP/1.1 200 OK"

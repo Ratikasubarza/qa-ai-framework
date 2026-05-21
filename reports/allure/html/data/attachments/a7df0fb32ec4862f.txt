@@ -1,1 +1,0 @@
-2026-05-16 09:51:03 [info     ] api_post                       path=/v1/users/register status=422

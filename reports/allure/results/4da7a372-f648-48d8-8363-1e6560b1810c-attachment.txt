@@ -1,2 +1,0 @@
-2026-05-21 06:06:10 [info     ] api_request                    method=POST path=/v1/auth/forgot-password status=400
-2026-05-21 06:06:10 [debug    ] api_request_headers            headers={'accept': '*/*', 'accept-encoding': 'gzip, deflate', 'connection': 'keep-alive', 'user-agent': 'python-httpx/0.27.0', 'content-type': 'application/json', 'x-api-key': '[REDACTED]'} method=POST path=/v1/auth/forgot-password

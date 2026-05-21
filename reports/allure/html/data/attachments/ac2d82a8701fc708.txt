@@ -1,3 +1,0 @@
-2026-05-16 09:51:04 [info     ] api_post                       path=/v1/users/register status=200
-
-  XSS fullname → 200

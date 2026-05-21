@@ -1,1 +1,0 @@
-INFO     httpx:_client.py:1773 HTTP Request: GET https://api-dev.thehono.com/v1/public/cities "HTTP/1.1 400 Bad Request"

@@ -1,5 +1,0 @@
-2026-05-16 09:47:54 [info     ] api_post                       path=/v1/users/login status=401
-2026-05-16 09:47:54 [info     ] api_post                       path=/v1/users/login status=401
-2026-05-16 09:47:54 [info     ] api_post                       path=/v1/users/login status=401
-
-✓ 3 failed CMS login attempts all blocked

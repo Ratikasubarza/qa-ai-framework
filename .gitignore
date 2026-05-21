@@ -44,3 +44,7 @@ scripts/audit_full.sh
 
 # Mypy cache
 .mypy_cache/
+reports/allure/results/
+reports/allure/report/
+reports/allure/html/
+allure-results/

@@ -1,4 +1,0 @@
-2026-05-21 06:06:58 [info     ] api_request                    method=POST path=/v1/users/register status=422
-2026-05-21 06:06:58 [debug    ] api_request_headers            headers={'accept': '*/*', 'accept-encoding': 'gzip, deflate', 'connection': 'keep-alive', 'user-agent': 'python-httpx/0.27.0', 'content-type': 'application/json', 'x-api-key': '[REDACTED]'} method=POST path=/v1/users/register
-
-✓ Both email+phone duplicate blocked: 422

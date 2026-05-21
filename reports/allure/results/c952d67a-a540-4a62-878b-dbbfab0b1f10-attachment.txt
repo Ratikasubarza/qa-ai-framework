@@ -1,1 +1,0 @@
-INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/login "HTTP/1.1 401 Unauthorized"

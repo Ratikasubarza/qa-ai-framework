@@ -1,4 +1,0 @@
-2026-05-16 03:57:51 [info     ] api_post                       path=/v1/users/login status=200
-2026-05-16 03:57:51 [debug    ] assert_status                  actual=200 expected=200
-
-✓ CMS Login success — token received

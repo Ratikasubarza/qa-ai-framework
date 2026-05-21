@@ -1,2 +1,0 @@
-2026-05-16 03:58:20 [info     ] api_put                        path=/v1/users/me/account status=401
-2026-05-16 03:58:20 [debug    ] assert_status                  actual=401 expected=401

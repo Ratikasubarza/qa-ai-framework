@@ -1,3 +1,0 @@
-2026-05-16 03:58:09 [info     ] api_post                       path=/v1/users/login status=200
-2026-05-16 03:58:09 [info     ] api_get                        path=/v1/users status=200
-2026-05-16 03:58:09 [debug    ] assert_status                  actual=200 expected=200

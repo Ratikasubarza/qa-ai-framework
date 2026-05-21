@@ -1,5 +1,0 @@
-2026-05-16 09:48:39 [info     ] api_login                      status=200
-2026-05-16 09:48:39 [info     ] api_login_success
-2026-05-16 09:48:39 [info     ] api_get                        path=/v1/search/posts status=400
-Search: 400 {"code":"NOKBADREQ","message":"query is required","data":null}
-2026-05-16 09:48:39 [debug    ] assert_response_time           elapsed_ms=40.571000000000005 limit_ms=5000

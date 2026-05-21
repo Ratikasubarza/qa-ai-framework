@@ -1,1 +1,0 @@
-INFO     httpx:_client.py:1773 HTTP Request: POST https://api-dev.thehono.com/v1/users/35d4f60d-5498-11f1-852f-021fe5155c2f/approve "HTTP/1.1 502 Bad Gateway"

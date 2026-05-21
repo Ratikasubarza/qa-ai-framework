@@ -1,1 +1,0 @@
-2026-05-16 03:58:34 [info     ] api_post                       path=/v1/users/register status=500

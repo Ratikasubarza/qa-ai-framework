@@ -1,6 +1,0 @@
-2026-05-16 03:57:48 [info     ] api_login                      status=200
-2026-05-16 03:57:48 [info     ] api_login_success
-2026-05-16 03:57:48 [info     ] api_get                        path=/v1/users/me status=200
-2026-05-16 03:57:48 [debug    ] assert_status                  actual=200 expected=200
-
-✓ Profile: {'id': 'c3bd47fe-4330-11f1-852f-021fe5155c2f', 'name': 'Hono A', 'email': 'testingHonoA@mailinator.com', 'profile_picture_url': '', 'phone': '+6281234567104', 'phone_country_iso': 'ID', 'role': 'user', 'onboarding_completed_at': '2026-04-28T19:15:25Z'}

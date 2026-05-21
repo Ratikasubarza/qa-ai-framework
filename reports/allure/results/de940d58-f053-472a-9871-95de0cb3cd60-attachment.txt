@@ -1,2 +1,0 @@
-2026-05-16 09:48:03 [info     ] api_post                       path=/v1/users/login status=200
-2026-05-16 09:48:03 [info     ] api_post                       path=/v1/users/00000000-0000-0000-0000-000000000000/approve status=404
