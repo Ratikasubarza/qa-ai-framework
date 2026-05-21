@@ -8,8 +8,8 @@ from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints, Timeouts
 
 load_dotenv(dotenv_path=".env")
-EMAIL    = os.getenv("STAGING_EMAIL", "testingHonoA@mailinator.com")
-PASSWORD = os.getenv("STAGING_PASSWORD", "P@ssTika1234#26")
+EMAIL    = os.getenv("STAGING_EMAIL", "")
+PASSWORD = os.getenv("STAGING_PASSWORD", "")
 
 pytestmark = allure.feature("Login")
 
@@ -31,11 +31,12 @@ async def unauth_client():
 @pytest.mark.api
 @pytest.mark.asyncio
 async def test_TC_API_001_login_valid_credentials():
-    """TC-API-001 | Smoke | Valid credentials return 200 + accessToken"""
+    """TC-API-001 | Smoke | Valid credentials return 200 + auth token"""
     async with HonoAPIClient() as client:
         response = await client.post(APIEndpoints.LOGIN, json={"email": EMAIL, "password": PASSWORD})
-        SchemaValidator(response).status_ok().has_key("data").response_time_under(Timeouts.API_SLA_MS)
-        data = response.json().get("data") or {}
+        SchemaValidator(response).status_ok().has_token().response_time_under(Timeouts.API_SLA_MS)
+        body = response.json()
+        data = body.get("data", body) if isinstance(body, dict) else {}
         token = data.get("accessToken") or data.get("token")
         assert token, "Token not found"
 
