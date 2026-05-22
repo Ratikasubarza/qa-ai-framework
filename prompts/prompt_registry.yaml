@@ -9,6 +9,7 @@ prompts:
   test_case_gen_v1:
     version: "1.0.0"
     model_tier: standard
+    archived: true
     changelog: "v1.0.0 — initial version"
     template_ref: "prompts/test_case_gen_v1.0.0.txt"
     eval_threshold: 0.85

@@ -40,6 +40,9 @@ class PromptManager:
         with open(REGISTRY_PATH) as f:
             self._registry = yaml.safe_load(f) or {}
         for name, meta in self._registry.get("prompts", {}).items():
+            if meta.get("archived", False):
+                logger.info("prompt_archived_skipped", name=name, version=meta.get("version"))
+                continue
             self._load_prompt(name, meta)
         logger.info("prompts_loaded", count=len(self._templates))
 

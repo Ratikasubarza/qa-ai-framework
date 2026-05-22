@@ -144,6 +144,48 @@ async def send_telegram(msg: str) -> None:
             json={"chat_id": TELEGRAM_CHAT, "text": msg, "parse_mode": "Markdown"},
         )
 
+# ── Test-case generation helpers ───────────────────────────────────────────────
+def _infer_bug_platforms(event: JiraWebhookEvent) -> list[str]:
+    """
+    Infer likely target platforms from Jira labels.
+    Falls back to web to keep one deterministic runtime contract.
+    """
+    labels = []
+    if event.issue and event.issue.fields:
+        labels = [str(label).strip().lower() for label in event.issue.fields.labels or []]
+
+    mapping = {
+        "api": "api",
+        "web": "web",
+        "cms": "web",
+        "android": "android",
+        "ios": "ios",
+    }
+
+    inferred: list[str] = []
+    for label in labels:
+        for marker, platform in mapping.items():
+            if marker in label and platform not in inferred:
+                inferred.append(platform)
+
+    return inferred or ["web"]
+
+
+def _format_generated_cases_preview(output: object) -> str:
+    """Build short Jira-safe markdown preview from TestCaseAgentOutput-like object."""
+    scenarios = getattr(output, "scenarios", []) or []
+    if not scenarios:
+        return "No scenarios generated."
+
+    lines: list[str] = []
+    for idx, scenario in enumerate(scenarios[:5], 1):
+        name = getattr(scenario, "name", None) or "Unnamed scenario"
+        lines.append(f"{idx}. {name}")
+    if len(scenarios) > 5:
+        lines.append(f"... and {len(scenarios) - 5} more")
+    return "\n".join(lines)
+
+
 # ── GitHub Actions trigger ─────────────────────────────────────────────────────
 async def trigger_github_pipeline(suite: str = "all", issue_key: str = "") -> int:
     async with httpx.AsyncClient() as client:
@@ -233,15 +275,26 @@ async def handle_new_bug(event: JiraWebhookEvent) -> None:
     logger.info("new_bug", issue=issue_key, summary=summary[:80])
     try:
         from agents.test_case_agent import test_case_agent
-        from core.agent_contracts import RequirementsDoc
-        req = RequirementsDoc(
-            title=f"Bug: {summary}",
-            content=f"Issue: {issue_key}\nSummary: {summary}\nDescription: {str(desc_raw)[:500]}",
-            source="jira_bug",
-            feature_area="regression",
+        from core.agent_contracts import Platform, TestCaseAgentInput
+
+        platforms = [Platform(p) for p in _infer_bug_platforms(event)]
+        req = TestCaseAgentInput(
+            feature=f"Bug Regression - {issue_key}",
+            description=(
+                f"Issue: {issue_key}\n"
+                f"Summary: {summary}\n"
+                f"Description: {str(desc_raw)[:2000]}"
+            ),
+            acceptance_criteria=[
+                "Bug must be reproducible before fix and verifiable after fix.",
+                "Regression checks must cover impacted flow and adjacent user journey.",
+            ],
+            platforms=platforms,
+            jira_story_key=issue_key,
+            context="Auto-generated from Jira bug webhook event.",
         )
-        result   = await test_case_agent.generate(req)
-        tc_text  = str(result)[:2000] if result else "Test case generation failed"
+        result = await test_case_agent.run(req, require_approval=False)
+        tc_text = _format_generated_cases_preview(result)
         await add_jira_comment(issue_key, f"🤖 Auto-generated test case:\n\n{tc_text}")
         await send_telegram(
             f"🐛 *New Bug — Test Case Generated*\n\n"
