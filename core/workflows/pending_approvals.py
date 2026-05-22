@@ -93,18 +93,29 @@ class PendingApprovalStore:
             decision=decision,
         )
 
-        # Best-effort: trigger pipeline resume via GitHub Actions workflow_dispatch
+        # Best-effort: trigger pipeline resume via canonical workflow_dispatch contract
         try:
             from integrations.github_client import github_client as gh
-            gh.trigger_workflow(
-                workflow_id="resume_pipeline.yml",
+            state = payload.get("state", {}) or {}
+            environment = str(state.get("environment", "staging")).strip().lower() or "staging"
+            test_suite = str(state.get("test_suite", "all")).strip().lower() or "all"
+            ok = gh.trigger_workflow(
+                workflow_id="qa-pipeline.yml",
                 inputs={
-                    "approval_id": approval_id,
-                    "decision":    decision,
-                    "reason":      reason,
+                    "environment": environment,
+                    "test_suite": test_suite,
+                    "test_level": "approval_resume",
                 },
             )
-            logger.info("pipeline_resume_triggered", approval_id=approval_id)
+            logger.info(
+                "pipeline_resume_triggered",
+                approval_id=approval_id,
+                workflow="qa-pipeline.yml",
+                ok=ok,
+                environment=environment,
+                test_suite=test_suite,
+                decision=decision,
+            )
         except Exception as e:
             logger.warning(
                 "pipeline_resume_skipped",

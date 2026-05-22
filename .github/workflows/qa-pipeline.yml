@@ -1,7 +1,37 @@
 name: QA AI Framework — Automated Test Pipeline
 
 on:
-  workflow_dispatch:      # Manual trigger from GitHub UI or gh CLI
+  workflow_dispatch:      # Manual trigger from GitHub UI, gh CLI, or webhook dispatch
+    inputs:
+      environment:
+        description: "Execution environment"
+        required: false
+        default: "staging"
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      test_suite:
+        description: "Test suite selection"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - api
+          - web
+          - self-healing
+          - debug-agent
+      test_level:
+        description: "Execution level"
+        required: false
+        default: "regression"
+        type: choice
+        options:
+          - smoke
+          - regression
+          - approval_resume
   schedule:
     - cron: '0 17 * * *'  # Daily at 1AM SGT (UTC+8 = 17:00 UTC)
   push:
@@ -11,6 +41,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.11'
+  TEST_ENV: ${{ github.event.inputs.environment || 'staging' }}
   OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
   OPENROUTER_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
   HONO_API_URL: ${{ secrets.HONO_API_URL }}
@@ -78,7 +109,7 @@ jobs:
     runs-on: self-hosted
     needs: smoke
     timeout-minutes: 60
-    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'api' || github.event.inputs.test_suite == ''
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'api' || github.event.inputs.test_suite == '' || github.event.inputs.test_suite == null
     steps:
       - uses: actions/checkout@v4
 
@@ -112,7 +143,7 @@ jobs:
     runs-on: self-hosted
     needs: smoke
     timeout-minutes: 60
-    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'web' || github.event.inputs.test_suite == ''
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'web' || github.event.inputs.test_suite == '' || github.event.inputs.test_suite == null
     steps:
       - uses: actions/checkout@v4
 
@@ -146,7 +177,7 @@ jobs:
     runs-on: self-hosted
     needs: web-tests
     timeout-minutes: 30
-    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'self-healing' || github.event.inputs.test_suite == ''
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'self-healing' || github.event.inputs.test_suite == '' || github.event.inputs.test_suite == null
     steps:
       - uses: actions/checkout@v4
 
@@ -166,7 +197,7 @@ jobs:
     runs-on: self-hosted
     needs: smoke
     timeout-minutes: 30
-    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'debug-agent' || github.event.inputs.test_suite == ''
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'debug-agent' || github.event.inputs.test_suite == '' || github.event.inputs.test_suite == null
     steps:
       - uses: actions/checkout@v4
 

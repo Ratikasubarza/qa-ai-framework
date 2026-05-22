@@ -187,7 +187,42 @@ def _format_generated_cases_preview(output: object) -> str:
 
 
 # ── GitHub Actions trigger ─────────────────────────────────────────────────────
-async def trigger_github_pipeline(suite: str = "all", issue_key: str = "") -> int:
+_VALID_TEST_SUITES = {"all", "api", "web", "self-healing", "debug-agent"}
+_VALID_TEST_LEVELS = {"smoke", "regression", "approval_resume"}
+_VALID_ENVIRONMENTS = {"dev", "staging", "production"}
+
+
+def _runtime_environment() -> str:
+    raw = os.getenv("TEST_ENV", os.getenv("ENV", "staging")).strip().lower()
+    alias = {"local": "dev", "development": "dev", "stage": "staging", "prod": "production"}
+    normalized = alias.get(raw, raw)
+    return normalized if normalized in _VALID_ENVIRONMENTS else "staging"
+
+
+def _normalize_test_suite(value: str) -> str:
+    candidate = (value or "all").strip().lower()
+    return candidate if candidate in _VALID_TEST_SUITES else "all"
+
+
+def _normalize_test_level(value: str) -> str:
+    candidate = (value or "regression").strip().lower()
+    return candidate if candidate in _VALID_TEST_LEVELS else "regression"
+
+
+def _normalize_environment(value: str) -> str:
+    candidate = (value or "").strip().lower()
+    return candidate if candidate in _VALID_ENVIRONMENTS else _runtime_environment()
+
+
+async def trigger_github_pipeline(
+    test_suite: str = "all",
+    issue_key: str = "",
+    test_level: str = "regression",
+    environment: str = "staging",
+) -> int:
+    normalized_suite = _normalize_test_suite(test_suite)
+    normalized_level = _normalize_test_level(test_level)
+    normalized_env = _normalize_environment(environment)
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"https://api.github.com/repos/{GITHUB_REPO}/actions/workflows/qa-pipeline.yml/dispatches",
@@ -195,9 +230,23 @@ async def trigger_github_pipeline(suite: str = "all", issue_key: str = "") -> in
                 "Authorization": f"Bearer {GITHUB_TOKEN}",
                 "Accept":        "application/vnd.github+json",
             },
-            json={"ref": "main", "inputs": {"suite": suite, "issue_key": issue_key}},
+            json={
+                "ref": "main",
+                "inputs": {
+                    "environment": normalized_env,
+                    "test_suite": normalized_suite,
+                    "test_level": normalized_level,
+                },
+            },
         )
-    logger.info("pipeline_triggered", resp_status=resp.status_code, suite=suite, issue=issue_key)
+    logger.info(
+        "pipeline_triggered",
+        resp_status=resp.status_code,
+        test_suite=normalized_suite,
+        test_level=normalized_level,
+        environment=normalized_env,
+        issue=issue_key,
+    )
     return resp.status_code
 
 # ── Jira helpers ───────────────────────────────────────────────────────────────
@@ -263,7 +312,12 @@ async def handle_ready_to_test(event: JiraWebhookEvent, bg: BackgroundTasks) -> 
         f"*Assignee:* {assignee}\n"
         f"*Status:* READY TO TEST → QA IN PROGRESS"
     )
-    status_code = await trigger_github_pipeline(suite="all", issue_key=issue_key)
+    status_code = await trigger_github_pipeline(
+        test_suite="all",
+        issue_key=issue_key,
+        test_level="regression",
+        environment=_runtime_environment(),
+    )
     logger.info("github_triggered", status=status_code, issue=issue_key)
 
 
@@ -314,7 +368,12 @@ async def handle_sprint_started(event: JiraWebhookEvent) -> None:
         f"*Sprint:* {sprint_name}\n"
         f"*Action:* Running full regression suite..."
     )
-    await trigger_github_pipeline(suite="all", issue_key=f"sprint:{sprint_name}")
+    await trigger_github_pipeline(
+        test_suite="all",
+        issue_key=f"sprint:{sprint_name}",
+        test_level="regression",
+        environment=_runtime_environment(),
+    )
 
 
 # ── Pipeline lock wrapper ──────────────────────────────────────────────────────
@@ -408,7 +467,12 @@ async def jira_webhook(request: Request, background_tasks: BackgroundTasks) -> d
 async def manual_trigger(request: Request, background_tasks: BackgroundTasks) -> dict:
     """
     Flow 4: Manual trigger — run specific suite.
-    Body: {"suite": "api|web|mobile|all", "issue_key": "HM-XXX"}
+    Body: {
+      "environment": "dev|staging|production",
+      "test_suite": "all|api|web|self-healing|debug-agent",
+      "test_level": "smoke|regression|approval_resume",
+      "issue_key": "HM-XXX"
+    }
     Requires: Authorization: Bearer <MANUAL_TRIGGER_SECRET>
     """
     if not MANUAL_TRIGGER_SECRET:
@@ -425,16 +489,35 @@ async def manual_trigger(request: Request, background_tasks: BackgroundTasks) ->
         )
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    body      = await request.json()
-    suite     = body.get("suite", "all")
+    body = await request.json()
+    test_suite = body.get("test_suite") or body.get("suite") or "all"
+    test_level = body.get("test_level", "regression")
+    environment = body.get("environment", _runtime_environment())
     issue_key = body.get("issue_key", "")
 
-    logger.info("manual_trigger", suite=suite, issue=issue_key)
-    status_code = await trigger_github_pipeline(suite=suite, issue_key=issue_key)
+    normalized_suite = _normalize_test_suite(test_suite)
+    normalized_level = _normalize_test_level(test_level)
+    normalized_env = _normalize_environment(environment)
+
+    logger.info(
+        "manual_trigger",
+        test_suite=normalized_suite,
+        test_level=normalized_level,
+        environment=normalized_env,
+        issue=issue_key,
+    )
+    status_code = await trigger_github_pipeline(
+        test_suite=normalized_suite,
+        issue_key=issue_key,
+        test_level=normalized_level,
+        environment=normalized_env,
+    )
 
     await send_telegram(
         f"🔧 *Manual QA Trigger*\n\n"
-        f"*Suite:* {suite}\n"
+        f"*Environment:* {normalized_env}\n"
+        f"*Suite:* {normalized_suite}\n"
+        f"*Level:* {normalized_level}\n"
         f"*Issue:* {issue_key or 'N/A'}\n"
         f"*Pipeline:* {'✅ Triggered' if status_code == 204 else '❌ Failed'}"
     )
@@ -442,7 +525,17 @@ async def manual_trigger(request: Request, background_tasks: BackgroundTasks) ->
     if issue_key:
         await add_jira_comment(
             issue_key,
-            f"🤖 Manual QA trigger: running {suite} suite. Results will be posted when complete.",
+            (
+                "🤖 Manual QA trigger: running "
+                f"{normalized_suite} ({normalized_level}) suite. "
+                "Results will be posted when complete."
+            ),
         )
 
-    return {"status": "triggered", "suite": suite, "pipeline_status": status_code}
+    return {
+        "status": "triggered",
+        "environment": normalized_env,
+        "test_suite": normalized_suite,
+        "test_level": normalized_level,
+        "pipeline_status": status_code,
+    }

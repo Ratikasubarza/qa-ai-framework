@@ -148,5 +148,42 @@ class GitHubClient:
             logger.error("github_check_run_failed", name=name, error=str(e))
             return False
 
+    # ── Workflow dispatch ─────────────────────────────────────────────────────
+
+    def trigger_workflow(
+        self,
+        workflow_id: str,
+        inputs: dict[str, str] | None = None,
+        ref: str = "main",
+    ) -> bool:
+        """
+        Trigger a GitHub Actions workflow_dispatch.
+
+        workflow_id can be workflow filename (e.g. qa-pipeline.yml) or numeric ID.
+        """
+        if not self.token or not self.repo:
+            logger.warning("github_client_not_configured")
+            return False
+
+        url = f"{_GITHUB_API}/repos/{self.repo}/actions/workflows/{workflow_id}/dispatches"
+        payload = {"ref": ref, "inputs": inputs or {}}
+        try:
+            with httpx.Client(timeout=15) as client:
+                resp = client.post(url, headers=self._headers, json=payload)
+            if resp.status_code == 204:
+                logger.info("github_workflow_triggered", workflow_id=workflow_id, ref=ref)
+                return True
+
+            logger.error(
+                "github_workflow_trigger_failed",
+                workflow_id=workflow_id,
+                status=resp.status_code,
+                body=resp.text[:200],
+            )
+            return False
+        except Exception as e:
+            logger.error("github_workflow_trigger_failed", workflow_id=workflow_id, error=str(e))
+            return False
+
 
 github_client = GitHubClient()
