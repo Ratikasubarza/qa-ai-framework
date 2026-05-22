@@ -146,10 +146,20 @@ class CodeGeneratorAgent:
             files[f"features/{feature_low}/steps/{feature_low}_steps.py"] = raw.strip()
 
         # Always ensure conftest exists
-        if "conftest.py" not in files:
+        has_conftest = any(Path(name).name == "conftest.py" for name in files)
+        if not has_conftest:
             files["conftest.py"] = self._default_conftest()
 
-        return files
+        normalized_files: dict[str, str] = {}
+        for filename, content in files.items():
+            cleaned = filename.strip()
+            if cleaned == "conftest.py":
+                cleaned = f"features/{feature_low}/steps/conftest.py"
+            elif not cleaned.startswith("features/"):
+                cleaned = f"features/{feature_low}/steps/{Path(cleaned).name}"
+            normalized_files[cleaned] = content
+
+        return normalized_files
 
     def _validate_pom_steps(self, feature: str, platforms: list[str]) -> None:
         """Warn if generated feature has no registered POM/Screen class."""
@@ -193,14 +203,23 @@ def navigate_to_base(page: Page, base_url: str):
 
     _SAFE_OUTPUT_ROOT = Path("features").resolve()
 
+    @staticmethod
+    def _is_relative_to(path: Path, root: Path) -> bool:
+        try:
+            path.relative_to(root)
+            return True
+        except ValueError:
+            return False
+
     def _save_files(self, files: dict[str, str], feature_low: str) -> dict[str, str]:
         from core.code_security import validate_generated_code
         from core.exceptions import CodeGenerationSecurityError
 
+        feature_root = (self._SAFE_OUTPUT_ROOT / feature_low).resolve()
         saved = {}
         for filename, content in files.items():
             path = Path(filename).resolve()
-            if not str(path).startswith(str(self._SAFE_OUTPUT_ROOT)):
+            if not self._is_relative_to(path, feature_root):
                 logger.error("path_traversal_blocked", path=filename)
                 raise ValueError(f"Output path outside allowed directory: {filename}")
 
