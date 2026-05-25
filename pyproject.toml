@@ -36,9 +36,7 @@ addopts = [
     "--alluredir=reports/allure/results",
     "--tb=short",
     "--strict-markers",
-    "-v",
-    "-n",
-    "auto"
+    "-v"
 ]
 testpaths = ["tests", "features"]
 log_cli = true

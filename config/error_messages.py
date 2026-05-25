@@ -1,30 +1,73 @@
 """
 Centralized error/validation message strings — single source of truth.
-Usage: from config.error_messages import APIErrors, AndroidErrors, ValidationErrors
+Usage: from config.error_messages import APIErrors, APICodes, APIEnums, ValidationErrors, AndroidErrors
 """
 
 
-class APIErrors:
-    """API response error codes and messages."""
+class APICodes:
+    """API response 'code' field values."""
 
-    # ── Auth ──────────────────────────────────────────────────────────
-    UNAUTHORIZED        = "Unauthorized"
-    INVALID_CREDENTIALS = "Invalid credentials"
-    TOKEN_MISSING       = "Token missing"
-    API_KEY_MISSING     = "API key missing"
+    # ── Success ───────────────────────────────────────────────────────────
+    OK                  = "OK"
 
-    # ── Register ──────────────────────────────────────────────────────
+    # ── Business error codes ──────────────────────────────────────────────
+    NOKUNPROC           = "NOKUNPROC"   # Unprocessable — duplicate / conflict / unknown value
+    EXPIRED             = "EXPIRED"     # Verification / reset link has expired
+
+
+class APIMessages:
+    """API response 'message' field values."""
+
+    # ── Success messages ──────────────────────────────────────────────────
+    DATA_SAVED          = "Data saved"
+    DATA_FOUND          = "Data found"
+    DATA_DELETED        = "Data deleted"
+
+    # ── Auth / account ────────────────────────────────────────────────────
+    UNAUTHORIZED            = "Unauthorized"
+    INVALID_CREDENTIALS     = "Invalid credentials"
+    TOKEN_MISSING           = "Token missing"
+    API_KEY_MISSING         = "API key missing"
+    EXPIRED_LINK            = "Verification link has expired"
+
+    # ── Register / email ──────────────────────────────────────────────────
+    EMAIL_ALREADY_EXISTS    = "email already exists"
     EMAIL_ALREADY_REGISTERED = "Email already registered"
+    EMAIL_UPDATED           = "Email updated successfully"
     PHONE_ALREADY_REGISTERED = "Phone number already registered"
-    EMAIL_FORMAT_INVALID     = "Invalid email format"
+    EMAIL_FORMAT_INVALID    = "Invalid email format"
 
-    # ── Generic ───────────────────────────────────────────────────────
-    NOT_FOUND           = "Not found"
-    INTERNAL_ERROR      = "Internal server error"
-    VALIDATION_FAILED   = "Validation failed"
+    # ── Account / phone ───────────────────────────────────────────────────
+    UNKNOWN_PHONE_CODE      = "unknown country phone code"
 
-    # ── Success codes ─────────────────────────────────────────────────
-    SUCCESS_CODE        = "OK"
+    # ── Posts ─────────────────────────────────────────────────────────────
+    AT_LEAST_ONE_TOPIC      = "at least 1 topic is required"
+    MENTION_BLOCKED         = "user does not allow mentions from you"
+
+    # ── Admin moderation ──────────────────────────────────────────────────
+    ALREADY_HIDDEN          = "already hidden"
+    NOT_HIDDEN              = "not hidden"
+
+    # ── Generic ───────────────────────────────────────────────────────────
+    NOT_FOUND               = "Not found"
+    INTERNAL_ERROR          = "Internal server error"
+    VALIDATION_FAILED       = "Validation failed"
+
+
+class APIErrors:
+    """Backward-compatible alias — use APIMessages for new code."""
+
+    UNAUTHORIZED            = APIMessages.UNAUTHORIZED
+    INVALID_CREDENTIALS     = APIMessages.INVALID_CREDENTIALS
+    TOKEN_MISSING           = APIMessages.TOKEN_MISSING
+    API_KEY_MISSING         = APIMessages.API_KEY_MISSING
+    EMAIL_ALREADY_REGISTERED = APIMessages.EMAIL_ALREADY_REGISTERED
+    PHONE_ALREADY_REGISTERED = APIMessages.PHONE_ALREADY_REGISTERED
+    EMAIL_FORMAT_INVALID    = APIMessages.EMAIL_FORMAT_INVALID
+    NOT_FOUND               = APIMessages.NOT_FOUND
+    INTERNAL_ERROR          = APIMessages.INTERNAL_ERROR
+    VALIDATION_FAILED       = APIMessages.VALIDATION_FAILED
+    SUCCESS_CODE            = APICodes.OK
 
 
 class ValidationErrors:

@@ -39,6 +39,7 @@ class DBClient:
             **ssl_kwargs,
             cursorclass=pymysql.cursors.DictCursor,
             autocommit=True,
+            connect_timeout=10,
         )
         logger.info("db_connected", host=os.getenv("DB_HOST"), ssl_verified=bool(ssl_ca_path))
         return self
