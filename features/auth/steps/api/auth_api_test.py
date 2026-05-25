@@ -6,7 +6,7 @@ from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints, TestConfig
 
-pytestmark = allure.feature("Auth")
+pytestmark = [allure.feature("Auth"), allure.suite("API")]
 
 FAKE_EMAIL = "nonexistent_qa_test@mailinator.com"
 INVALID_CODE = "00000000-0000-0000-0000-000000000000"
@@ -179,15 +179,9 @@ async def test_TC_AUTH_012_resend_email_verif_invalid_format():
 @pytest.mark.api
 async def test_TC_AUTH_013_resend_email_verif_no_api_key():
     """TC-AUTH-013 | Security | Resend verification without x-api-key returns 401"""
-    import httpx
-    import os
-    async with httpx.AsyncClient(
-        base_url=os.getenv("HONO_API_URL", "https://api-dev.thehono.com"),
-        timeout=30,
-    ) as client:
+    async with HonoAPIClient.no_api_key() as client:
         response = await client.post(
             APIEndpoints.AUTH_RESEND_EMAIL_VERIF,
             json={"email": FAKE_EMAIL},
-            headers={"Content-Type": "application/json"},
         )
     SchemaValidator(response).status_in(401, 403)

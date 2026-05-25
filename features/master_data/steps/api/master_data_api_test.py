@@ -6,7 +6,7 @@ from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints, ReferenceIDs
 
-pytestmark = allure.feature("Master Data")
+pytestmark = [allure.feature("Master Data"), allure.suite("API")]
 
 
 def _auth_header(token):
@@ -49,13 +49,8 @@ async def test_TC_MSTR_002_industries_items_have_id_and_name(master_data_token):
 @pytest.mark.api
 async def test_TC_MSTR_003_get_industries_no_api_key():
     """TC-MSTR-003 | Security | Get industries without x-api-key returns 401"""
-    import httpx
-    import os
-    async with httpx.AsyncClient(
-        base_url=os.getenv("HONO_API_URL", "https://api-dev.thehono.com"),
-        timeout=30,
-    ) as client:
-        response = await client.get("/v1/master/industries")
+    async with HonoAPIClient.no_api_key() as client:
+        response = await client.get(APIEndpoints.MASTER_INDUSTRIES)
     SchemaValidator(response).status_in(401, 403)
 
 

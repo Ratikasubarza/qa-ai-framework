@@ -16,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 from core.llm_client import llm_client, ModelTier
-from core.circuit_breaker import get_breaker
+from core.circuit_breaker import get_breaker, CircuitOpenError
 from core import input_sanitizer
 
 logger = structlog.get_logger(__name__)
@@ -202,8 +202,29 @@ class DebugAgent:
                 json_mode=True,
             )
 
-        response = self.breaker.call(_call)
-        data     = self._parse_response(response.content)
+        try:
+            response = self.breaker.call(_call)
+            data     = self._parse_response(response.content)
+        except CircuitOpenError:
+            logger.warning("debug_agent_circuit_open", test=failure.test_name)
+            return BugReport(
+                root_cause="Debug agent circuit breaker is open — LLM unavailable",
+                bug_type="environment",
+                severity="P2",
+                title=f"[CIRCUIT OPEN] {failure.test_name}"[:100],
+                description=f"Test failed but debug agent could not analyze: {failure.error_message[:200]}",
+                steps_to_reproduce=[f"Run test: {failure.test_name}"],
+                expected_behavior="Debug agent produces analysis",
+                actual_behavior="Circuit breaker open — too many recent LLM failures",
+                affected_component="debug_agent",
+                suggested_fix="Wait for circuit breaker cooldown, then re-run failed test",
+                needs_dev_attention=True,
+                labels=["circuit-open", "needs-manual-triage"],
+                failure_classification="ENVIRONMENT_ISSUE",
+                confidence=0.0,
+                recommended_action="report_environment_issue",
+                auto_fix_allowed=False,
+            )
 
         # Deterministic severity override when LLM fails or returns default
         _sev = data.get("severity", "P2")

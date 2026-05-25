@@ -5,8 +5,9 @@ import allure
 from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
+from features.posts.test_data.create_post_test_data import CreatePostPayload
 
-pytestmark = allure.feature("Posts")
+pytestmark = [allure.feature("Posts"), allure.suite("API")]
 
 NONEXISTENT_POST_ID = "00000000-0000-0000-0000-000000000000"
 
@@ -15,6 +16,7 @@ NONEXISTENT_POST_ID = "00000000-0000-0000-0000-000000000000"
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_020_get_post_by_id(post_token, created_post_id):
     """TC-POST-API-020 | Smoke | Get post detail by valid post_id"""
     async with HonoAPIClient() as client:
@@ -30,6 +32,7 @@ async def test_TC_POST_API_020_get_post_by_id(post_token, created_post_id):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_021_get_post_not_found(post_token):
     """TC-POST-API-021 | Negative | Get post with nonexistent ID returns 404"""
     async with HonoAPIClient() as client:
@@ -42,6 +45,7 @@ async def test_TC_POST_API_021_get_post_not_found(post_token):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_022_get_post_no_token(created_post_id):
     """TC-POST-API-022 | Security | Get post without auth returns 401"""
     async with HonoAPIClient() as client:
@@ -53,6 +57,7 @@ async def test_TC_POST_API_022_get_post_no_token(created_post_id):
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_023_edit_post_valid(post_token, created_post_id):
     """TC-POST-API-023 | Smoke | Edit post content returns 200"""
     from features.posts.test_data.create_post_test_data import TOPIC_PODCASTING
@@ -70,6 +75,7 @@ async def test_TC_POST_API_023_edit_post_valid(post_token, created_post_id):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_024_edit_post_no_token(created_post_id):
     """TC-POST-API-024 | Security | Edit post without auth returns 401"""
     async with HonoAPIClient() as client:
@@ -82,6 +88,7 @@ async def test_TC_POST_API_024_edit_post_no_token(created_post_id):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_025_edit_post_not_found(post_token):
     """TC-POST-API-025 | Negative | Edit nonexistent post returns 404"""
     from features.posts.test_data.create_post_test_data import TOPIC_PODCASTING
@@ -98,6 +105,7 @@ async def test_TC_POST_API_025_edit_post_not_found(post_token):
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_026_change_visibility_valid(post_token, created_post_id):
     """TC-POST-API-026 | Smoke | Change post visibility to EVERYONE"""
     async with HonoAPIClient() as client:
@@ -111,6 +119,7 @@ async def test_TC_POST_API_026_change_visibility_valid(post_token, created_post_
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_027_change_visibility_invalid_value(post_token, created_post_id):
     """TC-POST-API-027 | Negative | Invalid visibility value returns 400/422"""
     async with HonoAPIClient() as client:
@@ -124,6 +133,7 @@ async def test_TC_POST_API_027_change_visibility_invalid_value(post_token, creat
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_028_change_visibility_no_token(created_post_id):
     """TC-POST-API-028 | Security | Change visibility without auth returns 401"""
     async with HonoAPIClient() as client:
@@ -138,6 +148,7 @@ async def test_TC_POST_API_028_change_visibility_no_token(created_post_id):
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_029_get_user_posts(post_token, post_user):
     """TC-POST-API-029 | Smoke | Get own user posts returns 200"""
     user_id = post_user.get("id", "")
@@ -154,6 +165,7 @@ async def test_TC_POST_API_029_get_user_posts(post_token, post_user):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_030_get_user_posts_no_token(post_user):
     """TC-POST-API-030 | Security | Get user posts without auth returns 401"""
     user_id = post_user.get("id", "nonexistent-id")
@@ -166,6 +178,7 @@ async def test_TC_POST_API_030_get_user_posts_no_token(post_user):
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_031_get_user_media(post_token, post_user):
     """TC-POST-API-031 | Smoke | Get user media returns 200"""
     user_id = post_user.get("id", "")
@@ -182,6 +195,7 @@ async def test_TC_POST_API_031_get_user_media(post_token, post_user):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_032_get_user_media_no_token(post_user):
     """TC-POST-API-032 | Security | Get user media without auth returns 401"""
     user_id = post_user.get("id", "nonexistent-id")
@@ -194,6 +208,7 @@ async def test_TC_POST_API_032_get_user_media_no_token(post_user):
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_033_get_mentionable_users(post_token):
     """TC-POST-API-033 | Smoke | Get mentionable users typeahead returns 200"""
     async with HonoAPIClient() as client:
@@ -207,6 +222,7 @@ async def test_TC_POST_API_033_get_mentionable_users(post_token):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_034_get_mentionable_no_token():
     """TC-POST-API-034 | Security | Mentionable without auth returns 401"""
     async with HonoAPIClient() as client:
@@ -221,6 +237,7 @@ async def test_TC_POST_API_034_get_mentionable_no_token():
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_035_delete_post_no_token(created_post_id):
     """TC-POST-API-035 | Security | Delete post without auth returns 401"""
     async with HonoAPIClient() as client:
@@ -230,6 +247,7 @@ async def test_TC_POST_API_035_delete_post_no_token(created_post_id):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_POST_API_036_delete_post_not_found(post_token):
     """TC-POST-API-036 | Negative | Delete nonexistent post returns 403/404"""
     async with HonoAPIClient() as client:
@@ -242,11 +260,25 @@ async def test_TC_POST_API_036_delete_post_not_found(post_token):
 
 @pytest.mark.smoke
 @pytest.mark.api
-async def test_TC_POST_API_037_delete_post_valid(post_token, created_post_id):
-    """TC-POST-API-037 | Smoke | Delete own post returns 200/204 (runs last)"""
+@pytest.mark.asyncio
+async def test_TC_POST_API_037_delete_post_valid(post_token):
+    """TC-POST-API-037 | Smoke | Delete own post returns 200/204"""
+    async with HonoAPIClient() as client:
+        create_resp = await client.post(
+            APIEndpoints.POSTS,
+            json=CreatePostPayload.valid().as_dict(),
+            headers={"Authorization": f"Bearer {post_token}"},
+        )
+    assert create_resp.status_code in (200, 201), (
+        f"TC-037 setup: post creation failed: {create_resp.status_code}"
+    )
+    body = create_resp.json()
+    post_id = (body.get("data") or body).get("id", "")
+    assert post_id, f"No post id in create response: {body}"
+
     async with HonoAPIClient() as client:
         response = await client.delete(
-            APIEndpoints.post_detail(created_post_id),
+            APIEndpoints.post_detail(post_id),
             headers={"Authorization": f"Bearer {post_token}"},
         )
     SchemaValidator(response).status_in(200, 204)

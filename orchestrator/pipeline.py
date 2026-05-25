@@ -16,6 +16,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -31,8 +32,8 @@ from core.source_intake import build_source_intake_state
 
 logger = structlog.get_logger(__name__)
 
-PYTHON_BIN = "./venv/bin/python3.11"
-MAX_APPROVAL_ATTEMPTS = 1
+PYTHON_BIN = os.getenv("PYTHON_BIN", sys.executable)
+MAX_APPROVAL_ATTEMPTS = 3
 CASE_REVIEW_MIN_SCORE = 7.0
 
 
@@ -464,7 +465,7 @@ async def node_approval(state: AgentState) -> AgentState:
 
     # ── Tier 3 — Auto-reject ──────────────────────────────────────────
     if mode == "smart" and confidence < settings.auto_reject_threshold:
-        if retry_count >= 3:
+        if retry_count >= MAX_APPROVAL_ATTEMPTS:
             logger.warning(
                 "approval_max_retries_escalating",
                 confidence=confidence,

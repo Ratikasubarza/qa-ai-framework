@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 
 from core.llm_client import llm_client, ModelTier
-from core.circuit_breaker import CircuitBreaker
+from core.circuit_breaker import get_breaker
 from core.input_sanitizer import sanitize
 
 logger     = structlog.get_logger(__name__)

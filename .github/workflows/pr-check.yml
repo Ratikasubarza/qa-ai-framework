@@ -36,6 +36,10 @@ jobs:
       - name: Lint check (ruff)
         run: python -m ruff check . --select E,W,F --ignore E501,E402
 
+      - name: Secret scan
+        run: |
+          git ls-files | xargs detect-secrets-hook --baseline .secrets.baseline
+
       - name: API smoke tests (no VPN needed)
         run: |
           PYTHONPATH=. pytest \

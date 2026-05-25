@@ -10,7 +10,7 @@ from features.posts.test_data.create_post_test_data import (
 )
 from config.test_config import APIEndpoints
 
-pytestmark = allure.feature("Posts")
+pytestmark = [allure.feature("Posts"), allure.suite("API")]
 
 ENDPOINT = APIEndpoints.POSTS
 
@@ -22,7 +22,7 @@ async def _create_post(payload: dict, token: str) -> object:
         return await client.post(
             ENDPOINT,
             json=payload,
-            headers={"Authorization": f"Bearer {token}"},
+            auth_token=token,
         )
 
 
@@ -135,19 +135,11 @@ async def test_TC_POST_API_007_create_post_no_token():
 @pytest.mark.asyncio
 async def test_TC_POST_API_008_create_post_no_api_key():
     """TC-POST-API-008 | Security | Create post without x-api-key header returns 401"""
-    import httpx
-    import os
-    async with httpx.AsyncClient(
-        base_url=os.getenv("HONO_API_URL", "https://api-dev.thehono.com"),
-        timeout=30,
-    ) as client:
+    async with HonoAPIClient.no_api_key() as client:
         response = await client.post(
             ENDPOINT,
             json=CreatePostPayload.valid().as_dict(),
-            headers={
-                "Authorization": "Bearer fake_token_no_api_key",
-                "Content-Type": "application/json",
-            },
+            auth_token="fake_token_no_api_key",
         )
 
     SchemaValidator(response).status(401)
@@ -218,7 +210,6 @@ async def test_TC_POST_API_014_create_post_long_content(post_token):
     response = await _create_post(payload, post_token)
 
     SchemaValidator(response).status_in(200, 201, 400, 422)
-    print(f"\n  5000-char content → {response.status_code}")
 
 
 @pytest.mark.boundary

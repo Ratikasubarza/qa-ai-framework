@@ -1,6 +1,6 @@
 """
 Test User Helper — full lifecycle untuk E2E testing.
-Register → Verify → Approve → Set password → Ready to login
+Register → Verify → Approve → Set password → Complete onboarding → Ready to login
 """
 import asyncio
 import pytest
@@ -65,7 +65,7 @@ async def create_approved_user(
     password: str = None,
 ) -> dict:
     """
-    Create a fully approved test user ready to login.
+    Create a fully approved and onboarded test user ready to login.
 
     Returns:
         dict with email, password, user_id
@@ -73,8 +73,9 @@ async def create_approved_user(
     Flow:
         1. Register via API
         2. Set verified in DB
-        3. Approve via CMS API
+        3. Approve via CMS API (sets approved_at, approved_by, status=APPROVED)
         4. Override password in DB
+        5. Login as new user + complete onboarding (sets onboarding_completed_at)
     """
     ts = suffix or int(time.time())
     email = f"testonboard+{ts}@mailinator.com"
@@ -201,21 +202,69 @@ async def create_approved_user(
 
     assert final_user, f"Final user not found in DB: {email}"
 
+    # Step 5: Complete onboarding — login as new user, then PUT /v1/users/onboarding.
+    # This sets onboarding_completed_at and all profile fields, making the user
+    # indistinguishable from a real user who completed the flow.
+    from skills.data.data_generator import DataGenerator
+
+    async with httpx.AsyncClient(
+        base_url=api_url,
+        headers={"x-api-key": api_key},
+        timeout=30,
+    ) as client:
+        user_login_resp = await client.post("/v1/users/login", json={
+            "email":    email,
+            "password": pwd,
+        })
+        user_login_data = parse_json_response(user_login_resp, "New user login for onboarding")
+        user_body  = user_login_data.get("data", user_login_data)
+        user_token = user_body.get("accessToken") or user_body.get("token", "")
+        assert user_token, f"New user login token empty after approval: {user_login_data}"
+
+        onboard_resp = await client.put(
+            "/v1/users/onboarding",
+            json=DataGenerator.valid_onboarding_payload(),
+            headers={"Authorization": f"Bearer {user_token}"},
+        )
+
+    if onboard_resp.status_code >= 400:
+        raise AssertionError(
+            f"Onboarding step failed. "
+            f"Status={onboard_resp.status_code}, "
+            f"Body={onboard_resp.text[:500]}"
+        )
+
     logger.info(
         "test_user_ready",
         email=email,
         status=final_user["status"],
+        onboarding=onboard_resp.status_code,
     )
 
     return {
-        "email": email,
+        "email":    email,
         "password": pwd,
-        "user_id": user["id"],
-        "status": final_user["status"],
+        "user_id":  user["id"],
+        "status":   final_user["status"],
         "fullname": fullname or f"Test User {ts}",
     }
 
 
 def create_approved_user_sync(fullname=None, suffix=None, password=None) -> dict:
-    """Sync wrapper untuk pytest fixtures."""
-    return asyncio.run(create_approved_user(fullname, suffix, password))
+    """Sync wrapper for pytest fixtures.
+
+    Runs create_approved_user() in a background thread when called from inside a
+    running event loop (e.g. async fixtures, pytest-asyncio), falling back to
+    asyncio.run() in the normal sync-fixture path.
+    """
+    import concurrent.futures
+
+    try:
+        asyncio.get_running_loop()
+        # Already inside a running loop — dispatch to a new thread to avoid RuntimeError.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(
+                asyncio.run, create_approved_user(fullname, suffix, password)
+            ).result()
+    except RuntimeError:
+        return asyncio.run(create_approved_user(fullname, suffix, password))

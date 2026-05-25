@@ -11,7 +11,7 @@ load_dotenv(dotenv_path=".env")
 EMAIL    = os.getenv("STAGING_EMAIL", "")
 PASSWORD = os.getenv("STAGING_PASSWORD", "")
 
-pytestmark = allure.feature("Login")
+pytestmark = [allure.feature("Login"), allure.suite("API")]
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -87,7 +87,6 @@ async def test_TC_API_005_login_empty_body():
 async def test_TC_API_006_search_authenticated(auth_client):
     """TC-API-006 | Regression | Search with auth token returns 200/400"""
     response = await auth_client.get(APIEndpoints.SEARCH_POSTS, params={"q": "test"})
-    print("Search: " + str(response.status_code) + " " + response.text[:100])
     assert response.status_code in [200, 400]
     SchemaValidator(response).response_time_under(5000)
 
@@ -107,7 +106,6 @@ async def test_TC_API_007_search_unauthenticated(unauth_client):
 async def test_TC_API_008_search_empty_query(auth_client):
     """TC-API-008 | Regression | Empty search query returns 200/400/422"""
     response = await auth_client.get(APIEndpoints.SEARCH_POSTS, params={"q": ""})
-    print("Empty: " + str(response.status_code))
     assert response.status_code in [200, 400, 422]
 
 
@@ -131,7 +129,6 @@ async def test_TC_API_010_get_profile_authenticated(auth_client):
     data = response.json()
     assert "data" in data or "email" in data or "id" in data, \
         f"Profile response missing expected fields: {data}"
-    print(f"\n✓ Profile: {data.get('data', data)}")
 
 
 @pytest.mark.security
@@ -148,11 +145,7 @@ async def test_TC_API_011_get_profile_unauthenticated(unauth_client):
 @pytest.mark.asyncio
 async def test_TC_API_012_login_without_api_key():
     """TC-API-012 | Security | Login without x-api-key header returns 401"""
-    import httpx
-    async with httpx.AsyncClient(
-        base_url=os.getenv("HONO_API_URL"),
-        timeout=Timeouts.API_REQUEST,
-    ) as client:
+    async with HonoAPIClient.no_api_key() as client:
         response = await client.post(
             APIEndpoints.LOGIN,
             json={"email": EMAIL, "password": PASSWORD},
@@ -187,6 +180,11 @@ async def test_TC_API_014_login_empty_password():
         )
     assert response.status_code in [400, 401, 422], \
         f"Expected 4xx for empty password, got: {response.status_code}"
+
+
+@pytest.mark.skip(reason="TC-API-015 removed — superseded by TC-API-020 rate-limit coverage")
+def test_TC_API_015_stub():
+    pass
 
 
 @pytest.mark.performance
@@ -243,7 +241,6 @@ async def test_TC_API_019_login_email_case_sensitivity():
         )
     assert response.status_code in [200, 400, 401], \
         f"Unexpected status for uppercase email: {response.status_code}"
-    print(f"\n  Case sensitivity: {EMAIL.upper()} → {response.status_code}")
 
 
 @pytest.mark.security
@@ -259,4 +256,3 @@ async def test_TC_API_020_login_multiple_failed_attempts():
             )
             assert response.status_code == 401, \
                 f"Attempt {attempt + 1}: expected 401, got {response.status_code}"
-    print("\n✓ 3 failed login attempts all returned 401")

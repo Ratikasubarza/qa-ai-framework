@@ -5,15 +5,27 @@ import pytest
 import pytest_asyncio
 
 from core.db.test_user_helper import create_approved_user_sync
+from core.db.db_client import DBClient
+from core.test_data.cleanup_registry import cleanup_registry
 from platforms.api.httpx_client import HonoAPIClient
 from skills.testing.helpers import skip_on_email_quota
 from config.test_config import APIEndpoints
 
 
 @pytest.fixture(scope="module")
-def settings_user():
-    suffix = f"{int(time.time())}{random.randint(100, 999)}"
-    return create_approved_user_sync(suffix=suffix)
+def settings_user(request):
+    suffix    = f"{int(time.time())}{random.randint(100, 999)}"
+    user      = create_approved_user_sync(suffix=suffix)
+    worker_id = getattr(request.config, "workerinput", {}).get("workerid", "main")
+    run_id    = request.module.__name__
+
+    def _delete():
+        with DBClient() as db:
+            db.delete_user(user["user_id"])
+
+    cleanup_registry.register("user", user["user_id"], _delete, run_id=run_id, worker_id=worker_id)
+    yield user
+    cleanup_registry.cleanup_all(run_id=run_id, worker_id=worker_id)
 
 
 @pytest_asyncio.fixture(scope="module")

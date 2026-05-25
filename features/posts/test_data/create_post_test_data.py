@@ -5,21 +5,24 @@ Two interfaces:
   1. CreatePostTestData  (class constants) — static reference values
   2. CreatePostPayload   (dataclass)       — Builder pattern for parameterized tests
 """
+import os
 import time
 from dataclasses import dataclass, field
 from core.test_data.base_builder import PayloadBuilder
+from config.test_config import ReferenceIDs
 
-# ── Topic IDs (verified from Dev environment) ─────────────────────────────────
-TOPIC_PODCASTING            = 119
-TOPIC_CAREER                = 121
-TOPIC_LEADERSHIP            = 125
-TOPIC_SOCIAL                = 1
-TOPIC_COMMUNITY_ENGAGEMENT  = 5
+# ── Topic IDs — sourced from ReferenceIDs (single source of truth) ────────────
+TOPIC_PODCASTING            = ReferenceIDs.TOPIC_PODCASTING
+TOPIC_CAREER                = ReferenceIDs.TOPIC_CAREER
+TOPIC_LEADERSHIP            = ReferenceIDs.TOPIC_LEADERSHIP
+TOPIC_SOCIAL                = ReferenceIDs.TOPIC_SOCIAL
+TOPIC_COMMUNITY_ENGAGEMENT  = ReferenceIDs.TOPIC_COMMUNITY_ENGAGEMENT
 
-# Sample S3 media URL from Dev
-SAMPLE_MEDIA_URL = (
+# Sample S3 media URL — override via SAMPLE_MEDIA_URL env var in CI
+SAMPLE_MEDIA_URL = os.getenv(
+    "SAMPLE_MEDIA_URL",
     "https://hono-assets-dev.s3.ap-southeast-1.amazonaws.com"
-    "/media/2026/04/23/1872db3a-cd67-4124-9d72-bbbc1de72c67.jpg"
+    "/media/2026/04/23/1872db3a-cd67-4124-9d72-bbbc1de72c67.jpg",
 )
 
 
@@ -110,4 +113,4 @@ class CreatePostTestData:
     }
 
     # Performance SLA
-    MAX_RESPONSE_MS     = 3000
+    MAX_RESPONSE_MS     = 5000

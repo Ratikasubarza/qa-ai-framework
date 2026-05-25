@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
 from core.test_data.base_builder import PayloadBuilder
-from config.test_data import BoundaryValues
+from config.test_data import BoundaryValues, KnownAccounts
 from skills.data.data_generator import DataGenerator
 
 load_dotenv(dotenv_path=".env")
@@ -87,10 +87,10 @@ class RegisterTestData:
     SUCCESS_MESSAGE = "Data saved"
 
     # ── Known registered users for duplicate tests ────────────────────
-    EXISTING_EMAIL_A    = "testingHonoA@mailinator.com"
-    EXISTING_PHONE_A    = "81234567104"
-    EXISTING_EMAIL_B    = "testingHonoB@mailinator.com"
-    EXISTING_PHONE_B    = "81234567105"
+    EXISTING_EMAIL_A    = KnownAccounts.EXISTING_EMAIL_A
+    EXISTING_PHONE_A    = KnownAccounts.EXISTING_PHONE_A
+    EXISTING_EMAIL_B    = KnownAccounts.EXISTING_EMAIL_B
+    EXISTING_PHONE_B    = KnownAccounts.EXISTING_PHONE_B
 
     # ── Security payloads ─────────────────────────────────────────────
     SQL_INJECTION_NAME  = DataGenerator.sql_injection_strings()[0]

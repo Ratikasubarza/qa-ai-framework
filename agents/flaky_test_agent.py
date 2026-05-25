@@ -146,7 +146,16 @@ class FlakyTestAgent:
             response = self.breaker.call(_call)
             raw  = (response.content or "").strip()
             raw  = raw.lstrip("```json").lstrip("```").rstrip("```").strip()
-            data = json.loads(raw)
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError as parse_err:
+                logger.error(
+                    "flaky_test_parse_failed",
+                    test=test_name,
+                    error=str(parse_err),
+                    raw_preview=raw[:200],
+                )
+                data = {}
 
             category = data.get("category", "unknown")
 

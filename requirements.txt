@@ -40,16 +40,16 @@ pytest-xdist==3.5.0
 
 # ── Utilities ─────────────────────────────────────────────
 tenacity==8.3.0             # Retry logic with exponential backoff
-structlog==24.2.0           # Structured logging
+structlog==24.2.0       # Structured logging
 aiofiles==23.2.1
 pyyaml==6.0.1
 pytest-playwright==0.5.0
 pytest-timeout==2.3.1       # Per-test timeout enforcement
-pymysql
-langgraph==0.2.28
+pymysql==1.1.1
 
 # ── Dev tooling (linting, type checking) ──────────────────
 ruff>=0.4.0                 # Linter + formatter (mandatory feedback loop)
 mypy>=1.10.0                # Static type checker
+pip-audit>=2.7.0            # Dependency vulnerability scanner (used in CI qa-pipeline.yml)
+detect-secrets==1.4.0       # Secret detection — matches version in .pre-commit-config.yaml
 selenium>=4.18.0
-Appium-Python-Client>=3.1.0

@@ -9,7 +9,7 @@ from features.register.test_data.register_test_data import RegisterTestData
 from config.test_config import APIEndpoints, Timeouts
 from config.test_data import BoundaryValues, KnownAccounts
 
-pytestmark = allure.feature("Register")
+pytestmark = [allure.feature("Register"), allure.suite("API")]
 
 
 @pytest.mark.smoke
@@ -200,9 +200,7 @@ async def test_TC_REG_API_011_phone_non_numeric():
             "phone_country_code": "ID",
             "linkedin": f"https://linkedin.com/in/testphone{ts}"
         })
-    assert response.status_code in [400, 422], \
-        f"Expected 4xx for non-numeric phone, got: {response.status_code}"
-    print(f"\n✓ Non-numeric phone blocked: {response.status_code}")
+    SchemaValidator(response).status_in(400, 422)
 
 
 @pytest.mark.security
@@ -210,21 +208,15 @@ async def test_TC_REG_API_011_phone_non_numeric():
 @pytest.mark.asyncio
 async def test_TC_REG_API_012_missing_api_key():
     """TC-REG-API-012 | Security | Missing x-api-key header returns 401"""
-    import httpx, os
-    async with httpx.AsyncClient(
-        base_url=os.getenv("HONO_API_URL"),
-        timeout=Timeouts.API_REQUEST
-    ) as client:  # No API key
+    async with HonoAPIClient.no_api_key() as client:
         response = await client.post(APIEndpoints.REGISTER, json={
             "fullname": "Test No API Key",
             "email": "noapikey@mailinator.com",
             "phone_number": "81234567888",
             "phone_country_code": "ID",
-            "linkedin": "https://linkedin.com/in/noapikey"
+            "linkedin": "https://linkedin.com/in/noapikey",
         })
-    assert response.status_code in [401, 403], \
-        f"Expected 401/403 without API key, got: {response.status_code}"
-    print(f"\n✓ Missing API key blocked: {response.status_code}")
+    SchemaValidator(response).status_in(401, 403)
 
 
 @pytest.mark.security

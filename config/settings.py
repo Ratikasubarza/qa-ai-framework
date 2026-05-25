@@ -71,13 +71,25 @@ class Settings(BaseSettings):
         description="STAGING ONLY — ignore TLS cert errors in Playwright. Never True in prod.",
     )
 
+    # ── Database SSL ──────────────────────────────────────────────────
+    db_ssl_ca_path: Optional[str] = Field(
+        default=None,
+        description="Path to MySQL CA certificate for TLS verification. Required in production.",
+    )
+
     @model_validator(mode="after")
     def _check_production_safety(self) -> "Settings":
-        if self.env == "production" and self.playwright_ignore_https_errors:
-            raise ValueError(
-                "playwright_ignore_https_errors must be False in production "
-                "(set ENV=production and PLAYWRIGHT_IGNORE_HTTPS_ERRORS=false)"
-            )
+        if self.env == "production":
+            if self.playwright_ignore_https_errors:
+                raise ValueError(
+                    "playwright_ignore_https_errors must be False in production "
+                    "(set ENV=production and PLAYWRIGHT_IGNORE_HTTPS_ERRORS=false)"
+                )
+            if not self.db_ssl_ca_path:
+                raise ValueError(
+                    "DB_SSL_CA_PATH must be set in production — "
+                    "provide path to the MySQL CA certificate for TLS verification"
+                )
         return self
 
     @property

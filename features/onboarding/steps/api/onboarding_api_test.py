@@ -6,8 +6,6 @@ Flow: create_approved_user → login → PUT /v1/users/onboarding
 """
 import pytest
 import asyncio
-import httpx
-import os
 import time
 from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator

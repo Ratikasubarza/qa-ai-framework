@@ -16,17 +16,31 @@ class DBClient:
         self._conn = None
 
     def connect(self):
+        ssl_ca_path = os.getenv("DB_SSL_CA_PATH")
+        if ssl_ca_path:
+            ssl_kwargs: dict = {
+                "ssl_ca":             ssl_ca_path,
+                "ssl_verify_cert":    True,
+                "ssl_verify_identity": True,
+            }
+        else:
+            ssl_kwargs = {}
+            logger.warning(
+                "db_ssl_no_ca",
+                note="DB_SSL_CA_PATH unset — certificate verification disabled; set for production",
+            )
+
         self._conn = pymysql.connect(
             host=os.getenv("DB_HOST"),
             port=int(os.getenv("DB_PORT", 3306)),
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_NAME"),
-            ssl={"ssl": True},
+            **ssl_kwargs,
             cursorclass=pymysql.cursors.DictCursor,
             autocommit=True,
         )
-        logger.info("db_connected", host=os.getenv("DB_HOST"))
+        logger.info("db_connected", host=os.getenv("DB_HOST"), ssl_verified=bool(ssl_ca_path))
         return self
 
     def disconnect(self):
@@ -156,15 +170,31 @@ class DBClient:
             logger.info("db_password_set", email=email, affected=affected)
             return affected > 0
 
+    def set_onboarding_completed(self, email: str) -> bool:
+        """Set onboarding_completed_at timestamp — for test setup only."""
+        with self._conn.cursor() as cur:
+            cur.execute("""
+                UPDATE users
+                SET onboarding_completed_at = NOW(),
+                    updated_at = NOW()
+                WHERE email = %s
+                AND onboarding_completed_at IS NULL
+            """, (email,))
+            affected = cur.rowcount
+            logger.info("db_onboarding_completed", email=email, affected=affected)
+            return affected > 0
+
     def setup_test_user_for_login(self, email: str, password: str) -> bool:
         """
-        Full test setup: verify + approve + set password.
-        Simulates complete admin approval flow for testing.
+        Full DB-only test setup: verify + approve + set password + complete onboarding.
+        Use create_approved_user() (via API) when possible — this method is a fallback
+        for tests that cannot make API calls (e.g. offline or VPN-only DB access).
+        NOTE: approved_by is left NULL because no CMS user UUID is available here.
         """
         # Step 1: Set verified
         self.set_verified(email)
 
-        # Step 2: Approve
+        # Step 2: Approve (approved_by intentionally omitted — DB-only path)
         with self._conn.cursor() as cur:
             cur.execute("""
                 UPDATE users
@@ -177,6 +207,9 @@ class DBClient:
         # Step 3: Set known password
         self.set_password(email, password)
 
+        # Step 4: Mark onboarding complete
+        self.set_onboarding_completed(email)
+
         logger.info("test_user_setup_complete", email=email)
         return True
     def get_password_hash(self, email: str) -> str | None:
@@ -188,6 +221,124 @@ class DBClient:
             """, (email,))
             row = cur.fetchone()
             return row if row else None
+
+    def delete_user(self, user_id: str) -> bool:
+        """
+        Hard-delete a test user and all owned data in FK-safe order.
+
+        user_id: UUID string as returned by get_user_by_email()["id"].
+        Safe to call on already-deleted users — each statement is idempotent.
+
+        Deletion order (child → parent):
+          post sub-tables → posts → user profile tables → user row
+        """
+        uid = user_id  # UUID string, converted per-query with UUID_TO_BIN
+
+        with self._conn.cursor() as cur:
+            # ── Posts: sub-tables first ───────────────────────────────────
+            cur.execute("""
+                DELETE FROM post_bookmarks
+                WHERE post_id IN (SELECT id FROM posts WHERE user_id = UUID_TO_BIN(%s))
+                   OR user_id = UUID_TO_BIN(%s)
+            """, (uid, uid))
+
+            cur.execute("""
+                DELETE FROM post_media
+                WHERE post_id IN (SELECT id FROM posts WHERE user_id = UUID_TO_BIN(%s))
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM post_mentions
+                WHERE post_id IN (SELECT id FROM posts WHERE user_id = UUID_TO_BIN(%s))
+                   OR mentioned_user_id = UUID_TO_BIN(%s)
+            """, (uid, uid))
+
+            cur.execute("""
+                DELETE FROM post_topics
+                WHERE post_id IN (SELECT id FROM posts WHERE user_id = UUID_TO_BIN(%s))
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM user_hidden_posts
+                WHERE user_id = UUID_TO_BIN(%s)
+                   OR post_id IN (SELECT id FROM posts WHERE user_id = UUID_TO_BIN(%s))
+            """, (uid, uid))
+
+            # ── Posts ─────────────────────────────────────────────────────
+            cur.execute("""
+                DELETE FROM posts WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            # ── User profile / relationship tables ────────────────────────
+            cur.execute("""
+                DELETE FROM user_verifications WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM password_resets WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM user_industries WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM user_personal_interests WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM user_social_links WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM user_business_areas WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM user_follows
+                WHERE follower_id = UUID_TO_BIN(%s)
+                   OR following_id = UUID_TO_BIN(%s)
+            """, (uid, uid))
+
+            cur.execute("""
+                DELETE FROM user_devices WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM blocked_users
+                WHERE user_id = UUID_TO_BIN(%s)
+                   OR blocked_user_id = UUID_TO_BIN(%s)
+            """, (uid, uid))
+
+            cur.execute("""
+                DELETE FROM muted_users
+                WHERE user_id = UUID_TO_BIN(%s)
+                   OR muted_user_id = UUID_TO_BIN(%s)
+            """, (uid, uid))
+
+            cur.execute("""
+                DELETE FROM reports
+                WHERE reporter_id = UUID_TO_BIN(%s)
+                   OR reported_user_id = UUID_TO_BIN(%s)
+            """, (uid, uid))
+
+            cur.execute("""
+                DELETE FROM notification_setting WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            cur.execute("""
+                DELETE FROM memberships WHERE user_id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            # ── User row last ─────────────────────────────────────────────
+            cur.execute("""
+                DELETE FROM users WHERE id = UUID_TO_BIN(%s)
+            """, (uid,))
+
+            affected = cur.rowcount
+
+        logger.info("db_user_deleted", user_id=user_id, users_row_affected=affected)
+        return affected > 0
 
     def setup_approved_user(self, email: str, test_password: str) -> bool:
         """

@@ -66,10 +66,21 @@ FALLBACK_MODELS: dict[str, list[str]] = {
     ],
 }
 
+# Substring prefixes for models that accept response_format={"type":"json_object"}
+# via OpenRouter.  Uses prefix matching — verified against the dev FALLBACK_MODELS list.
+# Extend this list when adding new model families; keep entries as short prefixes.
 SUPPORTS_JSON_MODE: list[str] = [
     "openai/gpt-4",
     "openai/gpt-3.5",
+    "openai/gpt-oss",            # gpt-oss-20b, gpt-oss-120b (:free variants)
     "anthropic/claude",
+    "deepseek/deepseek-r1",
+    "mistralai/mistral",
+    "meta-llama/llama-3",
+    "nousresearch/hermes-3",
+    "nvidia/nemotron",
+    "qwen/qwen3",
+    "liquid/lfm",
 ]
 
 
@@ -104,6 +115,7 @@ class LLMClient:
         model: str,
         messages: list[dict],
         json_mode: bool = False,
+        agent_name: str = "",
     ) -> LLMResponse:
         """Call one model.  Raises LLMRateLimitError on 429, raw Exception otherwise."""
         kwargs: dict = dict(
@@ -112,7 +124,15 @@ class LLMClient:
             max_tokens=16000,
             temperature=0.2,
         )
-        if json_mode and any(m in model for m in SUPPORTS_JSON_MODE):
+        _json_mode_supported = any(m in model for m in SUPPORTS_JSON_MODE)
+        if json_mode and not _json_mode_supported:
+            logger.warning(
+                "json_mode_silently_ignored",
+                model=model,
+                agent=agent_name,
+                note="add model prefix to SUPPORTS_JSON_MODE — agent receives plain text",
+            )
+        if json_mode and _json_mode_supported:
             kwargs["response_format"] = {"type": "json_object"}
 
         try:
@@ -133,6 +153,7 @@ class LLMClient:
         model: str,
         messages: list[dict],
         json_mode: bool = False,
+        agent_name: str = "",
     ) -> LLMResponse:
         """Wrap _call_model in tenacity backoff targeting transient errors only."""
 
@@ -144,7 +165,7 @@ class LLMClient:
             reraise=True,
         )
         def _inner() -> LLMResponse:
-            return self._call_model(model, messages, json_mode)
+            return self._call_model(model, messages, json_mode, agent_name)
 
         return _inner()
 
@@ -168,7 +189,7 @@ class LLMClient:
         for model in models:
             try:
                 logger.info("llm_request", agent=agent_name, tier=tier.value, model=model)
-                result = self._call_model_with_backoff(model, messages, json_mode)
+                result = self._call_model_with_backoff(model, messages, json_mode, agent_name)
                 logger.info(
                     "llm_response",
                     agent=agent_name,

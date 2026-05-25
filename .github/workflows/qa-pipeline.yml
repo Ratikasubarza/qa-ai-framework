@@ -88,6 +88,10 @@ jobs:
         run: |
           ./venv/bin/python3.11 -m pip_audit --strict --desc on
 
+      - name: Secret scan
+        run: |
+          git ls-files | xargs ./venv/bin/detect-secrets-hook --baseline .secrets.baseline
+
   # ── Job 1: Smoke Test ──────────────────────────────────────────────
   smoke:
     name: Smoke Test — LLM Connection

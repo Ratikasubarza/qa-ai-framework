@@ -6,19 +6,19 @@ from platforms.api.httpx_client import HonoAPIClient
 from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
 
-pytestmark = allure.feature("Feed")
+pytestmark = [allure.feature("Feed"), allure.suite("API")]
 
 
 # ── GET /v1/feed ──────────────────────────────────────────────────────────────
 
 @pytest.mark.smoke
 @pytest.mark.api
-async def test_TC_FEED_001_get_feed_authenticated(feed_token):
-    """TC-FEED-001 | Smoke | Authenticated user gets feed list"""
+async def test_TC_FEED_001_get_feed_staging_user(staging_token):
+    """TC-FEED-001 | Smoke | Staging user (STAGING_EMAIL) gets feed list"""
     async with HonoAPIClient() as client:
         response = await client.get(
             APIEndpoints.FEED,
-            headers={"Authorization": f"Bearer {feed_token}"},
+            headers={"Authorization": f"Bearer {staging_token}"},
         )
     assert response.status_code == 200
     body = response.json()
@@ -27,25 +27,25 @@ async def test_TC_FEED_001_get_feed_authenticated(feed_token):
 
 
 @pytest.mark.api
-async def test_TC_FEED_002_get_feed_with_pagination(feed_token):
+async def test_TC_FEED_002_get_feed_with_pagination(staging_token):
     """TC-FEED-002 | Functional | Feed with page/per_page params"""
     async with HonoAPIClient() as client:
         response = await client.get(
             APIEndpoints.FEED,
             params={"page": 1, "per_page": 5},
-            headers={"Authorization": f"Bearer {feed_token}"},
+            headers={"Authorization": f"Bearer {staging_token}"},
         )
     SchemaValidator(response).status(200)
 
 
 @pytest.mark.api
-async def test_TC_FEED_003_get_feed_filter_param(feed_token):
+async def test_TC_FEED_003_get_feed_filter_param(staging_token):
     """TC-FEED-003 | Functional | Feed with filter param returns 200"""
     async with HonoAPIClient() as client:
         response = await client.get(
             APIEndpoints.FEED,
             params={"filter": "following", "page": 1, "per_page": 10},
-            headers={"Authorization": f"Bearer {feed_token}"},
+            headers={"Authorization": f"Bearer {staging_token}"},
         )
     SchemaValidator(response).status_in(200, 400)
 
@@ -63,12 +63,12 @@ async def test_TC_FEED_004_get_feed_no_token():
 
 @pytest.mark.smoke
 @pytest.mark.api
-async def test_TC_FEED_005_get_topics_authenticated(feed_token):
-    """TC-FEED-005 | Smoke | Authenticated user gets topics list"""
+async def test_TC_FEED_005_get_topics_staging_user(staging_token):
+    """TC-FEED-005 | Smoke | Staging user gets topics list"""
     async with HonoAPIClient() as client:
         response = await client.get(
             APIEndpoints.TOPICS,
-            headers={"Authorization": f"Bearer {feed_token}"},
+            headers={"Authorization": f"Bearer {staging_token}"},
         )
     assert response.status_code == 200
     body = response.json()
@@ -85,14 +85,33 @@ async def test_TC_FEED_006_get_topics_no_token():
 
 
 @pytest.mark.api
-async def test_TC_FEED_007_get_feed_response_schema(feed_token):
+async def test_TC_FEED_007_get_feed_response_schema(staging_token):
     """TC-FEED-007 | Functional | Feed response has pagination info"""
     async with HonoAPIClient() as client:
         response = await client.get(
             APIEndpoints.FEED,
             params={"page": 1, "per_page": 3},
-            headers={"Authorization": f"Bearer {feed_token}"},
+            headers={"Authorization": f"Bearer {staging_token}"},
         )
     assert response.status_code == 200
     body = response.json()
     assert "data" in body
+
+
+# ── Deactivated user ──────────────────────────────────────────────────────────
+
+@pytest.mark.negative
+@pytest.mark.api
+async def test_TC_FEED_008_get_feed_deactivated_user(deactivated_user_token):
+    """TC-FEED-008 | Negative | Deactivated account is rejected when accessing feed"""
+    async with HonoAPIClient() as client:
+        response = await client.get(
+            APIEndpoints.FEED,
+            headers={"Authorization": f"Bearer {deactivated_user_token}"},
+        )
+    assert response.status_code in (401, 403), (
+        f"Expected 401 or 403 for deactivated user, got {response.status_code}"
+    )
+    body = response.json()
+    message = (body.get("message") or body.get("error") or "").lower()
+    assert message, f"Expected an error message in the response body, got: {body}"

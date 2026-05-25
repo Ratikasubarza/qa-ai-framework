@@ -144,6 +144,40 @@ class APIEndpoints:
         return f"/v1/posts/{post_id}/not-interested"
 
     @staticmethod
+    def post_report(post_id: str) -> str:
+        return f"/v1/posts/{post_id}/report"
+
+    @staticmethod
+    def post_hide(post_id: str) -> str:
+        return f"/v1/posts/{post_id}/hide"
+
+    @staticmethod
+    def post_view(post_id: str) -> str:
+        return f"/v1/posts/{post_id}/view"
+
+    # ── Admin Moderation ─────────────────────────────────────────────────────
+    ADMIN_REPORTS_POSTS = "/v1/admin/reports/posts"
+
+    @staticmethod
+    def admin_reports_post_hide(post_id: str) -> str:
+        return f"/v1/admin/reports/posts/{post_id}/hide"
+
+    @staticmethod
+    def admin_reports_post_unhide(post_id: str) -> str:
+        return f"/v1/admin/reports/posts/{post_id}/unhide"
+
+    @staticmethod
+    def admin_reports_post_dismiss(post_id: str) -> str:
+        return f"/v1/admin/reports/posts/{post_id}/dismiss"
+
+    # ── Search history ────────────────────────────────────────────────────────
+    SEARCH_RECENT = "/v1/search/recent"
+
+    @staticmethod
+    def search_recent_delete(entry_id: str) -> str:
+        return f"/v1/search/recent/{entry_id}"
+
+    @staticmethod
     def user_posts(user_id: str) -> str:
         return f"/v1/users/{user_id}/posts"
 
@@ -203,3 +237,10 @@ class ReferenceIDs:
     # ── Social Causes (social_cause_ids) ──────────────────────────────
     CAUSE_EDUCATION         = 1
     CAUSE_HEALTHCARE        = 2
+
+    # ── Topics (topic_ids) — verified from Dev environment ───────────
+    TOPIC_PODCASTING            = 119
+    TOPIC_CAREER                = 121
+    TOPIC_LEADERSHIP            = 125
+    TOPIC_SOCIAL                = 1
+    TOPIC_COMMUNITY_ENGAGEMENT  = 5

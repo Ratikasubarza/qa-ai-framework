@@ -1,22 +1,42 @@
 """Shared fixtures for Auth API tests."""
+import os
 import time
 import random
 import pytest
 import pytest_asyncio
 
+from core.db.db_client import DBClient
 from core.db.test_user_helper import create_approved_user_sync
+from core.test_data.cleanup_registry import cleanup_registry
 from platforms.api.httpx_client import HonoAPIClient
 from skills.testing.helpers import skip_on_email_quota
 from config.test_config import APIEndpoints
 
 
-@pytest.fixture(scope="function")
-def auth_user():
-    suffix = f"{int(time.time())}{random.randint(100, 999)}"
-    return create_approved_user_sync(suffix=suffix)
+@pytest.fixture(scope="module")
+def auth_user(request):
+    suffix    = f"{int(time.time())}{random.randint(100, 999)}"
+    user      = create_approved_user_sync(suffix=suffix)
+    run_id    = os.getenv("RUN_ID", request.module.__name__)
+    worker_id = getattr(request.config, "workerinput", {}).get("workerid", "main")
+
+    user_id = user["user_id"]
+
+    def _delete():
+        with DBClient() as db:
+            db.delete_user(user_id)
+
+    cleanup_registry.register(
+        entity_type="user",
+        entity_id=user_id,
+        cleanup_fn=_delete,
+        run_id=run_id,
+        worker_id=worker_id,
+    )
+    return user
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="module")
 async def auth_token(auth_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={
@@ -31,7 +51,7 @@ async def auth_token(auth_user) -> str:
     return token
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="module")
 async def auth_refresh_token(auth_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={
