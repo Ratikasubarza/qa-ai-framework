@@ -173,9 +173,9 @@ class TestCaseAgent:
         if input_data.confluence_page_url:
             try:
                 confluence = ConfluenceClient()
-                prd_text = confluence.fetch_page(input_data.confluence_page_url)
-                if prd_text:
-                    prd_clean = input_sanitizer.sanitize(prd_text[:1500], source="confluence_prd").content
+                page = confluence.fetch_page(input_data.confluence_page_url)
+                if page and page.get("body_text"):
+                    prd_clean = input_sanitizer.sanitize(page["body_text"][:1500], source="confluence_prd").content
                     jira_context_parts.append(
                         f"CONFLUENCE PRD:\n{prd_clean}"
                     )

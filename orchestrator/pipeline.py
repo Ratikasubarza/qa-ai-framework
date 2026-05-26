@@ -32,7 +32,9 @@ from core.source_intake import build_source_intake_state
 
 logger = structlog.get_logger(__name__)
 
-PYTHON_BIN = os.getenv("PYTHON_BIN", sys.executable)
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_VENV_PYTHON   = _PROJECT_ROOT / "venv" / "bin" / "python3.11"
+PYTHON_BIN     = os.getenv("PYTHON_BIN", str(_VENV_PYTHON) if _VENV_PYTHON.exists() else sys.executable)
 MAX_APPROVAL_ATTEMPTS = 3
 CASE_REVIEW_MIN_SCORE = 7.0
 

@@ -22,11 +22,13 @@ class Settings(BaseSettings):
     jira_project_key: str = "QA"
 
     # ── Telegram ──────────────────────────────────────────
-    telegram_bot_token: str = Field(..., description="Telegram Bot token")
-    telegram_qa_leads_chat_id: str = Field(..., description="QA Leads group chat ID")
-    telegram_qa_team_chat_id: str = Field(..., description="QA Team group chat ID")
-    telegram_qa_ops_chat_id: str = Field(..., description="QA Ops group chat ID")
-    telegram_qa_bugs_chat_id: str = Field(..., description="QA Bugs group chat ID")
+    # Optional — leave empty to run without Telegram notifications/approvals.
+    # Required only when approval_required=True and Telegram approval is the chosen path.
+    telegram_bot_token: str = Field(default="", description="Telegram Bot token")
+    telegram_qa_leads_chat_id: str = Field(default="", description="QA Leads group chat ID")
+    telegram_qa_team_chat_id: str = Field(default="", description="QA Team group chat ID")
+    telegram_qa_ops_chat_id: str = Field(default="", description="QA Ops group chat ID")
+    telegram_qa_bugs_chat_id: str = Field(default="", description="QA Bugs group chat ID")
 
     # ── App ───────────────────────────────────────────────
     env: str = "development"

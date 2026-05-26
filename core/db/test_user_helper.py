@@ -77,8 +77,9 @@ async def create_approved_user(
         4. Override password in DB
         5. Login as new user + complete onboarding (sets onboarding_completed_at)
     """
+    from config.test_data import TEST_EMAIL_DOMAIN
     ts = suffix or int(time.time())
-    email = f"testonboard+{ts}@mailinator.com"
+    email = f"testonboard+{ts}@{TEST_EMAIL_DOMAIN}"
     phone = str(ts)[-8:]
     pwd = password or TEST_PASSWORD
 

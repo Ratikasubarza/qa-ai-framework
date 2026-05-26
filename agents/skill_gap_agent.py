@@ -46,7 +46,7 @@ Respond ONLY with valid JSON:
 
 class SkillGapAgent:
     def __init__(self):
-        self.breaker = CircuitBreaker(agent_name=AGENT_NAME)
+        self.breaker = get_breaker(AGENT_NAME)
 
     def analyze(
         self,
