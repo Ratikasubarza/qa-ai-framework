@@ -30,6 +30,9 @@ files = ["core", "agents", "orchestrator", "knowledge_base"]
 
 # ── Pytest (single authoritative config — pytest.ini deleted) ────────────────
 [tool.pytest.ini_options]
+# "auto" (not "strict") — required because module-scoped async fixtures (e.g. api_client)
+# do not carry an event_loop marker. "strict" would force @pytest.mark.asyncio on every
+# async test and break module-scoped fixture sharing across test classes.
 asyncio_mode = "auto"
 timeout = 60
 addopts = [

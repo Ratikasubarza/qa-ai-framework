@@ -41,11 +41,46 @@ SOURCE_CONFIGS: dict[str, dict] = {
 }
 
 
+_CHUNK_SIZE    = 1500   # chars per chunk
+_CHUNK_OVERLAP = 200    # overlap between adjacent chunks
+
+
 def _stable_id(path: Path, content: str) -> str:
     """Deterministic doc ID: filename stem + first 8 chars of content MD5."""
     slug = path.stem.replace(" ", "_").lower()
     digest = hashlib.md5(content.encode("utf-8", errors="replace")).hexdigest()[:8]
     return f"{slug}_{digest}"
+
+
+def _chunk_text(text: str) -> list[str]:
+    """
+    Sliding-window chunker for large documents.
+    Returns a single-element list when text fits within _CHUNK_SIZE.
+    Splits on paragraph boundaries when possible to avoid mid-sentence cuts.
+    """
+    if len(text) <= _CHUNK_SIZE:
+        return [text]
+
+    chunks: list[str] = []
+    start = 0
+    while start < len(text):
+        end = start + _CHUNK_SIZE
+        if end >= len(text):
+            chunks.append(text[start:].strip())
+            break
+        # Try to break at the last paragraph boundary (\n\n) within the window
+        boundary = text.rfind("\n\n", start, end)
+        if boundary == -1 or boundary <= start:
+            # Fall back to last newline, then last space
+            boundary = text.rfind("\n", start, end)
+        if boundary == -1 or boundary <= start:
+            boundary = text.rfind(" ", start, end)
+        if boundary == -1 or boundary <= start:
+            boundary = end  # hard split as last resort
+
+        chunks.append(text[start:boundary].strip())
+        start = boundary - _CHUNK_OVERLAP if boundary - _CHUNK_OVERLAP > start else boundary
+    return [c for c in chunks if c]
 
 
 def _read_file(path: Path) -> str:
@@ -85,13 +120,22 @@ def index_source(source_name: str) -> int:
             content = _read_file(path).strip()
             if not content:
                 continue
-            documents.append(content)
-            ids.append(_stable_id(path, content))
-            metadatas.append({
-                "source":  f"{source_name}/{path.name}",
-                "feature": path.stem,
-                "type":    cfg["doc_type"],
-            })
+            chunks = _chunk_text(content)
+            base_id = _stable_id(path, content)
+            for i, chunk in enumerate(chunks):
+                chunk_id = base_id if len(chunks) == 1 else f"{base_id}_c{i}"
+                documents.append(chunk)
+                ids.append(chunk_id)
+                meta: dict = {
+                    "source":  f"{source_name}/{path.name}",
+                    "feature": path.stem,
+                    "type":    cfg["doc_type"],
+                }
+                if len(chunks) > 1:
+                    meta["chunk_index"] = i
+                    meta["total_chunks"] = len(chunks)
+                    meta["parent_id"]    = base_id
+                metadatas.append(meta)
         except Exception as e:
             logger.error("indexer_file_error", path=str(path), error=str(e))
 

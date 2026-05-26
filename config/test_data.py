@@ -1,10 +1,28 @@
 """
 Centralized boundary values and known test accounts.
 Usage: from config.test_data import BoundaryValues, KnownAccounts
+
+Email domain for synthetic test users:
+  Override via TEST_EMAIL_DOMAIN env var (default: mailinator.com).
+  Mailinator is a public inbox — acceptable for staging, NEVER for production.
+  For private inboxes set TEST_EMAIL_DOMAIN=yourprivatedomain.com in CI/CD.
 """
 import os
+import warnings
 from dotenv import load_dotenv
+
 load_dotenv(dotenv_path=".env")
+
+# Pluggable email domain — override via env var for non-public inboxes
+TEST_EMAIL_DOMAIN = os.getenv("TEST_EMAIL_DOMAIN", "mailinator.com")
+
+if TEST_EMAIL_DOMAIN == "mailinator.com" and not os.getenv("STAGING_EMAIL"):
+    warnings.warn(
+        "[qa-framework] Using mailinator.com as test email domain — public inbox. "
+        "Set TEST_EMAIL_DOMAIN=<private-domain> and STAGING_EMAIL in .env for non-public staging.",
+        UserWarning,
+        stacklevel=2,
+    )
 
 
 class BoundaryValues:
@@ -48,9 +66,9 @@ class BoundaryValues:
 class KnownAccounts:
     """Pre-existing registered users on staging — used for duplicate/conflict tests."""
 
-    EXISTING_EMAIL_A    = os.getenv("STAGING_EMAIL",         "testingHonoA@mailinator.com")  # Fallback for local dev only — must be set in CI/CD secrets
-    EXISTING_PHONE_A    = os.getenv("TEST_KNOWN_PHONE_A",    "81234567104")                   # Fallback for local dev only — must be set in CI/CD secrets
-    EXISTING_EMAIL_B    = os.getenv("TEST_KNOWN_EMAIL_B",    "testingHonoB@mailinator.com")   # Fallback for local dev only — must be set in CI/CD secrets
+    EXISTING_EMAIL_A    = os.getenv("STAGING_EMAIL",      f"testingHonoA@{TEST_EMAIL_DOMAIN}")  # Fallback for local dev only — must be set in CI/CD secrets
+    EXISTING_PHONE_A    = os.getenv("TEST_KNOWN_PHONE_A", "81234567104")                       # Fallback for local dev only — must be set in CI/CD secrets
+    EXISTING_EMAIL_B    = os.getenv("TEST_KNOWN_EMAIL_B", f"testingHonoB@{TEST_EMAIL_DOMAIN}") # Fallback for local dev only — must be set in CI/CD secrets
     EXISTING_PHONE_B    = os.getenv("TEST_KNOWN_PHONE_B",    "81234567105")                   # Fallback for local dev only — must be set in CI/CD secrets
 
     # ── CMS admin ─────────────────────────────────────────────────────

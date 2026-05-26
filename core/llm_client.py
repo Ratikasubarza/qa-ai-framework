@@ -182,8 +182,18 @@ class LLMClient:
         Try each model in the tier's fallback list with exponential backoff.
         Moves to the next model on rate-limit; raises LLMResponseError when
         all models in the tier are exhausted.
+
+        Per-agent override: set AGENT_<NAME>_MODEL=<model_id> to pin a specific
+        model for one agent without changing the global tier.
+        Example: AGENT_TESTCASE_MODEL=openai/gpt-4o
         """
-        models     = FALLBACK_MODELS.get(tier.value, FALLBACK_MODELS["standard"])
+        override_key = f"AGENT_{agent_name.upper()}_MODEL" if agent_name else ""
+        override_model = os.getenv(override_key, "") if override_key else ""
+        if override_model:
+            models = [override_model]
+            logger.info("llm_model_override", agent=agent_name, model=override_model, env_key=override_key)
+        else:
+            models = FALLBACK_MODELS.get(tier.value, FALLBACK_MODELS["standard"])
         last_error: Exception | None = None
 
         for model in models:
