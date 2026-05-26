@@ -1,3 +1,4 @@
+import asyncio
 import allure
 import pytest
 import pytest_asyncio
@@ -12,6 +13,16 @@ EMAIL    = os.getenv("STAGING_EMAIL", "")
 PASSWORD = os.getenv("STAGING_PASSWORD", "")
 
 pytestmark = [allure.feature("Login"), allure.suite("API")]
+
+
+@pytest.fixture(scope="module")
+def event_loop():
+    """Module-scoped event loop so module-scoped async fixtures share one loop.
+    Required for pytest-asyncio 0.23.x with asyncio_mode=auto.
+    """
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest_asyncio.fixture(scope="module")

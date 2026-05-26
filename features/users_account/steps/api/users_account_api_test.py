@@ -5,7 +5,7 @@ import pytest_asyncio
 
 
 from core.db.db_client import DBClient
-from core.db.test_user_helper import create_approved_user
+from core.db.test_user_helper import create_approved_user_sync
 from core.test_data.cleanup_registry import cleanup_registry
 from features.users_account.test_data.users_account_test_data import (
     UsersAccountTestData,
@@ -31,9 +31,10 @@ def get_account_payload(response) -> tuple[dict, dict]:
     return body, data
 
 
-@pytest_asyncio.fixture(scope="module")
-async def approved_account_user() -> dict:
-    user = await create_approved_user(fullname="Account API Test User")
+@pytest.fixture(scope="module")
+def approved_account_user() -> dict:
+    """Create one approved user for the whole module — sync pattern matches conftest_shared_fixtures."""
+    user = create_approved_user_sync(fullname="Account API Test User")
     user_id = user["user_id"]
     cleanup_registry.register(
         entity_type="user",
@@ -48,7 +49,7 @@ def _delete_user(user_id: str) -> None:
         db.delete_user(user_id)
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(scope="function")
 async def auth_client(approved_account_user):
     async with HonoAPIClient() as client:
         await client.login(
