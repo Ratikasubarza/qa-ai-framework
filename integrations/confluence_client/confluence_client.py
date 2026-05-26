@@ -76,6 +76,14 @@ class ConfluenceClient:
             "Authorization": f"Basic {auth}",
             "Accept": "application/json",
         }
+        # Shared connection pool — reused across all page fetches in this process lifetime
+        self._client = httpx.Client(headers=self.headers, timeout=30)
+
+    def __del__(self):
+        try:
+            self._client.close()
+        except Exception:
+            pass
 
     @staticmethod
     def extract_page_id(page_url_or_id: str) -> str:
@@ -112,10 +120,8 @@ class ConfluenceClient:
         page_id = self.extract_page_id(page_url_or_id)
         api_url = f"{self.base_url}/wiki/rest/api/content/{page_id}"
 
-        with httpx.Client(timeout=30) as client:
-            response = client.get(
+        response = self._client.get(
                 api_url,
-                headers=self.headers,
                 params={"expand": "body.storage,title,space,version"},
             )
 

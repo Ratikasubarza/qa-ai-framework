@@ -7,6 +7,7 @@ mutating the underlying httpx client directly.
 """
 from __future__ import annotations
 
+import uuid
 from collections.abc import Mapping, Sequence
 from typing import Any, Optional
 
@@ -149,12 +150,16 @@ class HonoAPIClient:
     ) -> httpx.Response:
         """Send a request with optional per-call headers and status assertion."""
         client = self._require_client()
+        request_id = str(uuid.uuid4())
+        tracing_headers: dict[str, str] = {"X-Request-ID": request_id}
+        if headers:
+            tracing_headers.update(dict(headers))
         response = await client.request(
             method,
             path,
             params=params,
             json=json,
-            headers=self._merge_headers(headers=headers, auth_token=auth_token),
+            headers=self._merge_headers(headers=tracing_headers, auth_token=auth_token),
         )
         safe_path = redact_internal_text(path).text
         logger.info(
@@ -162,6 +167,7 @@ class HonoAPIClient:
             method=method.upper(),
             path=safe_path,
             status=response.status_code,
+            request_id=request_id,
         )
         logger.debug(
             "api_request_headers",

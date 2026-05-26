@@ -37,6 +37,23 @@ _API_SPEC_PATH = Path("api_spec.yaml")
 _RAG_HASH_FILE = Path("knowledge_base/.index_hash")
 
 
+# ── Pre-flight env var guard ──────────────────────────────────────────────────
+def pytest_configure(config):
+    """Fail fast if critical env vars are missing before any test runs."""
+    markers_requested = getattr(config.option, "markexpr", "") or ""
+    running_api = "api" in markers_requested or not markers_requested
+    if running_api:
+        missing = [k for k in _REQUIRED_FOR_API if not os.getenv(k)]
+        if missing:
+            import warnings
+            warnings.warn(
+                f"[qa-framework] Missing env vars: {missing}. "
+                "API tests will fail. Set them in .env before running.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+
 # ── CLI options ───────────────────────────────────────────────────────────────
 def pytest_addoption(parser):
     parser.addoption(

@@ -3,12 +3,16 @@ Database Client — MySQL connection helper untuk test data retrieval.
 Hanya untuk READ dan test setup operations.
 """
 import os
+import time
 import pymysql
 import structlog
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=".env")
 
 logger = structlog.get_logger(__name__)
+
+_DB_MAX_RETRIES = 3
+_DB_RETRY_BACKOFF = (1.0, 2.0, 4.0)  # seconds between attempts
 
 
 class DBClient:
@@ -30,19 +34,30 @@ class DBClient:
                 note="DB_SSL_CA_PATH unset — certificate verification disabled; set for production",
             )
 
-        self._conn = pymysql.connect(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT", 3306)),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
-            **ssl_kwargs,
-            cursorclass=pymysql.cursors.DictCursor,
-            autocommit=True,
-            connect_timeout=10,
-        )
-        logger.info("db_connected", host=os.getenv("DB_HOST"), ssl_verified=bool(ssl_ca_path))
-        return self
+        last_err: Exception | None = None
+        for attempt, backoff in enumerate((*_DB_RETRY_BACKOFF, None), start=1):
+            try:
+                self._conn = pymysql.connect(
+                    host=os.getenv("DB_HOST"),
+                    port=int(os.getenv("DB_PORT", 3306)),
+                    user=os.getenv("DB_USER"),
+                    password=os.getenv("DB_PASSWORD"),
+                    database=os.getenv("DB_NAME"),
+                    **ssl_kwargs,
+                    cursorclass=pymysql.cursors.DictCursor,
+                    autocommit=True,
+                    connect_timeout=10,
+                )
+                logger.info("db_connected", host=os.getenv("DB_HOST"), ssl_verified=bool(ssl_ca_path), attempt=attempt)
+                return self
+            except Exception as err:
+                last_err = err
+                if backoff is not None:
+                    logger.warning("db_connect_retry", attempt=attempt, backoff=backoff, error=str(err))
+                    time.sleep(backoff)
+                else:
+                    logger.error("db_connect_failed", attempts=attempt, error=str(err))
+        raise last_err
 
     def disconnect(self):
         if self._conn:

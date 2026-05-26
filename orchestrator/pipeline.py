@@ -277,6 +277,7 @@ async def node_testcase(state: AgentState) -> AgentState:
 
     try:
         platforms = [Platform(p) for p in (state.get("platforms") or ["web"])]
+        rejection_feedback = state.get("rejection_feedback") or None
         inp = TestCaseAgentInput(
             feature=state.get("feature", ""),
             description=state.get("story_text", state.get("feature", "")),
@@ -284,8 +285,13 @@ async def node_testcase(state: AgentState) -> AgentState:
             acceptance_criteria=state.get("acceptance_criteria", []),
             jira_story_key=state.get("ticket_id") or None,
             confluence_page_url=state.get("prd_url") or None,
+            context=rejection_feedback,
         )
-        output = await test_case_agent.run(inp, require_approval=False)
+        if rejection_feedback:
+            logger.info("node_testcase_regenerating", feedback=rejection_feedback[:120])
+        raw_output = await test_case_agent.run(inp, require_approval=False)
+        from core.agent_contracts import TestCaseAgentOutput as _TCOut
+        output = _TCOut.model_validate(raw_output) if isinstance(raw_output, dict) else raw_output
         if not output.scenarios:
             raise ValueError(
                 "TestCaseAgent generated 0 scenarios. "
@@ -648,6 +654,7 @@ def node_codegen(state: AgentState) -> AgentState:
         if isinstance(output, dict):
             output = TestCaseAgentOutput.model_validate(output)
 
+        project_root = Path(__file__).resolve().parent.parent
         platforms = [Platform(p) for p in (state.get("platforms") or ["web"])]
         saved: dict[str, str] = {}
         for platform in platforms:
@@ -656,9 +663,14 @@ def node_codegen(state: AgentState) -> AgentState:
                 platform,
                 automation_evidence=state.get("automation_evidence") or {},
             )
-            for name, path in platform_saved.items():
+            for name, raw_path in platform_saved.items():
+                try:
+                    Path(raw_path).resolve().relative_to(project_root)
+                except ValueError:
+                    logger.error("codegen_path_traversal_blocked", path=raw_path)
+                    continue
                 key = name if len(platforms) == 1 else f"{platform.value}:{name}"
-                saved[key] = path
+                saved[key] = raw_path
 
         # Isolate AI-generated code on a feature branch so it cannot land on main
         # without a human review PR — do this best-effort, never fail the pipeline
@@ -961,19 +973,18 @@ def node_jira_update(state: AgentState) -> AgentState:
     try:
         from integrations.jira_client.jira_client import jira_client
 
-        if not failures:
-            ok = jira_client.transition_issue(ticket_id, "DONE")
-            if ok:
-                logger.info("jira_transitioned", ticket=ticket_id, status="DONE")
-            else:
-                logger.warning("jira_transition_failed", ticket=ticket_id, status="DONE")
+        target_status = "DONE" if not failures else "IN TEST"
+        ok = jira_client.transition_issue(ticket_id, target_status)
+        if ok:
+            logger.info("jira_transitioned", ticket=ticket_id, status=target_status)
         else:
-            ok = jira_client.transition_issue(ticket_id, "IN TEST")
-            if ok:
-                logger.info("jira_transitioned", ticket=ticket_id, status="IN TEST")
-            else:
-                logger.warning("jira_transition_failed", ticket=ticket_id, status="IN TEST")
+            logger.warning("jira_transition_failed", ticket=ticket_id, status=target_status)
+            return {
+                **state,
+                "error": {"phase": "jira_update", "message": f"Jira transition to '{target_status}' failed for {ticket_id}"},
+            }
 
+        if failures:
             comment = (
                 f"QA Pipeline completed with {len(failures)} failure(s).\n"
                 f"Run ID: {state.get('run_id', 'N/A')}\n"
@@ -982,6 +993,10 @@ def node_jira_update(state: AgentState) -> AgentState:
             jira_client.add_comment(ticket_id, comment)
     except Exception as e:
         logger.warning("jira_update_failed", ticket=ticket_id, error=str(e))
+        return {
+            **state,
+            "error": {"phase": "jira_update", "message": str(e)},
+        }
 
     return state
 

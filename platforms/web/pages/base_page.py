@@ -24,7 +24,7 @@ Usage:
 """
 import allure
 import structlog
-from playwright.sync_api import Locator, Page
+from playwright.sync_api import Locator, Page, TimeoutError as PlaywrightTimeoutError
 from config.test_config import TestConfig
 
 logger = structlog.get_logger(__name__)
@@ -36,6 +36,35 @@ class BasePage:
     def __init__(self, page: Page):
         self.page = page
         self._base_url = TestConfig.WEB_APP_URL
+
+    # ── Self-healer integration ───────────────────────────────────────────────
+
+    def _feature_name(self) -> str:
+        """Derive feature slug from page class name: LoginPage → login."""
+        name = type(self).__name__.lower()
+        return name.replace("page", "").strip("_") or "unknown"
+
+    def _healed_selector(self, broken_selector: str, description: str) -> str | None:
+        """Attempt to heal a broken locator. Returns healed selector or None."""
+        try:
+            from core.self_healer import self_healer
+            result = self_healer.heal(
+                page=self.page,
+                feature=self._feature_name(),
+                element=description or broken_selector,
+                broken_locator=broken_selector,
+            )
+            if result.healed and result.applied:
+                logger.info(
+                    "locator_healed",
+                    feature=self._feature_name(),
+                    broken=broken_selector,
+                    healed=result.applied,
+                )
+                return result.applied
+        except Exception as heal_err:
+            logger.warning("self_heal_failed", selector=broken_selector, error=str(heal_err))
+        return None
 
     # ── Navigation ────────────────────────────────────────────────────────────
 
@@ -68,16 +97,32 @@ class BasePage:
              description: str = "", timeout: int = 8000) -> "BasePage":
         label = description or selector
         with allure.step(f"Fill '{label}' with '{value[:30]}{'...' if len(value)>30 else ''}'"):
-            self.page.wait_for_selector(selector, timeout=timeout)
-            self.page.fill(selector, value)
+            try:
+                self.page.wait_for_selector(selector, timeout=timeout)
+                self.page.fill(selector, value)
+            except PlaywrightTimeoutError:
+                healed = self._healed_selector(selector, label)
+                if healed:
+                    self.page.wait_for_selector(healed, timeout=timeout)
+                    self.page.fill(healed, value)
+                else:
+                    raise
         return self
 
     def click(self, selector: str,
               description: str = "", timeout: int = 8000) -> "BasePage":
         label = description or selector
         with allure.step(f"Click '{label}'"):
-            self.page.wait_for_selector(selector, timeout=timeout)
-            self.page.click(selector)
+            try:
+                self.page.wait_for_selector(selector, timeout=timeout)
+                self.page.click(selector)
+            except PlaywrightTimeoutError:
+                healed = self._healed_selector(selector, label)
+                if healed:
+                    self.page.wait_for_selector(healed, timeout=timeout)
+                    self.page.click(healed)
+                else:
+                    raise
         return self
 
     def fill_by_locator(self, locator: Locator, value: str,

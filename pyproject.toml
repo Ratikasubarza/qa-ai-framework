@@ -31,7 +31,7 @@ files = ["core", "agents", "orchestrator", "knowledge_base"]
 # ── Pytest (single authoritative config — pytest.ini deleted) ────────────────
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-timeout = 30
+timeout = 60
 addopts = [
     "--alluredir=reports/allure/results",
     "--tb=short",

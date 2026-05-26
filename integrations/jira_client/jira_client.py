@@ -22,6 +22,17 @@ class JiraClient:
             "Authorization": f"Basic {auth}",
             "Content-Type": "application/json"
         }
+        # Shared connection pool — reused across all requests in this process lifetime
+        self._client = httpx.Client(
+            headers=self.headers,
+            timeout=30,
+        )
+
+    def __del__(self):
+        try:
+            self._client.close()
+        except Exception:
+            pass
 
     def _extract_adf_text(self, node, depth=0) -> str:
         """Extract plain text from ADF — handles paragraphs, lists, tables, headings."""
@@ -104,11 +115,10 @@ class JiraClient:
         return "".join(self._extract_adf_text(c, depth) for c in node.get("content", []))
 
     def get_issue(self, issue_key: str) -> dict:
-        with httpx.Client() as client:
-            r = client.get(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}",
-                headers=self.headers
-            )
+        r = self._client.get(
+            f"{self.base_url}/rest/api/3/issue/{issue_key}",
+            headers=self.headers,
+        )
         r.raise_for_status()
         fields = r.json().get("fields", {})
 
@@ -127,11 +137,10 @@ class JiraClient:
             st_summary = st.get("fields", {}).get("summary", "")
             st_status  = st.get("fields", {}).get("status", {}).get("name", "")
             try:
-                with httpx.Client() as client:
-                    st_r = client.get(
-                        f"{self.base_url}/rest/api/3/issue/{st_key}",
-                        headers=self.headers
-                    )
+                st_r = self._client.get(
+                    f"{self.base_url}/rest/api/3/issue/{st_key}",
+                    headers=self.headers,
+                )
                 st_desc_raw = st_r.json().get("fields", {}).get("description", {})
                 st_desc = self._extract_adf_text(st_desc_raw) if isinstance(st_desc_raw, dict) else ""
             except Exception:
@@ -163,12 +172,11 @@ class JiraClient:
 
     def get_attachments(self, issue_key: str) -> list:
         """Fetch all attachments from a Jira issue."""
-        with httpx.Client() as client:
-            r = client.get(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}",
-                headers=self.headers,
-                params={"fields": "attachment"}
-            )
+        r = self._client.get(
+            f"{self.base_url}/rest/api/3/issue/{issue_key}",
+            headers=self.headers,
+            params={"fields": "attachment"},
+        )
         attachments = r.json().get("fields", {}).get("attachment", [])
         return [{
             "id":       a.get("id"),
@@ -196,13 +204,12 @@ class JiraClient:
 
         for att in image_attachments[:5]:  # max 5 images
             try:
-                with httpx.Client() as client:
-                    r = client.get(
-                        att["url"],
-                        headers=self.headers,
-                        follow_redirects=True,
-                        timeout=30
-                    )
+                r = self._client.get(
+                    att["url"],
+                    headers=self.headers,
+                    follow_redirects=True,
+                    timeout=30,
+                )
                 if r.status_code == 200:
                     b64 = base64.b64encode(r.content).decode()
                     results.append({
@@ -265,11 +272,10 @@ class JiraClient:
             return f"[{len(images)} images found but vision LLM unavailable — set ANTHROPIC_API_KEY]"
 
     def get_transitions(self, issue_key: str) -> list:
-        with httpx.Client() as client:
-            r = client.get(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}/transitions",
-                headers=self.headers
-            )
+        r = self._client.get(
+            f"{self.base_url}/rest/api/3/issue/{issue_key}/transitions",
+            headers=self.headers,
+        )
         return r.json().get("transitions", [])
 
     def transition_issue(self, issue_key: str, status_name: str) -> bool:
@@ -281,36 +287,33 @@ class JiraClient:
         if not transition_id:
             logger.warning("transition_not_found", issue=issue_key, status=status_name)
             return False
-        with httpx.Client() as client:
-            r = client.post(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}/transitions",
-                headers=self.headers,
-                json={"transition": {"id": transition_id}}
-            )
+        r = self._client.post(
+            f"{self.base_url}/rest/api/3/issue/{issue_key}/transitions",
+            headers=self.headers,
+            json={"transition": {"id": transition_id}},
+        )
         return r.status_code == 204
 
     def add_comment(self, issue_key: str, comment: str) -> bool:
-        with httpx.Client() as client:
-            r = client.post(
-                f"{self.base_url}/rest/api/3/issue/{issue_key}/comment",
-                headers=self.headers,
-                json={"body": {
-                    "type": "doc", "version": 1,
-                    "content": [{"type": "paragraph", "content": [
-                        {"type": "text", "text": comment}
-                    ]}]
-                }}
-            )
+        r = self._client.post(
+            f"{self.base_url}/rest/api/3/issue/{issue_key}/comment",
+            headers=self.headers,
+            json={"body": {
+                "type": "doc", "version": 1,
+                "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": comment}
+                ]}],
+            }},
+        )
         return r.status_code == 201
 
     def search(self, jql: str, max_results: int = 10) -> list:
-        with httpx.Client() as client:
-            r = client.get(
-                f"{self.base_url}/rest/api/3/search/jql",
-                headers=self.headers,
-                params={"jql": jql, "maxResults": max_results,
-                        "fields": "summary,status,issuetype,assignee,priority"}
-            )
+        r = self._client.get(
+            f"{self.base_url}/rest/api/3/search/jql",
+            headers=self.headers,
+            params={"jql": jql, "maxResults": max_results,
+                    "fields": "summary,status,issuetype,assignee,priority"},
+        )
         return [{
             "key":      i["key"],
             "summary":  i["fields"].get("summary", ""),
@@ -386,12 +389,11 @@ class JiraClient:
         if assignee_email:
             payload["fields"]["assignee"] = {"emailAddress": assignee_email}
 
-        with httpx.Client() as client:
-            r = client.post(
-                f"{self.base_url}/rest/api/3/issue",
-                headers=self.headers,
-                json=payload
-            )
+        r = self._client.post(
+            f"{self.base_url}/rest/api/3/issue",
+            headers=self.headers,
+            json=payload,
+        )
 
         if r.status_code == 201:
             key = r.json().get("key")
