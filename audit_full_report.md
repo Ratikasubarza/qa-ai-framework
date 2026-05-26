@@ -521,6 +521,237 @@ No functional bug, but the fixture comment could mislead engineers adding new te
 
 ---
 
+## Addendum — Findings from Full Recon Pass
+
+*Files read in this pass: `conftest.py`, `core/test_data/cleanup_registry.py`, `features/register/steps/api/register_api_test.py`, `features/register/steps/mobile/register_android_test.py`, `features/users_account/steps/api/users_account_api_test.py`, `.github/workflows/pr-check.yml`, `.github/workflows/qa-pipeline.yml`, `requirements.txt`, grep output across entire codebase.*
+
+---
+
+### H-07 — `CleanupRegistry` has zero call sites — ALL dynamically-created test users are permanent DB orphans
+
+**Files:** `core/test_data/cleanup_registry.py`, `conftest.py:252`, grep across all `*.py`
+
+**Evidence:**
+```bash
+grep -rn "cleanup_registry\." . --include="*.py" --exclude-dir=venv
+# returns: (empty)
+```
+
+`conftest.py:252-263` calls `cleanup_registry.cleanup_all(run_id, worker_id)` at session finish — so the teardown hook exists. But `cleanup_registry.register()` is **never called anywhere in the codebase**. Every fixture that creates a real test user (confirmed: `conftest_shared_fixtures.py`, `features/users_account/steps/api/users_account_api_test.py:32`) creates a permanent DB row on every test run with no cleanup path.
+
+Fixture docstrings in `privacy`, `post_interactions`, `search`, `user_relationships`, `privacy_safety` all say "Cleanup: delegated to CleanupRegistry at session end" — but none of them actually call `.register()`. The claim is false.
+
+**Staging DB impact:** Every nightly CI run that creates users (via `create_approved_user_sync()`) adds N rows permanently. After 30 runs, the staging DB has 30× user accumulation. Duplicate conflict tests begin producing false positives.
+
+**Fix:** In `conftest_shared_fixtures.py` and every conftest that calls `create_approved_user_sync()`, enroll the result:
+```python
+from core.test_data.cleanup_registry import cleanup_registry
+from core.db.db_client import DBClient
+
+user = create_approved_user_sync(...)
+cleanup_registry.register(
+    "user", user["email"],
+    lambda e=user["email"]: DBClient().delete_user_by_email(e)
+)
+```
+
+---
+
+### H-08 — `users_account_api_test.py` creates a full DB user per test — no cleanup, no dedup
+
+**File:** `features/users_account/steps/api/users_account_api_test.py:32-44`
+
+**Evidence:**
+```python
+@pytest_asyncio.fixture(scope="function")
+async def approved_account_user() -> dict:
+    return await create_approved_user(fullname="Account API Test User")
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_client(approved_account_user):
+    async with HonoAPIClient() as client:
+        await client.login(approved_account_user["email"], approved_account_user["password"])
+        yield client
+```
+
+`scope="function"` means each test in this file (confirmed: at least `test_TC_USERS_ACCOUNT_001`, likely multiple) creates a brand-new approved user via the 5-step `create_approved_user()` lifecycle (register → verify → approve → set password → onboard). Each call makes ~6 HTTP requests + 4 DB queries + sends a real email via Resend. With N tests:
+- N × 6 HTTP calls = significant test suite slowdown
+- N new permanent DB rows per run (no cleanup)
+- N emails sent to Resend — risks daily quota exhaustion
+
+**Fix:** Change fixture to `scope="module"` (one user for all tests in the file), enroll in CleanupRegistry.
+
+---
+
+### H-09 — `register_android_test.py` uses raw `httpx.AsyncClient` inside a test — AGENTS.md violation
+
+**File:** `features/register/steps/mobile/register_android_test.py:96-107`
+
+**Evidence:**
+```python
+import httpx, os
+async def check_quota():
+    async with httpx.AsyncClient(
+        base_url=os.getenv("HONO_API_URL"),
+        headers={"x-api-key": os.getenv("HONO_API_KEY")},
+        timeout=10
+    ) as c:
+        r = await c.post(APIEndpoints.REGISTER, json={
+            ...
+            "email": f"quotacheck+{int(__import__('time').time())}@mailinator.com",
+            ...
+        })
+```
+
+AGENTS.md rule: "FORBIDDEN — direct raw driver interaction in test files" / "use HonoAPIClient". Raw `httpx.AsyncClient` in a test bypasses request tracing (`X-Request-ID`), response time tracking, and the shared authentication/retry logic. It also hardcodes `@mailinator.com` at line 107, re-introducing the domain issue fixed in C-03 for `test_user_helper.py`.
+
+**Fix:** Replace the inline client with `HonoAPIClient` and use `TEST_EMAIL_DOMAIN`:
+```python
+from config.test_data import TEST_EMAIL_DOMAIN
+from platforms.api.httpx_client import HonoAPIClient
+
+async def check_quota():
+    async with HonoAPIClient() as c:
+        r = await c.post(APIEndpoints.REGISTER, json={
+            "email": f"quotacheck+{int(time.time())}@{TEST_EMAIL_DOMAIN}",
+            ...
+        })
+```
+
+---
+
+### H-10 — PR check CI uses different Python environment than nightly pipeline — test results not comparable
+
+**Files:** `.github/workflows/pr-check.yml`, `.github/workflows/qa-pipeline.yml`
+
+**Evidence:**
+
+`pr-check.yml`:
+```yaml
+runs-on: ubuntu-latest
+steps:
+  - uses: actions/setup-python@v5
+    with:
+      python-version: '3.11'
+      cache: pip
+  - run: pip install -r requirements.txt   # fresh install, ubuntu-latest
+  - run: PYTHONPATH=. python cli.py smoke
+```
+
+`qa-pipeline.yml`:
+```yaml
+runs-on: self-hosted
+steps:
+  # (no python setup — uses pre-existing venv)
+  - run: ./venv/bin/python3.11 --version
+  - run: PYTHONPATH=. ./venv/bin/python3.11 -m pytest ...
+```
+
+The PR check (`ubuntu-latest` + fresh pip) and the nightly/regression pipeline (`self-hosted` + locked venv) run different Python environments. A dependency that installs a newer minor version on `ubuntu-latest` may behave differently from the pinned venv on `self-hosted`. A test that passes the PR check (green) may fail the nightly regression (different package behavior) — or vice versa.
+
+Additionally, `pr-check.yml` calls `detect-secrets-hook` without a path, relying on PATH. If `detect-secrets` is not in `requirements.txt`, this step silently succeeds or fails depending on runner state.
+
+**Fix:** Either use the same self-hosted runner + venv for both workflows, or add a lockfile step (`pip install --require-hashes -r requirements.txt`) in the PR workflow to ensure identical package versions.
+
+---
+
+### M-09 — 50+ `print()` statements in `register_api_test.py` and `onboarding_api_test.py` — `[DEV-BUG]` tags never surfaced
+
+**Files:** `features/register/steps/api/register_api_test.py`, `features/onboarding/steps/api/onboarding_api_test.py`
+
+**Evidence (sample):**
+```python
+print(f"\n✓ Register success: {data.get('message')}")          # register line 32
+print(f"\n[DEV-BUG] Missing full_name: {response.status_code} {response.json()}")  # onboarding line 124
+print(f"\n[DEV-BUG] Missing city_id: {response.status_code} {response.json()}")    # onboarding line 142
+```
+
+`print()` output:
+1. Pollutes pytest stdout, interferes with `--tb=short` readability
+2. Is not captured by Allure (no attachment) — disappears in CI artifacts
+3. `[DEV-BUG]` findings — which are API contract violations per AGENTS.md — are buried in ephemeral stdout and never reach Jira
+
+**Fix for `[DEV-BUG]` lines:** Replace with `structlog.warning("dev_bug", ...)` and optionally auto-create Jira via `jira_connector`. For generic `print(f"\n✓ ...")` lines: delete them — the assertion already validates correctness.
+
+---
+
+### M-10 — CI api-tests job only covers 7 of 20+ feature folders — most test files never run in CI
+
+**File:** `.github/workflows/qa-pipeline.yml:126-135`
+
+**Evidence:**
+```yaml
+run: |
+  PYTHONPATH=. ./venv/bin/python3.11 -m pytest \
+    features/login/steps/api/login_api_test.py \
+    features/register/steps/api/register_api_test.py \
+    features/cms_login/steps/api/cms_login_api_test.py \
+    features/cms_users/steps/api/cms_users_api_test.py \
+    features/cms_users/steps/api/cms_approve_user_test.py \
+    features/cms_users/steps/api/cms_reject_user_test.py \
+    features/onboarding/steps/api/onboarding_api_test.py \
+    -m "not flaky and not mobile"
+```
+
+Test files that exist but are **never run in CI** (confirmed from feature listing):
+`auth`, `feed`, `master_data`, `network`, `post_interactions`, `posts`, `privacy`, `privacy_safety`, `public`, `reports`, `search`, `settings`, `storage`, `user_relationships`, `users_account`, `users_email`, `users_password`, `admin_moderation`.
+
+These 18 feature areas run only when triggered manually via `workflow_dispatch`. Any regression in these features is invisible to the PR merge gate and the nightly scheduled run.
+
+**Fix:** Either add all feature paths to the api-tests job, or use `testpaths = ["features"]` and rely on the existing `pyproject.toml` configuration with `-m "smoke or regression"` to control scope.
+
+---
+
+### M-11 — `register_android_test.py:107` — separate hardcoded `@mailinator.com` not fixed by C-03
+
+**File:** `features/register/steps/mobile/register_android_test.py:107`
+
+```python
+"email": f"quotacheck+{int(__import__('time').time())}@mailinator.com",
+```
+
+C-03 fixed `core/db/test_user_helper.py:81`. This is a separate hardcoded occurrence in a different file. Both must be fixed to fully honor `TEST_EMAIL_DOMAIN`.
+
+**Fix:** `from config.test_data import TEST_EMAIL_DOMAIN` and use `@{TEST_EMAIL_DOMAIN}`.
+
+---
+
+### L-08 — `conftest.py` session banner uses `print()` — inconsistent with structlog convention
+
+**File:** `conftest.py:136-147`
+
+The session banner uses `print()` for the startup block (`=== QA AI Framework ===`). Intentional for terminal readability, but inconsistent with the rest of the codebase (structlog). Not a bug, but teams adding to this block may use `print()` elsewhere without noticing the divergence.
+
+---
+
+### L-09 — `conftest.py:29` comment is stale — still says "mailinator.com" without mentioning TEST_EMAIL_DOMAIN
+
+**File:** `conftest.py:29`
+
+```python
+# Test email domain: mailinator.com
+```
+
+The fix in `config/test_data.py` added `TEST_EMAIL_DOMAIN` support, but this comment was not updated. New engineers reading `conftest.py` will believe mailinator is the only option.
+
+**Fix:** Update to: `# Test email domain: configurable via TEST_EMAIL_DOMAIN env var (default: mailinator.com)`
+
+---
+
+### L-10 — `pr-check.yml` calls `detect-secrets-hook` without venv path — may rely on global install
+
+**File:** `.github/workflows/pr-check.yml`
+
+```yaml
+- name: Secret scan
+  run: |
+    git ls-files | xargs detect-secrets-hook --baseline .secrets.baseline
+```
+
+No path prefix — relies on `detect-secrets-hook` being on `$PATH`. If it is not in `requirements.txt` (not confirmed in visible portion), the step may silently fail if the tool is not pre-installed on `ubuntu-latest`. Compare `qa-pipeline.yml` which uses `./venv/bin/detect-secrets-hook` explicitly.
+
+---
+
 ## Summary Table
 
 | ID | Severity | File | Line | Issue |

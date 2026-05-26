@@ -25,6 +25,7 @@ from features.register.locators.mobile.register_android_locators import (
     FULLNAME_INDEX, EMAIL_INDEX, PHONE_INDEX, LINKEDIN_INDEX,
 )
 from config.test_config import TestConfig, APIEndpoints
+from config.test_data import TEST_EMAIL_DOMAIN
 
 
 def fill_register_form(driver, fullname=None, email=None, phone=None, linkedin=None):
@@ -104,7 +105,7 @@ def test_TC_MOB_REG_001_register_valid_data(register_driver):
         ) as c:
             r = await c.post(APIEndpoints.REGISTER, json={
                 "fullname": "quota check",
-                "email": f"quotacheck+{int(__import__('time').time())}@mailinator.com",
+                "email": f"quotacheck+{int(time.time())}@{TEST_EMAIL_DOMAIN}",
                 "phone_number": "811111111",
                 "phone_country_code": "ID",
                 "linkedin": "https://linkedin.com/in/quotacheck"

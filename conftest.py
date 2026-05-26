@@ -25,12 +25,9 @@ _REQUIRED_FOR_API    = ["HONO_API_KEY"]
 _REQUIRED_FOR_AGENTS = ["OPENROUTER_API_KEY"]
 
 # ── Test email domain ──────────────────────────────────────────────────────────
-# Test email domain: mailinator.com
-# KNOWN LIMITATION: Mailinator is a public inbox.
-# Any emails sent during staging tests are publicly readable.
-# Acceptable for staging. NEVER use for production test runs.
-# Alternative for production testing: use a private email domain
-# configured via TEST_EMAIL_DOMAIN env var.
+# Configurable via TEST_EMAIL_DOMAIN env var (default: mailinator.com).
+# Mailinator is a public inbox — acceptable for staging, never for production.
+# Set TEST_EMAIL_DOMAIN=<private-domain> in .env or CI secrets for private inboxes.
 
 # ── RAG staleness check paths ──────────────────────────────────────────────────
 _API_SPEC_PATH = Path("api_spec.yaml")
