@@ -94,15 +94,10 @@ def test_TC_MOB_REG_001_register_valid_data(register_driver):
     TC-MOB-REG-001 | Smoke | Register with valid data → verify email screen
     Note: May skip if Resend daily email quota is reached
     """
-    import httpx, os
-    # Pre-check email quota
     import asyncio
+    from platforms.api.httpx_client import HonoAPIClient
     async def check_quota():
-        async with httpx.AsyncClient(
-            base_url=os.getenv("HONO_API_URL"),
-            headers={"x-api-key": os.getenv("HONO_API_KEY")},
-            timeout=10
-        ) as c:
+        async with HonoAPIClient() as c:
             r = await c.post(APIEndpoints.REGISTER, json={
                 "fullname": "quota check",
                 "email": f"quotacheck+{int(time.time())}@{TEST_EMAIL_DOMAIN}",

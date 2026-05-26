@@ -2,6 +2,7 @@
 Circuit Breaker — prevents cascading agent failures in CI/CD.
 States: CLOSED (normal) → OPEN (failing) → HALF_OPEN (testing recovery)
 """
+import threading
 import structlog
 from datetime import datetime, timedelta
 from typing import Callable, Any
@@ -33,14 +34,16 @@ class CircuitBreaker:
         self.failure_count     = 0
         self.last_failure:     datetime | None = None
         self.state             = "CLOSED"
+        self._lock             = threading.Lock()
 
     def call(self, fn: Callable, *args, **kwargs) -> Any:
-        if self.state == "OPEN":
-            if self._should_attempt_recovery():
-                self.state = "HALF_OPEN"
-                logger.info("circuit_half_open", agent=self.agent_name)
-            else:
-                raise CircuitOpenError(self.agent_name, self.last_failure)
+        with self._lock:
+            if self.state == "OPEN":
+                if self._should_attempt_recovery():
+                    self.state = "HALF_OPEN"
+                    logger.info("circuit_half_open", agent=self.agent_name)
+                else:
+                    raise CircuitOpenError(self.agent_name, self.last_failure)
 
         try:
             result = fn(*args, **kwargs)
@@ -56,28 +59,30 @@ class CircuitBreaker:
         return datetime.now() - self.last_failure >= self.recovery_timeout
 
     def _on_success(self):
-        if self.state == "HALF_OPEN":
-            logger.info("circuit_recovered", agent=self.agent_name)
-        self.failure_count = 0
-        self.state         = "CLOSED"
+        with self._lock:
+            if self.state == "HALF_OPEN":
+                logger.info("circuit_recovered", agent=self.agent_name)
+            self.failure_count = 0
+            self.state         = "CLOSED"
 
     def _on_failure(self, error: Exception):
-        self.failure_count += 1
-        self.last_failure   = datetime.now()
-        logger.warning(
-            "circuit_failure",
-            agent=self.agent_name,
-            count=self.failure_count,
-            threshold=self.failure_threshold,
-            error=str(error),
-        )
-        if self.failure_count >= self.failure_threshold:
-            self.state = "OPEN"
-            logger.error(
-                "circuit_opened",
+        with self._lock:
+            self.failure_count += 1
+            self.last_failure   = datetime.now()
+            logger.warning(
+                "circuit_failure",
                 agent=self.agent_name,
-                message=f"Circuit OPEN after {self.failure_count} failures.",
+                count=self.failure_count,
+                threshold=self.failure_threshold,
+                error=str(error),
             )
+            if self.failure_count >= self.failure_threshold:
+                self.state = "OPEN"
+                logger.error(
+                    "circuit_opened",
+                    agent=self.agent_name,
+                    message=f"Circuit OPEN after {self.failure_count} failures.",
+                )
 
     @property
     def is_open(self) -> bool:
@@ -86,8 +91,10 @@ class CircuitBreaker:
 
 # Registry — one breaker per agent
 _breakers: dict[str, CircuitBreaker] = {}
+_registry_lock = threading.Lock()
 
 def get_breaker(agent_name: str) -> CircuitBreaker:
-    if agent_name not in _breakers:
-        _breakers[agent_name] = CircuitBreaker(agent_name)
-    return _breakers[agent_name]
+    with _registry_lock:
+        if agent_name not in _breakers:
+            _breakers[agent_name] = CircuitBreaker(agent_name)
+        return _breakers[agent_name]

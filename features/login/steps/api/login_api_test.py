@@ -14,14 +14,14 @@ PASSWORD = os.getenv("STAGING_PASSWORD", "")
 pytestmark = [allure.feature("Login"), allure.suite("API")]
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="module")
 async def auth_client():
     async with HonoAPIClient() as client:
         await client.login(EMAIL, PASSWORD)
         yield client
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="module")
 async def unauth_client():
     async with HonoAPIClient() as client:
         yield client

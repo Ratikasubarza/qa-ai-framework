@@ -6,6 +6,7 @@ chromadb==0.5.11
 pydantic>=2.9.0,<3.0.0
 pydantic-settings==2.3.4
 sentence-transformers==3.0.1    # Pinned embedding model for RAG
+tokenizers==0.22.2              # Pin: sentence-transformers 3.0.1 needs >=0.22,<=0.23; 0.23.1 breaks transformers dep check
 
 # ── Automation Platforms ──────────────────────────────────
 playwright==1.49.0

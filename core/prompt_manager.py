@@ -9,7 +9,8 @@ from typing import Optional
 
 logger = structlog.get_logger(__name__)
 
-PROMPTS_DIR  = Path(__file__).parent.parent / "prompts"
+_PROJECT_ROOT = Path(__file__).parent.parent
+PROMPTS_DIR   = _PROJECT_ROOT / "prompts"
 REGISTRY_PATH = PROMPTS_DIR / "prompt_registry.yaml"
 
 
@@ -47,7 +48,7 @@ class PromptManager:
         logger.info("prompts_loaded", count=len(self._templates))
 
     def _load_prompt(self, name: str, meta: dict):
-        template_path = PROMPTS_DIR / meta["template_ref"].split("/")[-1]
+        template_path = _PROJECT_ROOT / meta["template_ref"]
         if not template_path.exists():
             logger.warning("prompt_file_missing", name=name, path=str(template_path))
             return

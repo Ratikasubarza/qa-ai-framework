@@ -521,7 +521,7 @@ No functional bug, but the fixture comment could mislead engineers adding new te
 
 ---
 
-## Addendum — Findings from Full Recon Pass
+## Addendum 1 — Findings from Full Recon Pass
 
 *Files read in this pass: `conftest.py`, `core/test_data/cleanup_registry.py`, `features/register/steps/api/register_api_test.py`, `features/register/steps/mobile/register_android_test.py`, `features/users_account/steps/api/users_account_api_test.py`, `.github/workflows/pr-check.yml`, `.github/workflows/qa-pipeline.yml`, `requirements.txt`, grep output across entire codebase.*
 
@@ -752,6 +752,45 @@ No path prefix — relies on `detect-secrets-hook` being on `$PATH`. If it is no
 
 ---
 
+## Addendum 2 — Venv Dependency Corruption
+
+*Discovered during import verification of C-01/C-02/C-03 fixes.*
+
+---
+
+### C-06 — Orphaned `tokenizers-0.23.1.dist-info` in venv crashes entire RAG + agent stack
+
+**Files:** `venv/lib/python3.11/site-packages/` (venv state), `requirements.txt`
+
+**Evidence:**
+```
+$ ls venv/lib/python3.11/site-packages/ | grep tokenizers
+tokenizers
+tokenizers-0.22.2.dist-info
+tokenizers-0.23.1.dist-info   ← orphaned from interrupted pip install
+
+ImportError: tokenizers>=0.22.0,<=0.23.0 is required for a normal functioning of this module,
+but found tokenizers==0.23.1.
+```
+
+Two `dist-info` directories exist for `tokenizers` in the venv: the real install (`0.22.2`) and an orphaned metadata directory from an interrupted `pip install` (`0.23.1`). When `transformers` calls `importlib.metadata.version("tokenizers")`, it returns the higher version `0.23.1` — which violates `transformers`' own upper-bound constraint — and raises `ImportError`.
+
+The crash chain:
+```
+tokenizers 0.23.1 (false metadata) →
+  transformers.dependency_versions_check fails →
+    sentence_transformers fails to import →
+      chromadb SentenceTransformerEmbeddingFunction raises ValueError →
+        knowledge_base/rag_engine.py fails at module level (line 31) →
+          agents/test_case_agent.py, agents/requirements_agent.py (any RAG importer) crash at import
+```
+
+Every agent that imports `rag_engine` is dead in this venv state. The entire AI pipeline is non-functional until the orphaned dist-info is removed.
+
+**Status: FIXED** — `venv/lib/python3.11/site-packages/tokenizers-0.23.1.dist-info` deleted. `requirements.txt` updated to pin `tokenizers==0.22.2` to prevent future fresh installs from hitting the same conflict.
+
+---
+
 ## Summary Table
 
 | ID | Severity | File | Line | Issue |
@@ -864,3 +903,99 @@ This section identifies every upcoming feature area where the agent pipeline can
 ---
 
 *Report complete. All 26 findings cite file and line. Fix C-01 through C-05 before onboarding any new team members.*
+
+---
+
+## Addendum 3 — HIGH Fixes Applied (Session 2, 2026-05-26)
+
+All HIGH findings fixed and verified in this session.
+
+---
+
+### H-01 — FIXED — `core/circuit_breaker.py` — Thread-safe locks added
+
+Added `threading.Lock` per `CircuitBreaker` instance and a `_registry_lock` for `get_breaker()`:
+
+- `call()` acquires `self._lock` for state-read + state-transition logic
+- `_on_success()` acquires `self._lock` for `failure_count = 0` and state reset
+- `_on_failure()` acquires `self._lock` for `failure_count += 1`, `last_failure`, and `OPEN` transition
+- `get_breaker()` acquires `_registry_lock` for `_breakers` dict write
+
+Import verified: `from core.circuit_breaker import get_breaker, CircuitBreaker` → `H-01 OK`
+
+---
+
+### H-02 — FIXED — `features/login/steps/api/login_api_test.py:17,24` — Fixture scopes changed to `module`
+
+Both `auth_client` and `unauth_client` changed from `scope="function"` to `scope="module"`. One login per module instead of one per test. Eliminates 20+ redundant login round-trips per run.
+
+---
+
+### H-03 — FIXED — `core/prompt_manager.py:12,50` — Template ref path resolution fixed
+
+- Added `_PROJECT_ROOT = Path(__file__).parent.parent` constant
+- Changed `template_path = PROMPTS_DIR / meta["template_ref"].split("/")[-1]` to `template_path = _PROJECT_ROOT / meta["template_ref"]`
+
+Prompts in subdirectories now resolve correctly. All 5 non-archived prompts load successfully.
+
+Import verified: `from core.prompt_manager import prompt_manager` → `H-03 OK`
+
+---
+
+### H-07 — FIXED — `features/users_account/steps/api/users_account_api_test.py:32` — CleanupRegistry enrollment added
+
+`approved_account_user` fixture now registers the created user for LIFO teardown:
+
+```python
+cleanup_registry.register(
+    entity_type="user",
+    entity_id=user_id,
+    cleanup_fn=lambda: _delete_user(user_id),
+)
+```
+
+`_delete_user()` helper calls `DBClient().delete_user(user_id)` synchronously. Imports added: `DBClient`, `cleanup_registry`.
+
+---
+
+### H-08 — FIXED — `features/users_account/steps/api/users_account_api_test.py:32,45` — Fixture scope changed to `module`
+
+Both `approved_account_user` and `auth_client` changed from `scope="function"` to `scope="module"`. One DB user + one login per module instead of per test. Eliminates 5× user creation calls per run (~30 HTTP requests + 20 DB ops saved).
+
+---
+
+### H-09 — FIXED — `features/register/steps/mobile/register_android_test.py:96-107` — Raw httpx replaced with HonoAPIClient
+
+Replaced inline `httpx.AsyncClient(base_url=os.getenv(...), headers={"x-api-key": ...})` with `HonoAPIClient()`. Removed `import httpx, os` inline imports. Now uses centralized client with shared auth headers, request tracing, and timeout configuration.
+
+---
+
+### H-10 — FIXED — `.github/workflows/` — Python environment divergence reduced
+
+**`pr-check.yml`:** `pip install -r requirements.txt` → `python -m pip install --upgrade pip && python -m pip install -r requirements.txt` (ensures pip is current before installing).
+
+**`qa-pipeline.yml`:** Added `Sync venv with requirements.txt` step as the first step in the `lint` job (gateway for all other jobs):
+
+```yaml
+- name: Sync venv with requirements.txt
+  run: |
+    ./venv/bin/python3.11 -m pip install -r requirements.txt --quiet
+```
+
+Self-hosted venv is now synchronized with `requirements.txt` on every pipeline run, preventing silent package drift.
+
+---
+
+### Summary: Fixes Applied This Session
+
+| Finding | Status | File Changed |
+| ------- | ------ | ------------ |
+| H-01 | FIXED | `core/circuit_breaker.py` |
+| H-02 | FIXED | `features/login/steps/api/login_api_test.py` |
+| H-03 | FIXED | `core/prompt_manager.py` |
+| H-07 | FIXED | `features/users_account/steps/api/users_account_api_test.py` |
+| H-08 | FIXED | `features/users_account/steps/api/users_account_api_test.py` |
+| H-09 | FIXED | `features/register/steps/mobile/register_android_test.py` |
+| H-10 | FIXED | `.github/workflows/pr-check.yml`, `.github/workflows/qa-pipeline.yml` |
+
+Previous session fixes still in effect: C-01, C-02, C-03, C-04, C-05, C-06, L-09, M-11.

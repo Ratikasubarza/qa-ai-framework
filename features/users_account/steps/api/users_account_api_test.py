@@ -4,7 +4,9 @@ import pytest
 import pytest_asyncio
 
 
+from core.db.db_client import DBClient
 from core.db.test_user_helper import create_approved_user
+from core.test_data.cleanup_registry import cleanup_registry
 from features.users_account.test_data.users_account_test_data import (
     UsersAccountTestData,
 )
@@ -29,12 +31,24 @@ def get_account_payload(response) -> tuple[dict, dict]:
     return body, data
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="module")
 async def approved_account_user() -> dict:
-    return await create_approved_user(fullname="Account API Test User")
+    user = await create_approved_user(fullname="Account API Test User")
+    user_id = user["user_id"]
+    cleanup_registry.register(
+        entity_type="user",
+        entity_id=user_id,
+        cleanup_fn=lambda: _delete_user(user_id),
+    )
+    return user
 
 
-@pytest_asyncio.fixture(scope="function")
+def _delete_user(user_id: str) -> None:
+    with DBClient() as db:
+        db.delete_user(user_id)
+
+
+@pytest_asyncio.fixture(scope="module")
 async def auth_client(approved_account_user):
     async with HonoAPIClient() as client:
         await client.login(
