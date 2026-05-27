@@ -2,7 +2,7 @@ name: PR Check — Fast Feedback
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, staging]
 
 env:
   PYTHON_VERSION: '3.11'

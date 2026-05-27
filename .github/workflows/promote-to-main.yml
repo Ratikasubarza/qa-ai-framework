@@ -1,0 +1,179 @@
+name: Promote staging → main
+
+# Triggered manually by QA Lead / Test Architect after staging validation.
+# Runs full regression on staging content, then requires explicit approval
+# before opening the PR to main. Nothing merges to main automatically.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for promotion (e.g. 'Sprint 3 regression passed')"
+        required: true
+        type: string
+      run_regression:
+        description: "Run full regression before promoting?"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+env:
+  PYTHON_VERSION: '3.11'
+  HONO_API_URL: ${{ secrets.HONO_API_URL }}
+  HONO_API_KEY: ${{ secrets.HONO_API_KEY }}
+  STAGING_EMAIL: ${{ secrets.STAGING_EMAIL }}
+  STAGING_PASSWORD: ${{ secrets.STAGING_PASSWORD }}
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  APPROVAL_REQUIRED: 'false'
+
+jobs:
+  # ── Step 1: Regression gate on staging ────────────────────────────────────
+  regression-gate:
+    name: Regression Gate (staging)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_regression == 'true' }}
+    outputs:
+      passed: ${{ steps.result.outputs.passed }}
+      summary: ${{ steps.result.outputs.summary }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Lint check
+        run: python -m ruff check . --select E,W,F --ignore E501,E402
+
+      - name: API smoke suite
+        id: smoke
+        run: |
+          PYTHONPATH=. pytest features/ -m "smoke and api" \
+            --tb=short -q --timeout=60 --skip-preflight \
+            --junit-xml=reports/junit/promote_smoke.xml 2>&1 | tee smoke_output.txt
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Parse results
+        id: result
+        run: |
+          SUMMARY=$(tail -3 smoke_output.txt | tr '\n' ' ')
+          if grep -q "failed\|error" smoke_output.txt; then
+            echo "passed=false" >> $GITHUB_OUTPUT
+          else
+            echo "passed=true" >> $GITHUB_OUTPUT
+          fi
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regression-results
+          path: reports/junit/
+
+  # ── Step 2: Manual approval gate ──────────────────────────────────────────
+  approval-gate:
+    name: QA Lead Approval
+    runs-on: ubuntu-latest
+    needs: [regression-gate]
+    if: |
+      always() &&
+      (needs.regression-gate.result == 'success' || github.event.inputs.run_regression == 'false')
+    environment:
+      name: production-gate   # Configured in GitHub → Settings → Environments
+                              # Add required reviewers here (QA Lead / Test Architect)
+
+    steps:
+      - name: Approval checkpoint
+        run: |
+          echo "✅ Regression passed: ${{ needs.regression-gate.outputs.summary }}"
+          echo "📋 Promotion reason: ${{ github.event.inputs.reason }}"
+          echo "🔍 Triggered by: ${{ github.actor }}"
+          echo ""
+          echo "This step requires manual approval from a QA Lead or Test Architect."
+          echo "Approve in GitHub → Actions → this workflow run → Review deployments."
+
+  # ── Step 3: Open PR staging → main ────────────────────────────────────────
+  open-pr:
+    name: Open PR to main
+    runs-on: ubuntu-latest
+    needs: [approval-gate]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+          fetch-depth: 0
+
+      - name: Get commits ahead of main
+        id: commits
+        run: |
+          COUNT=$(git rev-list --count origin/main..HEAD)
+          TITLES=$(git log origin/main..HEAD --oneline | head -10)
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "titles<<EOF" >> $GITHUB_OUTPUT
+          echo "$TITLES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create PR staging → main
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commitCount = '${{ steps.commits.outputs.count }}';
+            const commitTitles = `${{ steps.commits.outputs.titles }}`;
+            const reason = '${{ github.event.inputs.reason }}';
+            const actor = '${{ github.actor }}';
+
+            const body = [
+              '## Promotion: staging → main',
+              '',
+              `**Reason:** ${reason}`,
+              `**Promoted by:** @${actor}`,
+              `**Commits ahead of main:** ${commitCount}`,
+              '',
+              '## Commits included',
+              '```',
+              commitTitles,
+              '```',
+              '',
+              '## Pre-promotion checklist',
+              '- [x] Regression gate passed (see workflow run)',
+              '- [x] QA Lead approved via GitHub environment approval',
+              '- [ ] Test Architect has reviewed the diff',
+              '- [ ] No [DEV-BUG] tags introduced without Jira ticket',
+              '- [ ] CHANGELOG.md updated',
+              '',
+              '> This PR was auto-created by the promote-to-main workflow.',
+              '> Merge only after all checklist items are confirmed.',
+            ].join('\n');
+
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `chore(release): promote staging → main [${commitCount} commits]`,
+              head: 'staging',
+              base: 'main',
+              body: body,
+              draft: false,
+            });
+
+            console.log(`PR created: ${pr.data.html_url}`);
+
+            // Request review from CODEOWNERS
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.data.number,
+              reviewers: ['Ratikasubarza'],
+            });

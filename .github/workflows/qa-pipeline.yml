@@ -35,9 +35,9 @@ on:
   schedule:
     - cron: '0 17 * * *'  # Daily at 1AM SGT (UTC+8 = 17:00 UTC)
   push:
-    branches: [main]
+    branches: [staging]
   pull_request:
-    branches: [main]
+    branches: [staging, main]
 
 env:
   PYTHON_VERSION: '3.11'
