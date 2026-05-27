@@ -2,7 +2,6 @@
 import time
 import random
 import pytest
-import pytest_asyncio
 
 from config.test_config import APIEndpoints
 from config.test_data import KnownAccounts
@@ -22,7 +21,7 @@ def feed_user():
     return create_approved_user_sync(suffix=suffix)
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest.fixture(scope="module")
 async def feed_token(feed_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={
@@ -36,7 +35,7 @@ async def feed_token(feed_user) -> str:
     return token
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest.fixture(scope="module")
 async def staging_token() -> str:
     """Login with the known staging account (STAGING_EMAIL / STAGING_PASSWORD from .env)."""
     email    = KnownAccounts.STAGING_EMAIL
@@ -56,7 +55,7 @@ async def staging_token() -> str:
     return token
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest.fixture(scope="module")
 async def deactivated_user_token() -> str:
     """
     Creates a fresh approved user, logs in, deactivates the account,

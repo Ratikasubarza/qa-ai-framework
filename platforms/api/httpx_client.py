@@ -7,6 +7,7 @@ mutating the underlying httpx client directly.
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 from collections.abc import Mapping, Sequence
 from typing import Any, Optional
@@ -18,6 +19,12 @@ from config.test_config import APIEndpoints, TestConfig, Timeouts
 from core.source_intake.security import redact_internal_text
 
 logger = structlog.get_logger(__name__)
+
+# Transient server-side error codes worth retrying automatically.
+# 4xx errors are deliberate (auth, validation) and must NOT be retried.
+_RETRY_STATUS_CODES: frozenset[int] = frozenset({500, 502, 503, 504})
+_MAX_REQUEST_RETRIES: int = 3
+_RETRY_BACKOFF_SECONDS: tuple[int, ...] = (2, 4)  # delay after attempt 1, 2
 
 
 class HonoAPIClient:
@@ -148,20 +155,42 @@ class HonoAPIClient:
         auth_token: str | None = None,
         expected_status: int | Sequence[int] | None = None,
     ) -> httpx.Response:
-        """Send a request with optional per-call headers and status assertion."""
+        """Send a request with optional per-call headers and status assertion.
+
+        Automatically retries on transient 5xx gateway errors (500/502/503/504)
+        up to _MAX_REQUEST_RETRIES times with exponential backoff. 4xx responses
+        are never retried — they represent deliberate API decisions.
+        """
         client = self._require_client()
         request_id = str(uuid.uuid4())
         tracing_headers: dict[str, str] = {"X-Request-ID": request_id}
         if headers:
             tracing_headers.update(dict(headers))
-        response = await client.request(
-            method,
-            path,
-            params=params,
-            json=json,
-            headers=self._merge_headers(headers=tracing_headers, auth_token=auth_token),
-        )
+        merged = self._merge_headers(headers=tracing_headers, auth_token=auth_token)
         safe_path = redact_internal_text(path).text
+
+        response: httpx.Response | None = None
+        for attempt in range(1, _MAX_REQUEST_RETRIES + 1):
+            response = await client.request(
+                method, path, params=params, json=json, headers=merged,
+            )
+            if response.status_code not in _RETRY_STATUS_CODES:
+                break
+            if attempt < _MAX_REQUEST_RETRIES:
+                delay = _RETRY_BACKOFF_SECONDS[min(attempt - 1, len(_RETRY_BACKOFF_SECONDS) - 1)]
+                logger.warning(
+                    "api_request_retry",
+                    method=method.upper(),
+                    path=safe_path,
+                    status=response.status_code,
+                    attempt=attempt,
+                    delay_seconds=delay,
+                    request_id=request_id,
+                )
+                await asyncio.sleep(delay)
+
+        assert response is not None  # loop always executes at least once
+
         logger.info(
             "api_request",
             method=method.upper(),

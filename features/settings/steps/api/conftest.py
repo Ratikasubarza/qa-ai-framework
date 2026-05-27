@@ -2,7 +2,6 @@
 import time
 import random
 import pytest
-import pytest_asyncio
 
 from core.db.test_user_helper import create_approved_user_sync
 from core.db.db_client import DBClient
@@ -24,11 +23,10 @@ def settings_user(request):
             db.delete_user(user["user_id"])
 
     cleanup_registry.register("user", user["user_id"], _delete, run_id=run_id, worker_id=worker_id)
-    yield user
-    cleanup_registry.cleanup_all(run_id=run_id, worker_id=worker_id)
+    return user  # cleanup delegated to pytest_sessionfinish via CleanupRegistry
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest.fixture(scope="module")
 async def settings_token(settings_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={

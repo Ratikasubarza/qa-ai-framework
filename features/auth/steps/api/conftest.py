@@ -3,7 +3,6 @@ import os
 import time
 import random
 import pytest
-import pytest_asyncio
 
 from core.db.db_client import DBClient
 from core.db.test_user_helper import create_approved_user_sync
@@ -36,7 +35,7 @@ def auth_user(request):
     return user
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest.fixture(scope="module")
 async def auth_token(auth_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={
@@ -51,7 +50,7 @@ async def auth_token(auth_user) -> str:
     return token
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest.fixture(scope="module")
 async def auth_refresh_token(auth_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={

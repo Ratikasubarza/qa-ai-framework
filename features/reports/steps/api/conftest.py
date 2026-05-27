@@ -2,7 +2,6 @@
 import time
 import random
 import pytest
-import pytest_asyncio
 
 from core.db.test_user_helper import create_approved_user_sync
 from platforms.api.httpx_client import HonoAPIClient
@@ -16,7 +15,7 @@ def reports_user():
     return create_approved_user_sync(suffix=suffix)
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest.fixture(scope="module")
 async def reports_token(reports_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={

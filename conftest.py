@@ -59,6 +59,58 @@ def pytest_addoption(parser):
         default=False,
         help="Skip RAG knowledge base staleness check at session start.",
     )
+    parser.addoption(
+        "--skip-preflight",
+        action="store_true",
+        default=False,
+        help="Skip staging API health check at session start (useful when running offline or against mock).",
+    )
+
+
+# ── Pre-flight staging health check ───────────────────────────────────────────
+def _preflight_staging_check(config) -> None:
+    """Fail-fast with a clear message when staging is unavailable.
+
+    Hits a public endpoint (no auth required) before spending time on test
+    collection. Prevents hundreds of confusing fixture ERRORs from masking a
+    simple "staging is down" root cause.
+
+    Skip with --skip-preflight when running against a mock or offline fixture.
+    """
+    if config.getoption("--skip-preflight", default=False):
+        logger.info("preflight_skipped", reason="--skip-preflight flag set")
+        return
+
+    import httpx as _httpx
+    from config.test_config import APIEndpoints, TestConfig
+
+    url = f"{TestConfig.API_URL}{APIEndpoints.MASTER_INDUSTRIES}"
+    try:
+        resp = _httpx.get(url, timeout=8.0)
+        if resp.status_code >= 500:
+            pytest.exit(
+                f"\n\n  [PREFLIGHT FAIL] Staging API returned {resp.status_code}\n"
+                f"  URL  : {url}\n"
+                f"  Body : {resp.text[:200]}\n\n"
+                "  Fix  : Wait for staging to recover, check VPN, or use --skip-preflight\n",
+                returncode=2,
+            )
+        logger.info("preflight_ok", url=url, status=resp.status_code)
+    except _httpx.ConnectError as exc:
+        pytest.exit(
+            f"\n\n  [PREFLIGHT FAIL] Cannot connect to staging API\n"
+            f"  URL  : {url}\n"
+            f"  Error: {exc}\n\n"
+            "  Fix  : Connect to VPN, or use --skip-preflight\n",
+            returncode=2,
+        )
+    except _httpx.TimeoutException:
+        pytest.exit(
+            f"\n\n  [PREFLIGHT FAIL] Staging API timed out after 8s\n"
+            f"  URL  : {url}\n\n"
+            "  Fix  : Check VPN or staging health, or use --skip-preflight\n",
+            returncode=2,
+        )
 
 
 # ── RAG staleness check ────────────────────────────────────────────────────────
@@ -145,6 +197,9 @@ def pytest_sessionstart(session):
 
     # Write Allure environment properties so the report shows context
     _write_allure_environment(TestConfig)
+
+    # Fail fast if staging is unreachable — prevents hundreds of misleading ERRORs
+    _preflight_staging_check(session.config)
 
     # Check RAG knowledge base freshness against api_spec.yaml
     _check_rag_staleness(session.config)

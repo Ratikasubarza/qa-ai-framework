@@ -4,7 +4,6 @@ import time
 import random
 
 import pytest
-import pytest_asyncio
 import structlog
 
 from conftest_shared_fixtures import (  # noqa: F401 — re-export for pytest fixture discovery
@@ -40,7 +39,7 @@ def search_user():
     return create_approved_user_sync(suffix=suffix)
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest.fixture(scope="module")
 async def search_token(search_user) -> str:
     async with HonoAPIClient() as client:
         resp = await client.post(APIEndpoints.LOGIN, json={
@@ -87,9 +86,7 @@ def search_target_profiles(request):
         )
 
     logger.info("fixture_search_targets_created", count=len(profiles))
-    yield profiles
-
-    cleanup_registry.cleanup_all(run_id=run_id, worker_id=worker_id)
+    return profiles  # cleanup delegated to pytest_sessionfinish via CleanupRegistry
 
 
 @pytest.fixture(scope="module", autouse=False)

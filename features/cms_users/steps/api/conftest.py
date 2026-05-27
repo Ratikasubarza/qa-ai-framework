@@ -1,14 +1,14 @@
 """Shared fixtures for CMS users API tests."""
-import pytest_asyncio
+import pytest
 
 from features.cms_login.test_data.cms_login_test_data import CmsLoginTestData
 from platforms.api.httpx_client import HonoAPIClient
 from config.test_config import APIEndpoints
 
 
-@pytest_asyncio.fixture
+@pytest.fixture(scope="module")
 async def cms_token() -> str:
-    """Get a fresh CMS admin bearer token for every test that needs it."""
+    """CMS admin bearer token, shared across all tests in this module."""
     async with HonoAPIClient() as client:
         response = await client.post(
             APIEndpoints.LOGIN,
