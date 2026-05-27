@@ -4,11 +4,11 @@ Deliberately kept at scope="function": tests mutate relationship state
 (follow → block sequence), and each test requires a clean pair.
 CleanupRegistry ensures orphaned users are deleted at session end.
 """
+import asyncio
 import os
 import time
 import random
 import pytest
-import pytest_asyncio
 
 from core.db.db_client import DBClient
 from core.db.test_user_helper import create_approved_user_sync
@@ -56,13 +56,17 @@ def target_user(request):
     return user
 
 
-@pytest_asyncio.fixture(scope="function")
-async def actor_token(actor_user) -> str:
-    async with HonoAPIClient() as client:
-        resp = await client.post(APIEndpoints.LOGIN, json={
-            "email":    actor_user["email"],
-            "password": actor_user["password"],
-        })
+@pytest.fixture(scope="function")
+def actor_token(actor_user) -> str:
+    """Sync wrapper — avoids pytest-asyncio 1.3.x event loop setup race in function-scoped async fixtures."""
+    async def _login():
+        async with HonoAPIClient() as client:
+            return await client.post(APIEndpoints.LOGIN, json={
+                "email":    actor_user["email"],
+                "password": actor_user["password"],
+            })
+
+    resp = asyncio.run(_login())
     skip_on_email_quota(resp)
     data = resp.json()
     body = data.get("data", data)

@@ -17,8 +17,9 @@ pytestmark = [allure.feature("Login"), allure.suite("API")]
 
 @pytest.fixture(scope="module")
 def event_loop():
-    """Module-scoped event loop so module-scoped async fixtures share one loop.
-    Required for pytest-asyncio 0.23.x with asyncio_mode=auto.
+    """Module-scoped event loop — required so auth_client (scope=module) and all
+    tests share the same asyncio loop. DeprecationWarning is benign in pytest-asyncio
+    1.3.x; remove this fixture and add loop_scope=module to fixtures when upgrading.
     """
     loop = asyncio.new_event_loop()
     yield loop
