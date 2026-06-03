@@ -37,7 +37,7 @@ logger = structlog.get_logger(__name__)
 
 AGENT_NAME    = "test_case_agent"
 PROMPT_NAME   = "test_case_gen"
-PROMPT_VERSION = "2.0.0"
+PROMPT_VERSION = "2.1.0"
 MAX_AC_PER_BATCH = 8
 
 
