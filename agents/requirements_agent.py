@@ -61,6 +61,107 @@ class RequirementsAgent:
             "missing_data":    ac_output.missing_data,
         }
 
+    def run_from_confluence(
+        self,
+        prd_url: str,
+        jira_story_keys: list[str] | None = None,
+        feature: str = "",
+    ) -> dict:
+        """
+        Extract ACs from a Confluence PRD (text + images) and cross-reference
+        with one or more Jira tickets + their subtasks.
+
+        Returns the same shape as run_from_jira() with extra keys:
+          prd_source, prd_title, jira_contexts, image_descriptions
+        """
+        from mcp_tools.confluence_client.confluence_client import ConfluenceClient
+        from mcp_tools.jira_client.jira_client import jira_client as _jira
+
+        confluence = ConfluenceClient()
+
+        # ── 1. Fetch PRD text ────────────────────────────────────────────────
+        page = confluence.fetch_page(prd_url)
+        page_id   = page["id"]
+        prd_title = page.get("title", prd_url)
+        prd_text  = page.get("body_text", "")
+        source_ref = feature or prd_title
+
+        logger.info("prd_fetched", page_id=page_id, title=prd_title, chars=len(prd_text))
+
+        # ── 2. Fetch + describe images in PRD ───────────────────────────────
+        image_descriptions = confluence.describe_images_with_llm(page_id)
+        if image_descriptions:
+            prd_text = prd_text + "\n\n--- VISUAL CONTENT ---\n" + image_descriptions
+            logger.info("prd_images_merged", page_id=page_id)
+
+        # ── 3. Fetch Jira context (multi-ticket + subtasks) ─────────────────
+        jira_context_blocks: list[str] = []
+        jira_ac_lines:       list[str] = []
+
+        for key in (jira_story_keys or []):
+            try:
+                issue = _jira.get_issue(key)
+                lines = [
+                    f"JIRA {issue['key']} — {issue.get('summary', '')}",
+                    f"Status: {issue.get('status', '')}  Priority: {issue.get('priority', '')}",
+                ]
+                if issue.get("description"):
+                    lines.append(f"Description:\n{issue['description'][:800]}")
+
+                # Subtasks — full context
+                for st in issue.get("subtasks", []):
+                    lines.append(
+                        f"  Subtask [{st['key']}] {st['summary']} ({st['status']})"
+                        + (f"\n    {st['description'][:200]}" if st.get("description") else "")
+                    )
+
+                # Collect ACs from Jira for cross-reference
+                jira_ac_lines.extend(issue.get("acceptance_criteria", []))
+                jira_context_blocks.append("\n".join(lines))
+                logger.info("jira_ticket_fetched", key=key)
+            except Exception as e:
+                logger.warning("jira_fetch_failed", key=key, error=str(e))
+
+        # ── 4. Build unified content for AC extraction ───────────────────────
+        parts = [f"PRD: {prd_title}\n\n{prd_text}"]
+        if jira_context_blocks:
+            parts.append("JIRA HISTORY:\n" + "\n\n".join(jira_context_blocks))
+        if jira_ac_lines:
+            parts.append("EXISTING AC FROM JIRA (cross-reference — avoid duplicating, flag gaps):\n"
+                         + "\n".join(f"- {a}" for a in jira_ac_lines))
+
+        unified_content = "\n\n---\n".join(parts)
+        clean = input_sanitizer.sanitize(unified_content, source=f"confluence/{page_id}")
+
+        # ── 5. Extract ACs via LLM ───────────────────────────────────────────
+        past_context = rag_engine.retrieve(query=clean.content[:300], top_k=5)
+        ac_output    = self._extract_ac(clean.content, source_ref, past_context)
+        logger.info("ac_extracted_from_prd", criteria_count=len(ac_output.criteria))
+
+        drafts = self._generate_tickets(
+            ac_output,
+            story_key=",".join(jira_story_keys or []) or source_ref,
+            story_summary=prd_title,
+            story_priority="Medium",
+        )
+
+        return {
+            "feature":         ac_output.feature or source_ref,
+            "source_ref":      ac_output.source_ref,
+            "prd_source":      prd_url,
+            "prd_title":       prd_title,
+            "jira_contexts":   jira_story_keys or [],
+            "image_descriptions": bool(image_descriptions),
+            "ac_count":        len(ac_output.criteria),
+            "criteria":        [c.model_dump(mode="json") for c in ac_output.criteria],
+            "acceptance_criteria": [c.summary for c in ac_output.criteria],
+            "ambiguities":     [a.model_dump() for a in ac_output.ambiguities],
+            "assumptions":     [a.model_dump() for a in ac_output.assumptions],
+            "ticket_drafts":   [d.model_dump() for d in drafts],
+            "out_of_scope":    ac_output.out_of_scope,
+            "missing_data":    ac_output.missing_data,
+        }
+
     def run_from_text(self, feature: str, story_text: str, parent_key: str = "") -> dict:
         clean        = input_sanitizer.sanitize(story_text, source="manual_input")
         past_context = rag_engine.retrieve(query=clean.content[:300], top_k=5)

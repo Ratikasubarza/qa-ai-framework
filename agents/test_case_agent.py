@@ -192,17 +192,52 @@ class TestCaseAgent:
             except Exception as e:
                 logger.warning("jira_fetch_failed", key=_jira_key, error=str(e))
 
-        # ── Step 1c: Fetch PRD from Confluence (if URL provided) ─
+        # ── Step 1c: Fetch PRD from Confluence (text + images + auto-AC extraction) ─
         if input_data.confluence_page_url:
             try:
                 confluence = ConfluenceClient()
-                prd_text = confluence.fetch_page(input_data.confluence_page_url)
-                if prd_text:
-                    prd_clean = input_sanitizer.sanitize(prd_text[:1500], source="confluence_prd").content
-                    jira_context_parts.append(
-                        f"CONFLUENCE PRD:\n{prd_clean}"
-                    )
-                    logger.info("confluence_prd_fetched", url=input_data.confluence_page_url)
+                page = confluence.fetch_page(input_data.confluence_page_url)
+                prd_body = page.get("body_text", "") if isinstance(page, dict) else str(page)
+
+                if prd_body:
+                    # Describe images attached to the PRD page
+                    page_id = page.get("id", "") if isinstance(page, dict) else ""
+                    image_desc = ""
+                    if page_id:
+                        image_desc = confluence.describe_images_with_llm(page_id)
+
+                    prd_full = prd_body
+                    if image_desc:
+                        prd_full = prd_full + "\n\n--- VISUAL CONTENT ---\n" + image_desc
+                        logger.info("prd_images_described", page_id=page_id)
+
+                    prd_clean = input_sanitizer.sanitize(prd_full[:4000], source="confluence_prd").content
+                    jira_context_parts.append(f"CONFLUENCE PRD:\n{prd_clean}")
+                    logger.info("confluence_prd_fetched", url=input_data.confluence_page_url, images=bool(image_desc))
+
+                    # Auto-extract ACs from PRD when caller provided none
+                    if not clean_ac:
+                        try:
+                            from agents.requirements_agent import requirements_agent
+                            all_jira_keys = list(dict.fromkeys(
+                                ([input_data.jira_story_key] if input_data.jira_story_key else [])
+                                + list(input_data.jira_story_keys or [])
+                            ))
+                            prd_result = requirements_agent.run_from_confluence(
+                                prd_url=input_data.confluence_page_url,
+                                jira_story_keys=all_jira_keys,
+                                feature=input_data.feature,
+                            )
+                            extracted = prd_result.get("acceptance_criteria", [])
+                            if extracted:
+                                clean_ac = [
+                                    input_sanitizer.sanitize(ac, source="prd_ac").content
+                                    for ac in extracted
+                                ]
+                                logger.info("ac_auto_extracted_from_prd", count=len(clean_ac))
+                        except Exception as e:
+                            logger.warning("prd_ac_extraction_failed", error=str(e))
+
             except PermissionError:
                 logger.warning("confluence_permission_denied", url=input_data.confluence_page_url)
             except FileNotFoundError:
