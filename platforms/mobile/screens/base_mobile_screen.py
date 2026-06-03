@@ -99,6 +99,24 @@ class BaseMobileScreen:
         from skills.assertions.mobile_assertions import MobileAssertions
         return MobileAssertions(self.driver)
 
+    # ── Waits ─────────────────────────────────────────────────────────────────
+
+    def wait_for_text_in_source(self, text: str, timeout: float = 10.0) -> bool:
+        import time
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                if text in self.driver.driver.page_source:
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.5)
+        return False
+
+    def wait_for_element(self, by: str, value: str, timeout: int = 10) -> "BaseMobileScreen":
+        self.driver.find(by, value, timeout)
+        return self
+
     # ── Screenshot / Allure ───────────────────────────────────────────────────
 
     def screenshot(self, name: str = "mobile_screenshot") -> str:

@@ -3,7 +3,6 @@ Mobile Test Hooks — fresh state per test via force terminate + relaunch.
 """
 import pytest
 import time
-from appium.webdriver.common.appiumby import AppiumBy
 from platforms.mobile.appium_driver import AppiumDriver
 from config.test_config import TestConfig
 
@@ -101,21 +100,13 @@ def android_driver():
 @pytest.fixture(scope="function")
 def android_driver_logged_in(android_driver):
     """Pre-logged in fixture."""
+    from features.login.screens.android.login_screen import LoginScreen
     from features.login.test_data.login_test_data import LoginTestData
 
-    els = android_driver.driver.find_elements(
-        AppiumBy.CLASS_NAME, "android.widget.EditText"
+    LoginScreen(android_driver).login(
+        LoginTestData.VALID_EMAIL, LoginTestData.VALID_PASSWORD
     )
-    if len(els) >= 2:
-        els[0].click(); time.sleep(0.3)
-        els[0].send_keys(LoginTestData.VALID_EMAIL)
-        els[1].click(); time.sleep(0.3)
-        els[1].send_keys(LoginTestData.VALID_PASSWORD)
-        android_driver.hide_keyboard()
-        time.sleep(0.3)
-        android_driver.find(AppiumBy.ANDROID_UIAUTOMATOR,
-            'new UiSelector().description("Login to my account")').click()
-        _wait_for_text(android_driver, "Home", timeout=15)
-        print("  ✓ Pre-login complete")
+    _wait_for_text(android_driver, "Home", timeout=15)
+    print("  ✓ Pre-login complete")
 
     yield android_driver
