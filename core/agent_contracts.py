@@ -20,6 +20,7 @@ class TestScenario(BaseModel):
     priority:         str       = "P2"           # P1|P2|P3
     platforms:        list[str] = Field(default_factory=list)
     preconditions:    list[str] = Field(default_factory=list)
+    steps:            str       = ""             # Gherkin: Given / When / Then
     inputs:           dict      = Field(default_factory=dict)
     expected_outcome: str       = ""
     risk_level:       str       = "medium"       # high|medium|low

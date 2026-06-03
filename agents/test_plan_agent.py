@@ -223,6 +223,7 @@ class TestPlanAgent:
             '      "priority": "P1|P2|P3",\n'
             '      "platforms": ["api", "web", "android"],\n'
             '      "preconditions": ["user is registered and verified"],\n'
+            '      "steps": "Given [specific starting state]\\nWhen [precise action with data]\\nThen [measurable outcome]\\nAnd [additional check if needed]",\n'
             '      "inputs": {{"field": "value"}},\n'
             '      "expected_outcome": "exact expected result",\n'
             '      "risk_level": "high|medium|low",\n'
@@ -262,6 +263,13 @@ class TestPlanAgent:
             "- Add scenarios for: empty, null, max+1, special chars (!@#$%),\n"
             "  unicode/emoji, concurrent same action, session expiry mid-flow,\n"
             "  network drop mid-operation, duplicate submission\n\n"
+            "GHERKIN STEPS RULE:\n"
+            "Every scenario must have a 'steps' field written in Gherkin format:\n"
+            "  Given [specific starting state — include exact data]\n"
+            "  When [precise user action with specific values]\n"
+            "  Then [observable, measurable outcome]\n"
+            "  And [additional verification if needed]\n"
+            "Steps must be self-contained — never reference other scenarios.\n\n"
             "Output ONLY valid JSON. No markdown. No explanation outside JSON.\n"
             f"Format:\n{json_template}"
         )
@@ -339,6 +347,7 @@ class TestPlanAgent:
                     priority         = priority if priority in _valid_prio else "P2",
                     platforms        = [str(p) for p in s.get("platforms", [])],
                     preconditions    = [str(p) for p in s.get("preconditions", [])],
+                    steps            = s.get("steps", ""),
                     inputs           = s.get("inputs", {}) if isinstance(s.get("inputs"), dict) else {},
                     expected_outcome = s.get("expected_outcome", ""),
                     risk_level       = risk if risk in _valid_risk else "medium",
