@@ -119,9 +119,11 @@ class TestCaseAgent:
         )
 
         # ── Step 1: Sanitize ──────────────────────────────────
+        # feature and description may be filled later from PRD/Jira
+        resolved_feature = input_data.feature or ""
         clean_desc = input_sanitizer.sanitize(
             input_data.description,
-            source=f"feature/{input_data.feature}"
+            source=f"feature/{resolved_feature or 'unknown'}"
         )
         clean_ac = [
             input_sanitizer.sanitize(ac, source="acceptance_criteria").content
@@ -199,6 +201,12 @@ class TestCaseAgent:
                 page = confluence.fetch_page(input_data.confluence_page_url)
                 prd_body = page.get("body_text", "") if isinstance(page, dict) else str(page)
 
+                # Auto-fill feature name from PRD title if not provided
+                prd_title = page.get("title", "") if isinstance(page, dict) else ""
+                if not resolved_feature and prd_title:
+                    resolved_feature = prd_title
+                    logger.info("feature_resolved_from_prd", feature=resolved_feature)
+
                 if prd_body:
                     # Describe images attached to the PRD page
                     page_id = page.get("id", "") if isinstance(page, dict) else ""
@@ -226,9 +234,12 @@ class TestCaseAgent:
                             prd_result = requirements_agent.run_from_confluence(
                                 prd_url=input_data.confluence_page_url,
                                 jira_story_keys=all_jira_keys,
-                                feature=input_data.feature,
+                                feature=resolved_feature,
                             )
                             extracted = prd_result.get("acceptance_criteria", [])
+                            # Also resolve feature from PRD extraction result if still blank
+                            if not resolved_feature:
+                                resolved_feature = prd_result.get("feature", prd_title)
                             if extracted:
                                 clean_ac = [
                                     input_sanitizer.sanitize(ac, source="prd_ac").content
@@ -254,7 +265,7 @@ class TestCaseAgent:
 
         # ── Step 2: RAG retrieval ─────────────────────────────
         past_context = rag_engine.retrieve(
-            query=f"{input_data.feature} {input_data.description}",
+            query=f"{resolved_feature or input_data.feature} {input_data.description}",
             top_k=5,
         )
         if enriched_context:
@@ -267,6 +278,7 @@ class TestCaseAgent:
                 clean_description=clean_desc.content,
                 clean_acceptance_criteria=clean_ac,
                 past_context=past_context,
+                resolved_feature=resolved_feature,
             )
         else:
             output = self._run_single_generation(
@@ -274,6 +286,7 @@ class TestCaseAgent:
                 clean_description=clean_desc.content,
                 clean_acceptance_criteria=clean_ac,
                 past_context=past_context,
+                resolved_feature=resolved_feature,
             )
 
         # ── Step 6: Human-in-the-Loop (if required) ───────────
@@ -293,12 +306,14 @@ class TestCaseAgent:
         past_context: str,
         batch_index: int | None = None,
         batch_total: int | None = None,
+        resolved_feature: str = "",
     ) -> TestCaseAgentOutput:
+        feature_label = resolved_feature or input_data.feature or "Unknown Feature"
         template = prompt_manager.get(PROMPT_NAME)
         ac_text = "\n".join(f"- {ac}" for ac in clean_acceptance_criteria) or "Not provided"
-        platforms = ", ".join(p.value for p in input_data.platforms)
+        platforms = ", ".join(p.value for p in input_data.platforms) or "web"
         system_prompt = template.format(
-            feature=input_data.feature,
+            feature=feature_label,
             description=clean_description,
             platforms=platforms,
             acceptance_criteria=ac_text,
@@ -316,7 +331,7 @@ class TestCaseAgent:
         def _call_llm():
             return llm_client.complete_text(
                 system=system_prompt,
-                user=f"Generate comprehensive test cases for: {input_data.feature}.{batch_note}",
+                user=f"Generate comprehensive test cases for: {feature_label}.{batch_note}",
                 tier=ModelTier.STANDARD,
                 agent_name=AGENT_NAME,
                 json_mode=True,
@@ -328,6 +343,7 @@ class TestCaseAgent:
             input_data,
             response.model,
             tokens_used=response.tokens_used,
+            resolved_feature=feature_label,
         )
 
     def _run_chunked_generation(
@@ -336,7 +352,9 @@ class TestCaseAgent:
         clean_description: str,
         clean_acceptance_criteria: list[str],
         past_context: str,
+        resolved_feature: str = "",
     ) -> TestCaseAgentOutput:
+        feature_label = resolved_feature or input_data.feature or "Unknown Feature"
         chunks = [
             clean_acceptance_criteria[i:i + MAX_AC_PER_BATCH]
             for i in range(0, len(clean_acceptance_criteria), MAX_AC_PER_BATCH)
@@ -361,6 +379,7 @@ class TestCaseAgent:
                 past_context=past_context if index == 1 else "",
                 batch_index=index,
                 batch_total=len(chunks),
+                resolved_feature=feature_label,
             )
             logger.info(
                 "test_case_chunk_complete",
@@ -380,7 +399,7 @@ class TestCaseAgent:
 
         logger.info("test_case_chunked_complete", total=len(merged_scenarios))
         return TestCaseAgentOutput(
-            feature=input_data.feature,
+            feature=feature_label,
             scenarios=merged_scenarios,
             coverage_summary="\n".join(coverage_parts),
             total_scenarios=len(merged_scenarios),
@@ -396,6 +415,7 @@ class TestCaseAgent:
         input_data: TestCaseAgentInput,
         model_used: str,
         tokens_used: int = 0,
+        resolved_feature: str = "",
     ) -> TestCaseAgentOutput:
         """Parse LLM JSON response into typed TestCaseAgentOutput."""
         # Clean common LLM artifacts
@@ -416,7 +436,7 @@ class TestCaseAgent:
                     data = json.loads(raw)
                 except json.JSONDecodeError:
                     logger.warning("test_case_parse_salvage_failed", raw_preview=raw[:500])
-                    data = _salvage_scenarios_from_truncated_json(raw, input_data.feature)
+                    data = _salvage_scenarios_from_truncated_json(raw, resolved_feature or input_data.feature)
             else:
                 data = _salvage_scenarios_from_truncated_json(raw, input_data.feature)
 
@@ -526,7 +546,7 @@ class TestCaseAgent:
             ))
 
         return TestCaseAgentOutput(
-            feature=input_data.feature,
+            feature=resolved_feature or input_data.feature or "Unknown Feature",
             scenarios=scenarios,
             coverage_summary=data.get("coverage_summary", ""),
             total_scenarios=len(scenarios),

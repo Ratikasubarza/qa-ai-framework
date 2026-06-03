@@ -13,13 +13,13 @@ Generate a **test plan** then **detailed test cases** from a Confluence PRD URL 
 
 ## How to Parse User Input
 
-| Input from user | Field to populate |
-|---|---|
-| Feature / module name | `FEATURE_NAME` |
-| Confluence PRD URL | `CONFLUENCE_URL` (e.g. `https://company.atlassian.net/wiki/...`) |
-| Jira ticket(s) | `TICKET_IDS` — list, e.g. `["HONO-123", "HONO-124"]` |
-| Platforms | `PLATFORMS` — `web`, `api`, `mobile` (default: `["web"]`) |
-| AC text (optional) | `AC_LIST` — leave `[]` to auto-extract from PRD/Jira |
+| Input dari user | Field | Wajib? |
+|---|---|---|
+| Feature / module name | `FEATURE_NAME` | ❌ Auto-filled dari judul PRD |
+| Confluence PRD URL | `CONFLUENCE_URL` | ✅ Minimal salah satu (PRD atau Jira) |
+| Jira ticket(s) | `TICKET_IDS` — `["HONO-123", "HONO-124"]` | ✅ Minimal salah satu |
+| Platforms | `PLATFORMS` — `web`, `api`, `mobile` | ❌ Default `["web"]` |
+| AC text | `AC_LIST` | ❌ Auto-extract dari PRD + Jira |
 
 ---
 
@@ -107,13 +107,13 @@ from core.agent_contracts import TestCaseAgentInput
 
 async def main():
     inp = TestCaseAgentInput(
-        feature='FEATURE_NAME',
-        description='DESCRIPTION',
+        feature='',                          # auto-filled dari judul PRD
+        description='',                      # auto-filled dari konten PRD
         platforms=['web'],
-        acceptance_criteria=[],             # leave empty — auto-extracted from PRD
+        acceptance_criteria=[],              # auto-extracted dari PRD + Jira
         confluence_page_url='CONFLUENCE_URL',
-        jira_story_key='HONO-123',          # primary ticket (None if not applicable)
-        jira_story_keys=['HONO-124', 'HONO-125'],  # additional tickets for context
+        jira_story_key='HONO-123',           # primary ticket (None jika tidak ada)
+        jira_story_keys=['HONO-124', 'HONO-125'],  # tiket tambahan untuk context
     )
     output = await test_case_agent.run(inp, require_approval=False)
 

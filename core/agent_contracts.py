@@ -124,14 +124,14 @@ class ScenarioSchema(BaseModel):
 
 
 class TestCaseAgentInput(BaseModel):
-    feature:         str
-    description:     str
-    acceptance_criteria: list[str] = Field(default_factory=list)
-    platforms:       list[Platform]
-    jira_story_key:      Optional[str]       = None
-    jira_story_keys:     list[str]           = Field(default_factory=list)  # multi-ticket support
-    confluence_page_url: Optional[str]       = None
-    context:             Optional[str]       = None  # Extra context for the agent
+    feature:         str                 = ""   # auto-filled from PRD title if blank
+    description:     str                 = ""
+    acceptance_criteria: list[str]       = Field(default_factory=list)
+    platforms:       list[Platform]      = Field(default_factory=list)
+    jira_story_key:      Optional[str]   = None
+    jira_story_keys:     list[str]       = Field(default_factory=list)  # multi-ticket support
+    confluence_page_url: Optional[str]   = None
+    context:             Optional[str]   = None  # Extra context for the agent
 
 
 class TestCaseAgentOutput(BaseModel):
