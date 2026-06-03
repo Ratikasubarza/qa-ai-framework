@@ -435,7 +435,7 @@ class TestPlanAgent:
 
     def save_report(self, output: TestPlanOutput, feature: str, run_id: str) -> dict[str, str]:
         """
-        Persist test plan as JSON + Excel + CSV inside reports/test_plans/.
+        Persist test plan as CSV inside reports/test_plans/.
 
         Args:
             output:  TestPlanOutput to serialise.
@@ -443,27 +443,15 @@ class TestPlanAgent:
             run_id:  Pipeline run ID for uniqueness.
 
         Returns:
-            Dict with keys "json", "excel", "csv" pointing to saved files.
+            Dict with key "csv" pointing to saved file.
         """
         from skills.reporting.excel_writer import test_plan_excel_writer
 
-        # JSON
-        json_path = Path(f"reports/test_plans/{feature}_{run_id}.json")
-        json_path.parent.mkdir(parents=True, exist_ok=True)
-        json_path.write_text(output.model_dump_json(indent=2))
+        csv_path = test_plan_excel_writer.write_csv(output)
 
-        # Excel + CSV
-        sheet_paths = test_plan_excel_writer.write_both(output)
-
-        paths = {
-            "json":  str(json_path),
-            "excel": str(sheet_paths["excel"]),
-            "csv":   str(sheet_paths["csv"]),
-        }
+        paths = {"csv": str(csv_path)}
         logger.info(
             "test_plan_saved",
-            path=paths["json"],
-            excel=paths["excel"],
             csv=paths["csv"],
             scenarios=output.total_scenarios,
             techniques=output.techniques_used,

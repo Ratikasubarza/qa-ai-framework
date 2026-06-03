@@ -29,7 +29,7 @@ Jalankan SATU script ini — Step 1 (AC extraction) → Step 2 (test plan) → S
 
 ```bash
 PYTHONPATH=. python3 -c "
-import asyncio, json, datetime
+import asyncio, datetime
 from pathlib import Path
 from agents.requirements_agent import requirements_agent
 from agents.test_plan_agent import test_plan_agent
@@ -106,23 +106,11 @@ tc_output = asyncio.run(run_test_cases())
 # Save to reports/test_cases/
 tc_dir = Path('reports/test_cases')
 tc_dir.mkdir(parents=True, exist_ok=True)
-writer = ExcelWriter(output_dir=str(tc_dir))
-tc_paths = writer.write_both(tc_output)
-tc_json  = tc_dir / f'{RUN_ID}_test_cases.json'
-tc_json.write_text(
-    json.dumps(
-        {'feature': tc_output.feature, 'total': tc_output.total_scenarios,
-         'run_id': RUN_ID, 'scenarios': [s.model_dump() for s in tc_output.scenarios]},
-        indent=2, default=str,
-    ),
-    encoding='utf-8',
-)
+writer  = ExcelWriter(output_dir=str(tc_dir))
+tc_csv  = writer.write_csv(tc_output)
 print(f'Total        : {tc_output.total_scenarios}')
 print(f'Confidence   : {tc_output.confidence_score}')
-print(f'Saved to     :')
-print(f'  json : {tc_json}')
-for k, v in tc_paths.items():
-    print(f'  {k}: {v}')
+print(f'Saved to     : {tc_csv}')
 print()
 for s in tc_output.scenarios:
     print(f'  [{s.priority}] {s.scenario_id} — {s.name}')
@@ -139,11 +127,7 @@ for s in tc_output.scenarios:
 
 | Artefak | Path |
 |---|---|
-| Test Plan JSON | `reports/test_plans/<feature>_<run_id>.json` |
-| Test Plan Excel | `reports/test_plans/<feature>_<run_id>.xlsx` |
-| Test Plan CSV | `reports/test_plans/<feature>_<run_id>.csv` |
-| Test Cases JSON | `reports/test_cases/<run_id>_test_cases.json` |
-| Test Cases Excel | `reports/test_cases/test_cases_<date>.xlsx` |
+| Test Plan CSV | `reports/test_plans/<feature>_test_plan_<date>.csv` |
 | Test Cases CSV | `reports/test_cases/test_cases_<date>.csv` |
 
 ---
