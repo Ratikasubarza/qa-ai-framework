@@ -128,21 +128,30 @@ class TestCaseAgent:
             for ac in input_data.acceptance_criteria
         ]
 
-        # ── Step 1b: Enrich from Jira (if issue key provided) ─
+        # ── Step 1b: Enrich from Jira (single or multiple tickets) ─
         jira_context_parts: list[str] = []
-        if input_data.jira_story_key:
-            try:
-                issue = jira_client.get_issue(input_data.jira_story_key)
-                logger.info("jira_issue_fetched", key=input_data.jira_story_key)
 
-                # Merge acceptance criteria from Jira description if not supplied
+        # Resolve all ticket keys: merge jira_story_key + jira_story_keys, deduplicate
+        _keys: list[str] = []
+        if input_data.jira_story_key:
+            _keys.append(input_data.jira_story_key)
+        for k in input_data.jira_story_keys:
+            if k and k not in _keys:
+                _keys.append(k)
+
+        for _jira_key in _keys:
+            try:
+                issue = jira_client.get_issue(_jira_key)
+                logger.info("jira_issue_fetched", key=_jira_key)
+
+                # Merge AC from Jira only when no AC was provided by caller (first ticket wins)
                 if not clean_ac and issue.get("acceptance_criteria"):
                     clean_ac = [
                         input_sanitizer.sanitize(ac, source="jira_ac").content
                         for ac in issue["acceptance_criteria"]
                     ]
 
-                # Build Jira context block
+                # Build context block for this ticket
                 jira_ctx_lines = [
                     f"JIRA STORY: {issue['key']} — {input_sanitizer.sanitize(issue['summary'], source='jira_summary').content}",
                     f"Status: {issue.get('status', '')}  Priority: {issue.get('priority', '')}",
@@ -150,24 +159,38 @@ class TestCaseAgent:
                 if issue.get("description"):
                     jira_ctx_lines.append(f"Description:\n{input_sanitizer.sanitize(issue['description'][:600], source='jira_description').content}")
 
-                # Include existing QA subtasks to avoid duplicating already-generated cases
-                existing_subtasks = [
-                    st for st in issue.get("subtasks", [])
-                    if "QA" in st.get("summary", "").upper() or "qa-automation" in st.get("summary", "").lower()
-                ]
-                if existing_subtasks:
-                    jira_ctx_lines.append("\nExisting QA subtasks (avoid duplicating these):")
-                    for st in existing_subtasks:
-                        clean_st_summary = input_sanitizer.sanitize(st['summary'], source='jira_subtask_summary').content
-                        clean_st_desc = input_sanitizer.sanitize(st['description'][:200], source='jira_subtask_desc').content if st.get("description") else ""
-                        jira_ctx_lines.append(
-                            f"  [{st['key']}] {clean_st_summary} ({st['status']})"
-                            + (f"\n    {clean_st_desc}" if clean_st_desc else "")
-                        )
+                # All subtasks (not only QA) — give full context on multi-ticket flows
+                all_subtasks = issue.get("subtasks", [])
+                if all_subtasks:
+                    qa_subtasks = [
+                        st for st in all_subtasks
+                        if "QA" in st.get("summary", "").upper() or "qa-automation" in st.get("summary", "").lower()
+                    ]
+                    other_subtasks = [st for st in all_subtasks if st not in qa_subtasks]
+
+                    if other_subtasks:
+                        jira_ctx_lines.append("\nSubtasks:")
+                        for st in other_subtasks:
+                            clean_st_summary = input_sanitizer.sanitize(st['summary'], source='jira_subtask_summary').content
+                            clean_st_desc = input_sanitizer.sanitize(st['description'][:200], source='jira_subtask_desc').content if st.get("description") else ""
+                            jira_ctx_lines.append(
+                                f"  [{st['key']}] {clean_st_summary} ({st['status']})"
+                                + (f"\n    {clean_st_desc}" if clean_st_desc else "")
+                            )
+
+                    if qa_subtasks:
+                        jira_ctx_lines.append("\nExisting QA subtasks (avoid duplicating these):")
+                        for st in qa_subtasks:
+                            clean_st_summary = input_sanitizer.sanitize(st['summary'], source='jira_subtask_summary').content
+                            clean_st_desc = input_sanitizer.sanitize(st['description'][:200], source='jira_subtask_desc').content if st.get("description") else ""
+                            jira_ctx_lines.append(
+                                f"  [{st['key']}] {clean_st_summary} ({st['status']})"
+                                + (f"\n    {clean_st_desc}" if clean_st_desc else "")
+                            )
 
                 jira_context_parts.append("\n".join(jira_ctx_lines))
             except Exception as e:
-                logger.warning("jira_fetch_failed", key=input_data.jira_story_key, error=str(e))
+                logger.warning("jira_fetch_failed", key=_jira_key, error=str(e))
 
         # ── Step 1c: Fetch PRD from Confluence (if URL provided) ─
         if input_data.confluence_page_url:

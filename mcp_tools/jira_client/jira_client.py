@@ -161,6 +161,16 @@ class JiraClient:
             )
         }
 
+    def get_issues(self, issue_keys: list[str]) -> list[dict]:
+        """Fetch multiple Jira issues including their subtasks."""
+        results = []
+        for key in issue_keys:
+            try:
+                results.append(self.get_issue(key))
+            except Exception as e:
+                results.append({"key": key, "error": str(e)})
+        return results
+
     def get_attachments(self, issue_key: str) -> list:
         """Fetch all attachments from a Jira issue."""
         with httpx.Client() as client:
