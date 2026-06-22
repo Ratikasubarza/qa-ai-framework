@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from skills.testing.helpers import skip_on_email_quota
 from features.posts.test_data.create_post_test_data import (
     CreatePostPayload, CreatePostTestData,
@@ -35,7 +35,7 @@ async def test_TC_POST_API_001_create_post_valid_data(post_token):
     payload = CreatePostPayload.valid().as_dict()
     response = await _create_post(payload, post_token)
 
-    (APIAssertions(response)
+    (SchemaValidator(response)
      .status_in(200, 201)
      .code_equals(CreatePostTestData.SUCCESS_CODE)
      .has_key("id")
@@ -49,7 +49,7 @@ async def test_TC_POST_API_002_create_post_with_media(post_token):
     payload = CreatePostPayload.with_media().as_dict()
     response = await _create_post(payload, post_token)
 
-    (APIAssertions(response)
+    (SchemaValidator(response)
      .status_in(200, 201)
      .code_equals(CreatePostTestData.SUCCESS_CODE)
      .has_key("id"))
@@ -128,7 +128,7 @@ async def test_TC_POST_API_007_create_post_no_token():
     async with HonoAPIClient() as client:
         response = await client.post(ENDPOINT, json=CreatePostPayload.valid().as_dict())
 
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)
 
 
 @pytest.mark.security
@@ -150,7 +150,7 @@ async def test_TC_POST_API_008_create_post_no_api_key():
             },
         )
 
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)
 
 
 # ── Negative ──────────────────────────────────────────────────────────────────
@@ -162,8 +162,8 @@ async def test_TC_POST_API_009_create_post_no_topics(post_token):
     payload = CreatePostPayload.no_topics().as_dict()
     response = await _create_post(payload, post_token)
 
-    (APIAssertions(response)
-     .status(422)
+    (SchemaValidator(response)
+     .status_is(422)
      .code_equals(CreatePostTestData.VALIDATION_CODE)
      .body_contains_error("topic"))
 
@@ -175,7 +175,7 @@ async def test_TC_POST_API_010_create_post_empty_content(post_token):
     payload = CreatePostPayload.empty_content().as_dict()
     response = await _create_post(payload, post_token)
 
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 @pytest.mark.negative
@@ -185,7 +185,7 @@ async def test_TC_POST_API_011_create_post_missing_content(post_token):
     payload = CreatePostPayload.valid().without("content")
     response = await _create_post(payload, post_token)
 
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 @pytest.mark.negative
@@ -195,7 +195,7 @@ async def test_TC_POST_API_012_create_post_invalid_visibility(post_token):
     payload = CreatePostPayload.with_visibility(CreatePostTestData.VISIBILITY_INVALID).as_dict()
     response = await _create_post(payload, post_token)
 
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 @pytest.mark.negative
@@ -205,7 +205,7 @@ async def test_TC_POST_API_013_create_post_missing_topic_ids(post_token):
     payload = CreatePostPayload.valid().without("topic_ids")
     response = await _create_post(payload, post_token)
 
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── Boundary ──────────────────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ async def test_TC_POST_API_014_create_post_long_content(post_token):
     payload = CreatePostPayload.long_content(5000).as_dict()
     response = await _create_post(payload, post_token)
 
-    APIAssertions(response).status_in(200, 201, 400, 422)
+    SchemaValidator(response).status_in(200, 201, 400, 422)
     print(f"\n  5000-char content → {response.status_code}")
 
 
@@ -227,7 +227,7 @@ async def test_TC_POST_API_015_create_post_empty_body(post_token):
     """TC-POST-API-015 | Boundary | Create post with completely empty body returns 400 or 422"""
     response = await _create_post({}, post_token)
 
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)
 
 
 # ── Performance ───────────────────────────────────────────────────────────────
@@ -240,4 +240,4 @@ async def test_TC_POST_API_016_create_post_response_time(post_token):
     response = await _create_post(payload, post_token)
 
     assert response.status_code in (200, 201)
-    APIAssertions(response).response_time_under(CreatePostTestData.MAX_RESPONSE_MS)
+    SchemaValidator(response).response_time_under(CreatePostTestData.MAX_RESPONSE_MS)

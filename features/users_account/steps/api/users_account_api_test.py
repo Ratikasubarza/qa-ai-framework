@@ -40,8 +40,6 @@ async def auth_client(approved_account_user):
         yield client
 
 
-@allure.story("TC-USERS-ACCOUNT-001: Get account information success")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_001_get_account_information_success(
     approved_account_user,
@@ -65,8 +63,6 @@ async def test_TC_USERS_ACCOUNT_001_get_account_information_success(
     assert data.get("email") == approved_account_user["email"]
 
 
-@allure.story("TC-USERS-ACCOUNT-002: Get account without token")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_002_get_account_without_token():
     """
@@ -81,8 +77,6 @@ async def test_TC_USERS_ACCOUNT_002_get_account_without_token():
     SchemaValidator(response).status_unauthorized()
 
 
-@allure.story("TC-USERS-ACCOUNT-003: Optional fields allow legacy nulls")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     strict=True,
@@ -91,6 +85,7 @@ async def test_TC_USERS_ACCOUNT_002_get_account_without_token():
         "the key to exist with object or null value."
     ),
 )
+@pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_003_account_optional_fields_allow_legacy_nulls(
     auth_client,
 ):
@@ -124,8 +119,6 @@ async def test_TC_USERS_ACCOUNT_003_account_optional_fields_allow_legacy_nulls(
         )
 
 
-@allure.story("TC-USERS-ACCOUNT-004: Update account information success")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_004_update_account_information_success(
     approved_account_user,
@@ -161,8 +154,6 @@ async def test_TC_USERS_ACCOUNT_004_update_account_information_success(
     assert data.get("phone_code") == update_payload["phone_code"]
 
 
-@allure.story("TC-USERS-ACCOUNT-005: Update account without token")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_005_update_account_without_token():
     """
@@ -180,8 +171,6 @@ async def test_TC_USERS_ACCOUNT_005_update_account_without_token():
     SchemaValidator(response).status_unauthorized()
 
 
-@allure.story("TC-USERS-ACCOUNT-006: Update account rejects invalid phone code")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_ACCOUNT_006_update_account_rejects_invalid_phone_code(
     approved_account_user,

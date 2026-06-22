@@ -24,7 +24,7 @@ class RegisterPayload(PayloadBuilder):
     email:              str = field(default_factory=lambda: f"qa+{int(time.time())}@mailinator.com")
     phone_number:       str = field(default_factory=lambda: str(int(time.time()))[-9:])
     phone_country_code: str = "ID"
-    linkedin:           str = "https://linkedin.com/in/Ratikasaubarza"
+    linkedin:           str = field(default_factory=lambda: f"https://linkedin.com/in/testuser{int(time.time())}")
 
     # ── Named constructors for common cases ──────────────────────────────
 

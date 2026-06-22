@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("Search")
@@ -13,6 +13,7 @@ pytestmark = allure.feature("Search")
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_001_search_posts_recent(search_token):
     """TC-SRCH-001 | Smoke | Search posts with tab=recent returns 200"""
     async with HonoAPIClient() as client:
@@ -28,6 +29,7 @@ async def test_TC_SRCH_001_search_posts_recent(search_token):
 
 
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_002_search_posts_recent_empty_result(search_token):
     """TC-SRCH-002 | Functional | Search posts with no-match query returns empty list"""
     async with HonoAPIClient() as client:
@@ -44,6 +46,7 @@ async def test_TC_SRCH_002_search_posts_recent_empty_result(search_token):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_003_search_posts_no_token():
     """TC-SRCH-003 | Security | Search posts without auth returns 401"""
     async with HonoAPIClient() as client:
@@ -51,13 +54,14 @@ async def test_TC_SRCH_003_search_posts_no_token():
             APIEndpoints.SEARCH_POSTS,
             params={"query": "hono", "tab": "recent"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)
 
 
 # ── GET /v1/search/posts?tab=top ─────────────────────────────────────────────
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_004_search_posts_top(search_token):
     """TC-SRCH-004 | Smoke | Search posts with tab=top returns 200"""
     async with HonoAPIClient() as client:
@@ -73,6 +77,7 @@ async def test_TC_SRCH_004_search_posts_top(search_token):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_005_search_posts_missing_query(search_token):
     """TC-SRCH-005 | Negative | Search posts without query param returns 400/422"""
     async with HonoAPIClient() as client:
@@ -81,13 +86,14 @@ async def test_TC_SRCH_005_search_posts_missing_query(search_token):
             params={"tab": "recent"},
             headers={"Authorization": f"Bearer {search_token}"},
         )
-    APIAssertions(response).status_in(400, 422, 200)
+    SchemaValidator(response).status_in(400, 422, 200)
 
 
 # ── GET /v1/search/typeahead ──────────────────────────────────────────────────
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_006_search_typeahead(search_token):
     """TC-SRCH-006 | Smoke | Typeahead with query returns 200 with suggestions"""
     async with HonoAPIClient() as client:
@@ -102,6 +108,7 @@ async def test_TC_SRCH_006_search_typeahead(search_token):
 
 
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_007_search_typeahead_schema(search_token):
     """TC-SRCH-007 | Functional | Typeahead response has suggestions and profiles keys"""
     async with HonoAPIClient() as client:
@@ -118,6 +125,7 @@ async def test_TC_SRCH_007_search_typeahead_schema(search_token):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_008_search_typeahead_no_token():
     """TC-SRCH-008 | Security | Typeahead without auth returns 401"""
     async with HonoAPIClient() as client:
@@ -125,13 +133,14 @@ async def test_TC_SRCH_008_search_typeahead_no_token():
             APIEndpoints.SEARCH_TYPEAHEAD,
             params={"query": "test"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)
 
 
 # ── GET /v1/search/users ─────────────────────────────────────────────────────
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_009_search_users(search_token):
     """TC-SRCH-009 | Smoke | Search users by query returns 200"""
     async with HonoAPIClient() as client:
@@ -147,6 +156,7 @@ async def test_TC_SRCH_009_search_users(search_token):
 
 
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_010_search_users_empty(search_token):
     """TC-SRCH-010 | Functional | Search users with no-match query returns empty data"""
     async with HonoAPIClient() as client:
@@ -163,6 +173,7 @@ async def test_TC_SRCH_010_search_users_empty(search_token):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_SRCH_011_search_users_no_token():
     """TC-SRCH-011 | Security | Search users without auth returns 401"""
     async with HonoAPIClient() as client:
@@ -170,4 +181,4 @@ async def test_TC_SRCH_011_search_users_no_token():
             APIEndpoints.SEARCH_USERS,
             params={"query": "test"},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)

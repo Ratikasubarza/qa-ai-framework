@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("Network")
@@ -13,6 +13,7 @@ pytestmark = allure.feature("Network")
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_001_get_followers_authenticated(network_token):
     """TC-NET-001 | Smoke | Get followers returns 200 with data array"""
     async with HonoAPIClient() as client:
@@ -27,6 +28,7 @@ async def test_TC_NET_001_get_followers_authenticated(network_token):
 
 
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_002_get_followers_with_pagination(network_token):
     """TC-NET-002 | Functional | Get followers with page/limit params"""
     async with HonoAPIClient() as client:
@@ -35,22 +37,24 @@ async def test_TC_NET_002_get_followers_with_pagination(network_token):
             params={"page": 1, "limit": 10},
             headers={"Authorization": f"Bearer {network_token}"},
         )
-    APIAssertions(response).status(200)
+    SchemaValidator(response).status_is(200)
 
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_003_get_followers_no_token():
     """TC-NET-003 | Security | Get followers without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.NETWORK_FOLLOWERS)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)
 
 
 # ── GET /v1/network/following ─────────────────────────────────────────────────
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_004_get_following_authenticated(network_token):
     """TC-NET-004 | Smoke | Get following returns 200 with data array"""
     async with HonoAPIClient() as client:
@@ -65,6 +69,7 @@ async def test_TC_NET_004_get_following_authenticated(network_token):
 
 
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_005_get_following_with_query(network_token):
     """TC-NET-005 | Functional | Get following with search query"""
     async with HonoAPIClient() as client:
@@ -73,22 +78,24 @@ async def test_TC_NET_005_get_following_with_query(network_token):
             params={"page": 1, "limit": 10, "query": "test"},
             headers={"Authorization": f"Bearer {network_token}"},
         )
-    APIAssertions(response).status(200)
+    SchemaValidator(response).status_is(200)
 
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_006_get_following_no_token():
     """TC-NET-006 | Security | Get following without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.NETWORK_FOLLOWING)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)
 
 
 # ── GET /v1/network/suggestions ───────────────────────────────────────────────
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_007_get_suggestions_authenticated(network_token):
     """TC-NET-007 | Smoke | Get network suggestions returns 200"""
     async with HonoAPIClient() as client:
@@ -103,6 +110,7 @@ async def test_TC_NET_007_get_suggestions_authenticated(network_token):
 
 
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_008_get_suggestions_schema(network_token):
     """TC-NET-008 | Functional | Suggestions data items have expected shape"""
     async with HonoAPIClient() as client:
@@ -121,8 +129,9 @@ async def test_TC_NET_008_get_suggestions_schema(network_token):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_NET_009_get_suggestions_no_token():
     """TC-NET-009 | Security | Get suggestions without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(APIEndpoints.NETWORK_SUGGESTIONS)
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)

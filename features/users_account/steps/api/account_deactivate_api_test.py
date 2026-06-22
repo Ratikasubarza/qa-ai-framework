@@ -7,7 +7,7 @@ import pytest_asyncio
 
 from core.db.test_user_helper import create_approved_user_sync
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from skills.testing.helpers import skip_on_email_quota
 from config.test_config import APIEndpoints
 
@@ -41,6 +41,7 @@ async def deactivate_token(deactivate_user) -> str:
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_ACC_010_deactivate_valid_password(deactivate_user, deactivate_token):
     """TC-ACC-010 | Smoke | Deactivate with correct password returns 200"""
     async with HonoAPIClient() as client:
@@ -49,13 +50,14 @@ async def test_TC_ACC_010_deactivate_valid_password(deactivate_user, deactivate_
             json={"password": deactivate_user["password"]},
             headers={"Authorization": f"Bearer {deactivate_token}"},
         )
-    APIAssertions(response).status_in(200, 204)
+    SchemaValidator(response).status_in(200, 204)
 
 
 # ── Unauthorized ──────────────────────────────────────────────────────────────
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_ACC_011_deactivate_no_token(deactivate_user):
     """TC-ACC-011 | Security | Deactivate without auth token returns 401"""
     async with HonoAPIClient() as client:
@@ -63,13 +65,14 @@ async def test_TC_ACC_011_deactivate_no_token(deactivate_user):
             ENDPOINT,
             json={"password": deactivate_user["password"]},
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)
 
 
 # ── Invalid input ─────────────────────────────────────────────────────────────
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_ACC_012_deactivate_wrong_password(deactivate_token):
     """TC-ACC-012 | Negative | Deactivate with wrong password returns 400/401"""
     async with HonoAPIClient() as client:
@@ -78,11 +81,12 @@ async def test_TC_ACC_012_deactivate_wrong_password(deactivate_token):
             json={"password": "WrongPassword999!"},
             headers={"Authorization": f"Bearer {deactivate_token}"},
         )
-    APIAssertions(response).status_in(400, 401, 422)
+    SchemaValidator(response).status_in(400, 401, 422)
 
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_ACC_013_deactivate_missing_password(deactivate_token):
     """TC-ACC-013 | Negative | Deactivate with missing password field returns 400/422"""
     async with HonoAPIClient() as client:
@@ -91,4 +95,4 @@ async def test_TC_ACC_013_deactivate_missing_password(deactivate_token):
             json={},
             headers={"Authorization": f"Bearer {deactivate_token}"},
         )
-    APIAssertions(response).status_in(400, 422)
+    SchemaValidator(response).status_in(400, 422)

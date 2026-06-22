@@ -62,8 +62,6 @@ async def auth_client(approved_password_user):
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
-@allure.story("TC-USERS-PASSWORD-001: Change password success")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_PASSWORD_001_change_password_success(
     approved_password_user,
@@ -103,8 +101,6 @@ async def test_TC_USERS_PASSWORD_001_change_password_success(
     UsersPasswordTestData.reset_password(approved_password_user["email"])
 
 
-@allure.story("TC-USERS-PASSWORD-002: Change password without token")
-@allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_PASSWORD_002_change_password_without_token():
     """
@@ -121,8 +117,6 @@ async def test_TC_USERS_PASSWORD_002_change_password_without_token():
     SchemaValidator(response).status_unauthorized()
 
 
-@allure.story("TC-USERS-PASSWORD-003: Wrong current password preserves password")
-@allure.severity(allure.severity_level.NORMAL)
 @pytest.mark.asyncio
 async def test_TC_USERS_PASSWORD_003_wrong_current_password_preserves_password(
     approved_password_user,
@@ -153,8 +147,6 @@ async def test_TC_USERS_PASSWORD_003_wrong_current_password_preserves_password(
     )
 
 
-@allure.story("TC-USERS-PASSWORD-004: Missing required field")
-@allure.severity(allure.severity_level.MINOR)
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("missing_field", "payload"),
@@ -164,6 +156,7 @@ async def test_TC_USERS_PASSWORD_003_wrong_current_password_preserves_password(
     ],
     ids=["missing_current_password", "missing_new_password"],
 )
+@pytest.mark.asyncio
 async def test_TC_USERS_PASSWORD_004_missing_required_field(
     auth_client,
     missing_field,

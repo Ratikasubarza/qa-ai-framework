@@ -3,7 +3,7 @@ import pytest
 import allure
 
 from platforms.api.httpx_client import HonoAPIClient
-from skills.assertions.api_assertions import APIAssertions
+from skills.api.schema_validator import SchemaValidator
 from config.test_config import APIEndpoints
 
 pytestmark = allure.feature("Storage")
@@ -14,6 +14,7 @@ INVALID_KEY = "invalid/path"
 
 @pytest.mark.smoke
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_STR_001_presign_valid_key_format(storage_token):
     """TC-STR-001 | Smoke | Get presigned URL with valid key path returns 200 or 404"""
     async with HonoAPIClient() as client:
@@ -21,7 +22,7 @@ async def test_TC_STR_001_presign_valid_key_format(storage_token):
             APIEndpoints.storage_presign(SAMPLE_KEY),
             headers={"Authorization": f"Bearer {storage_token}"},
         )
-    APIAssertions(response).status_in(200, 404)
+    SchemaValidator(response).status_in(200, 404)
     if response.status_code == 200:
         body = response.json()
         data = body.get("data", {})
@@ -30,16 +31,18 @@ async def test_TC_STR_001_presign_valid_key_format(storage_token):
 
 @pytest.mark.negative
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_STR_002_presign_no_token():
     """TC-STR-002 | Security | Presign URL without auth returns 401"""
     async with HonoAPIClient() as client:
         response = await client.get(
             APIEndpoints.storage_presign(SAMPLE_KEY),
         )
-    APIAssertions(response).status(401)
+    SchemaValidator(response).status_is(401)
 
 
 @pytest.mark.api
+@pytest.mark.asyncio
 async def test_TC_STR_003_presign_response_schema(storage_token):
     """TC-STR-003 | Functional | Presign URL response has code field"""
     async with HonoAPIClient() as client:

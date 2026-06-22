@@ -128,3 +128,41 @@ class SchemaValidator:
             f"Actual:   '{actual}'"
         )
         return self
+
+    def status_in(self, *codes: int):
+        """Assert status code is one of the expected codes."""
+        actual = self.response.status_code
+        assert actual in codes, (
+            f"Status code {actual} not in expected {codes}\n"
+            f"Body: {str(self.body)[:200]}"
+        )
+        return self
+
+    def has_token(self):
+        """Assert accessToken or token is present and non-empty."""
+        data = self.body.get("data", self.body)
+        target = data if isinstance(data, dict) else self.body
+        token = target.get("accessToken") or target.get("token")
+        assert token, (
+            f"No token found in response.\nBody: {str(self.body)[:300]}"
+        )
+        return self
+
+    def no_token(self):
+        """Assert no token returned — for failed auth tests."""
+        data = self.body.get("data", self.body)
+        target = data if isinstance(data, dict) else self.body
+        token = target.get("accessToken") or target.get("token")
+        assert not token, (
+            f"Token should NOT be present but got: {str(token)[:80]}"
+        )
+        return self
+
+    def body_contains_error(self, keyword: str):
+        """Assert error message contains keyword — case-insensitive."""
+        raw = str(self.body).lower()
+        assert keyword.lower() in raw, (
+            f"Error keyword '{keyword}' not found in response.\n"
+            f"Body: {str(self.body)[:300]}"
+        )
+        return self

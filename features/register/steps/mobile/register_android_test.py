@@ -104,7 +104,7 @@ def test_TC_MOB_REG_001_register_valid_data(register_driver):
         ) as c:
             r = await c.post(APIEndpoints.REGISTER, json={
                 "fullname": "quota check",
-                "email": f"quotacheck+{int(__import__('time').time())}@mailinator.com",
+                "email": f"quotacheck+{int(time.time())}@mailinator.com",
                 "phone_number": "811111111",
                 "phone_country_code": "ID",
                 "linkedin": "https://linkedin.com/in/quotacheck"
