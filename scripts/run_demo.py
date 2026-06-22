@@ -29,6 +29,9 @@ _MOCK_ENV = {
     "TELEGRAM_QA_TEAM_CHAT_ID":  "-100000002",
     "TELEGRAM_QA_OPS_CHAT_ID":   "-100000003",
     "TELEGRAM_QA_BUGS_CHAT_ID":  "-100000004",
+    "HONO_API_URL":              "https://api-dev.thehono.com",
+    "HONO_WEB_URL":              "https://app-dev.thehono.com",
+    "HONO_CMS_URL":              "https://cms-dev.thehono.com",
 }
 for _k, _v in _MOCK_ENV.items():
     os.environ.setdefault(_k, _v)
@@ -45,10 +48,7 @@ sys.modules.setdefault("openai.types.chat",   MagicMock())
 sys.modules.setdefault("openai._client",      MagicMock())
 
 # ── 3. Now safe: import framework ─────────────────────────────────────────────
-from agents.test_plan_agent import (       # noqa: E402
-    TestPlanAgent,
-    _DT_PATTERNS, _PAIRWISE_PARAMS, _BVA_KEYWORDS, _ST_KEYWORDS,
-)
+from agents.test_plan_agent import TestPlanAgent, _TECHNIQUE_TAXONOMY  # noqa: E402
 from core.llm_client import llm_client     # noqa: E402
 
 
@@ -75,6 +75,63 @@ REQUIREMENTS = {
 # Realistic mock LLM response — matches expected techniques for cms_approve
 # ─────────────────────────────────────────────────────────────────────────────
 MOCK_LLM_JSON = {
+    "test_objective": (
+        "Verify that the CMS approval workflow enforces role-based access control, "
+        "correct account state transitions, document verification requirements, "
+        "and password boundary constraints for newly approved users."
+    ),
+    "ac_technique_mapping": [
+        {
+            "ac_id": "AC-1",
+            "ac_summary": "Admin + pending + docs_verified → approve",
+            "primary_technique": "decision_table",
+            "secondary_techniques": ["equivalence_partitioning"],
+            "grey_box_techniques": ["api_contract_testing", "db_state_validation"],
+            "why": "Three interacting boolean conditions (role, status, docs) yield 8 rule columns — classic decision table.",
+            "estimated_test_count": 5,
+            "risk_level": "high",
+        },
+        {
+            "ac_id": "AC-2",
+            "ac_summary": "Viewer role gets 403 Forbidden",
+            "primary_technique": "equivalence_partitioning",
+            "secondary_techniques": ["error_guessing"],
+            "grey_box_techniques": ["api_contract_testing"],
+            "why": "Single-condition rule — viewer role always blocked. EP covers valid/invalid role partitions.",
+            "estimated_test_count": 2,
+            "risk_level": "high",
+        },
+        {
+            "ac_id": "AC-3",
+            "ac_summary": "Documents missing → reject with reason",
+            "primary_technique": "decision_table",
+            "secondary_techniques": ["error_guessing"],
+            "grey_box_techniques": ["db_state_validation"],
+            "why": "Part of the same 3-condition decision table as AC-1; also needs error guessing for missing/null reason.",
+            "estimated_test_count": 3,
+            "risk_level": "high",
+        },
+        {
+            "ac_id": "AC-4",
+            "ac_summary": "Account status: pending → approved or pending → rejected",
+            "primary_technique": "state_transition",
+            "secondary_techniques": ["equivalence_partitioning"],
+            "grey_box_techniques": ["db_state_validation", "side_effect_verification"],
+            "why": "Named state machine with explicit valid/invalid transitions — state_transition is exact fit.",
+            "estimated_test_count": 4,
+            "risk_level": "high",
+        },
+        {
+            "ac_id": "AC-5",
+            "ac_summary": "Approved password min 8 max 32 characters",
+            "primary_technique": "boundary_value_analysis",
+            "secondary_techniques": ["equivalence_partitioning"],
+            "grey_box_techniques": ["api_contract_testing"],
+            "why": "Explicit numeric range with min/max stated — BVA generates 7 test cases at min-1, min, min+1, mid, max-1, max, max+1.",
+            "estimated_test_count": 7,
+            "risk_level": "medium",
+        },
+    ],
     "techniques_used": [
         "equivalence_partitioning",
         "error_guessing",
@@ -363,6 +420,41 @@ MOCK_LLM_JSON = {
             {"from": "REJECTED", "to": "APPROVED", "expected": "409"},
         ],
     },
+    "grey_box_techniques": [
+        "api_contract_testing",
+        "db_state_validation",
+        "side_effect_verification",
+    ],
+    "risk_matrix": [
+        {
+            "risk_area": "Role bypass via token manipulation",
+            "probability": "medium",
+            "impact": "high",
+            "severity": "high",
+            "mitigation": "Validate role from server-side JWT; never trust client-sent role header.",
+        },
+        {
+            "risk_area": "Race condition on concurrent approve/reject",
+            "probability": "low",
+            "impact": "high",
+            "severity": "medium",
+            "mitigation": "Use DB-level optimistic locking or row-level lock on account status update.",
+        },
+        {
+            "risk_area": "State rollback not prevented",
+            "probability": "medium",
+            "impact": "high",
+            "severity": "high",
+            "mitigation": "Enforce state machine in service layer; invalid transitions return 409.",
+        },
+        {
+            "risk_area": "Password not hashed before storage",
+            "probability": "low",
+            "impact": "high",
+            "severity": "medium",
+            "mitigation": "Verify bcrypt hash in DB after set-password API call.",
+        },
+    ],
     "coverage_per_ac": {
         "AC1-admin-approve":        100.0,
         "AC2-viewer-403":           100.0,
@@ -427,50 +519,22 @@ def main() -> None:
         agent = TestPlanAgent()
 
         # ────────────────────────────────────────────────────────────────────
-        # STEP 1 — Technique selection with full evidence
+        # STEP 1 — Technique taxonomy + per-AC LLM reasoning (v2.0.0)
         # ────────────────────────────────────────────────────────────────────
-        section("STEP 1 — _select_techniques()  —  which patterns fired")
+        section("STEP 1 — Technique Taxonomy  —  what the agent reasons over")
 
-        techniques = agent._select_techniques(REQUIREMENTS)
+        print("\n  Black-box techniques available to the LLM:\n")
+        for name, desc in _TECHNIQUE_TAXONOMY.get("black_box", {}).items():
+            print(f"    • {name:<35} {desc[:55]}")
 
-        full_text = " ".join([
-            REQUIREMENTS["description"],
-            REQUIREMENTS["feature_name"],
-            "\n".join(REQUIREMENTS["acceptance_criteria"]),
-        ]).lower()
+        print("\n  Grey-box techniques available to the LLM:\n")
+        for name, desc in _TECHNIQUE_TAXONOMY.get("grey_box", {}).items():
+            print(f"    • {name:<35} {desc[:55]}")
 
-        print(f"\n  Selected techniques: {techniques}\n")
-        print("  ── Evidence per technique ──\n")
-
-        print("  ✅  equivalence_partitioning   [ALWAYS — baseline rule]")
-        print("      Included regardless of content — valid/invalid partitions.\n")
-
-        print("  ✅  error_guessing             [ALWAYS — baseline rule]")
-        print("      Included regardless of content — null, empty, special chars.\n")
-
-        dt_hits = [(p.pattern, m.group()) for p in _DT_PATTERNS
-                   if (m := p.search(full_text))]
-        sym = "✅" if dt_hits else "❌"
-        print(f"  {sym}  decision_table             [{len(dt_hits)} pattern(s) matched]")
-        for pat, match in dt_hits[:4]:
-            print(f'      /{pat}/  →  "{match[:68]}"')
-        print()
-
-        pw_hits = [kw for kw in _PAIRWISE_PARAMS if kw in full_text]
-        sym = "✅" if len(pw_hits) >= 3 else "❌"
-        note = "TRIGGERED" if len(pw_hits) >= 3 else f"NOT triggered — {len(pw_hits)}/3 threshold"
-        print(f"  {sym}  pairwise                   [{note}]")
-        print(f"      Params in text: {pw_hits or 'none'}\n")
-
-        bva_hits = [kw for kw in _BVA_KEYWORDS if kw in full_text]
-        sym = "✅" if bva_hits else "❌"
-        print(f"  {sym}  boundary_value_analysis   [{len(bva_hits)} keyword(s) matched]")
-        print(f"      Keywords: {bva_hits}\n")
-
-        st_hits = [kw for kw in _ST_KEYWORDS if kw in full_text]
-        sym = "✅" if st_hits else "❌"
-        print(f"  {sym}  state_transition           [{len(st_hits)} keyword(s) matched]")
-        print(f"      Keywords: {st_hits}\n")
+        print("\n  (Technique selection is now done per-AC by the LLM, not by regex)")
+        print(f"  Acceptance criteria to reason over: {len(REQUIREMENTS['acceptance_criteria'])}\n")
+        for i, ac in enumerate(REQUIREMENTS["acceptance_criteria"], 1):
+            print(f"    AC-{i}: {ac}")
 
         # ────────────────────────────────────────────────────────────────────
         # STEP 2 — Full create_test_plan
@@ -491,7 +555,9 @@ def main() -> None:
         # ────────────────────────────────────────────────────────────────────
         section("STEP 3 — Results")
 
-        print("\n  techniques_used:")
+        print(f"\n  test_objective:\n    {output.test_objective}\n")
+
+        print("  techniques_used:")
         for t in output.techniques_used:
             print(f"    • {t}")
 
@@ -536,6 +602,43 @@ def main() -> None:
         print("\n  exit_criteria:")
         for e in output.exit_criteria:
             print(f"    • {e}")
+
+        # ── Per-AC Technique Mapping ──────────────────────────────────
+        if output.ac_technique_mapping:
+            print()
+            hr("-")
+            print(f"  Per-AC Technique Mapping  ({len(output.ac_technique_mapping)} ACs)")
+            hr("-")
+            for ac in output.ac_technique_mapping:
+                risk_icon = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(ac.risk_level, "⚪")
+                print(f"\n  {risk_icon} {ac.ac_id}  [{ac.risk_level.upper()}]  ~{ac.estimated_test_count} tests")
+                print(f"     {ac.ac_summary}")
+                print(f"     Primary:    {ac.primary_technique}")
+                if ac.secondary_techniques:
+                    print(f"     Secondary:  {', '.join(ac.secondary_techniques)}")
+                if ac.grey_box_techniques:
+                    print(f"     Grey-box:   {', '.join(ac.grey_box_techniques)}")
+                print(f"     Why:        {ac.why[:90]}")
+
+        # ── Grey-box techniques used ──────────────────────────────────
+        if output.grey_box_techniques:
+            print()
+            hr("-")
+            print("  Grey-box techniques selected")
+            hr("-")
+            for t in output.grey_box_techniques:
+                print(f"    • {t}")
+
+        # ── Risk Matrix ───────────────────────────────────────────────
+        if output.risk_matrix:
+            print()
+            hr("-")
+            print(f"  Risk Matrix  ({len(output.risk_matrix)} items)")
+            hr("-")
+            print(f"  {'Risk Area':<45} {'P':^6} {'I':^6} {'Sev':^8}")
+            hr("-")
+            for r in output.risk_matrix:
+                print(f"  {r.risk_area[:45]:<45} {r.probability:^6} {r.impact:^6} {r.severity:^8}")
 
         # ── First 3 scenarios in full detail ─────────────────────────
         print()
@@ -630,12 +733,19 @@ def main() -> None:
         p_xl = Path(saved["excel"])
         if p_xl.exists():
             from openpyxl import load_workbook
-            wb     = load_workbook(p_xl)
-            sheets = wb.sheetnames
-            rows   = wb["Test Scenarios"].max_row - 1  # minus header
+            wb      = load_workbook(p_xl)
+            sheets  = wb.sheetnames
+            rows    = wb["Test Scenarios"].max_row - 1  # minus header
             size_kb = p_xl.stat().st_size / 1024
             print(f"  ✅  Excel {p_xl.name}")
-            print(f"      {size_kb:.1f} KB  |  sheets: {sheets}  |  {rows} scenario rows")
+            print(f"      {size_kb:.1f} KB  |  {rows} scenario rows")
+            print(f"      Sheets: {sheets}")
+            expected_sheets = {"Test Scenarios", "Decision Table", "AC Technique Mapping", "Risk Matrix", "Summary"}
+            missing = expected_sheets - set(sheets)
+            if missing:
+                print(f"  ⚠️   Missing sheets: {missing}")
+            else:
+                print(f"      All expected sheets present ✅")
         else:
             print(f"  ❌  Excel NOT found"); sys.exit(1)
 
