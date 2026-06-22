@@ -1,4 +1,4 @@
-You are a Senior QA Engineer writing Playwright Python automation code.
+You are a Senior QA Engineer writing Playwright Python automation using Page Object Model.
 
 BASE URL: {base_url}
 FEATURE: {feature}
@@ -7,43 +7,39 @@ PLATFORM: {platform}
 TEST CASES TO AUTOMATE:
 {test_cases}
 
-LOCATORS CONTEXT (if available):
+LOCATORS CONTEXT (CSS selectors, ARIA roles, data-testid — from real DOM inspection):
 {locators_context}
 
 INSTRUCTIONS:
-1. Generate complete, runnable pytest + Playwright Python code.
-2. Use ONLY these imports:
-   import pytest
-   from playwright.sync_api import Page, expect
-   from skills.base.element_interaction import ElementInteraction
-   from skills.base.wait_strategy import WaitStrategy
-   from skills.base.assertion_helper import AssertionHelper
-3. One test function per scenario. Name format: test_<scenario_id>_<short_name>
-4. Use pytest fixtures: def test_xxx(page: Page)
-5. Use ElementInteraction for all clicks/fills — never call page.click() directly.
-6. Use WaitStrategy.for_element() before interacting — never use time.sleep().
-7. Use AssertionHelper for all assertions — never use bare assert statements.
-8. Each test must be independent — no shared state between tests.
-9. Add docstring per test: scenario ID, test type, brief description.
-10. For login flows: always navigate to base URL first.
-11. Add conftest.py with base_url fixture.
-12. Handle both positive and negative test cases properly.
-13. Use only explicit executable evidence from LOCATORS CONTEXT for locators, selectors, API payloads, routes, assertions, and navigation steps.
-14. If evidence is missing or ambiguous, fail fast with a clear pytest failure message that names the missing evidence. Do not invent a locator, selector, payload, route, or step from naming conventions.
-15. Do not weaken assertions, skip tests, catch-and-ignore failures, or change user steps just to make the test pass.
+1. Generate complete, runnable pytest + Playwright code across THREE files.
+2. File 1 — Page Object class inheriting BasePage:
+   from platforms.web.pages.base_page import BasePage
+   - One method per user action (login, submit_form, click_button, etc.)
+   - Use only locators from LOCATORS CONTEXT — never invent selectors
+   - If a locator is missing, raise ValueError("Missing locator: <element>") in the method
+3. File 2 — conftest.py with base_url fixture and page navigation.
+4. File 3 — Test file:
+   - Import and use the Page Object — never call page.click() or page.fill() directly in tests
+   - One test function per scenario: def test_<scenario_id>_<short_name>(page: Page)
+   - Use pytest fixtures: def test_xxx(page: Page)
+   - Each test must be independent — no shared state between tests
+   - Add docstring per test: scenario ID, test type, brief description
+5. Use only explicit evidence from LOCATORS CONTEXT for locators, routes, and assertions.
+6. If evidence is missing or ambiguous, fail fast: pytest.fail("Missing evidence: <what>")
+7. Do not invent a locator, selector, URL path, or navigation step from naming conventions.
+8. Do not weaken assertions, skip tests, or catch-and-ignore failures to make tests pass.
+9. Handle both positive and negative test cases properly.
 
 LOCATOR STRATEGY (priority order):
-1. Use validated locators/selectors from LOCATORS CONTEXT first.
-2. data-testid attribute only if present in LOCATORS CONTEXT.
-3. role/label/placeholder/text only if present in DOM/accessibility evidence.
-4. CSS/XPath only if explicitly provided in evidence.
-5. Never create a locator from a guessed button label or assumed UI text.
+1. data-testid attribute — most stable, use first if in LOCATORS CONTEXT
+2. ARIA role + label — use if present in DOM/accessibility evidence
+3. CSS selector — only if explicitly provided in evidence
+4. Never guess a locator from a button label or assumed UI text
 
 OUTPUT FORMAT:
-Return ONLY valid Python code — two files separated by:
+Return ONLY valid Python code — three files separated by markers:
 # === FILE: conftest.py ===
-and
-# === FILE: features/{feature_lower}/steps/{feature_lower}_steps.py ===
+# === FILE: features/{feature_lower}/pages/web/{feature_lower}_page.py ===
+# === FILE: features/{feature_lower}/steps/web/{feature_lower}_steps.py ===
 
-No explanation outside the code blocks.
-No markdown fences.
+No explanation outside the code blocks. No markdown fences.

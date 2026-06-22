@@ -16,12 +16,21 @@ from config.test_config import TestConfig
 logger = structlog.get_logger(__name__)
 
 AGENT_NAME    = "code_gen_agent"
-PROMPT_NAME   = "code_gen"
 PROMPT_VERSION = "1.0.0"
 
+# Platform group → prompt registry key
+_MOBILE_PLATFORMS = {Platform.ANDROID, Platform.IOS, Platform.FLUTTER_ANDROID, Platform.FLUTTER_IOS}
+_API_PLATFORMS    = {Platform.API}
+
+# Base URL / connection target per platform
 BASE_URLS = {
-    Platform.WEB: TestConfig.WEB_APP_URL,
-    Platform.API: TestConfig.API_URL,
+    Platform.WEB:             TestConfig.WEB_APP_URL,
+    Platform.API:             TestConfig.API_URL,
+    Platform.ANDROID:         TestConfig.ANDROID_PACKAGE,
+    Platform.FLUTTER_ANDROID: TestConfig.ANDROID_PACKAGE,
+    Platform.IOS:             "",  # Appium iOS uses bundle ID — injected via evidence
+    Platform.FLUTTER_IOS:     "",
+    Platform.DATABASE:        TestConfig.API_URL,
 }
 
 
@@ -48,9 +57,11 @@ class CodeGeneratorAgent:
         # Format test cases for prompt — sanitize external content before LLM
         tc_text = sanitize(self._format_test_cases(test_output), source="test_cases").content
 
-        # Load prompt
-        template     = prompt_manager.get(PROMPT_NAME)
-        base_url     = BASE_URLS.get(platform, BASE_URLS[Platform.WEB])
+        # Select prompt based on platform group — prevents Playwright code being generated
+        # for API tests (should use httpx+SchemaValidator) and mobile tests (should use Appium)
+        prompt_key = self._get_prompt_key(platform)
+        template   = prompt_manager.get(prompt_key)
+        base_url   = BASE_URLS.get(platform, BASE_URLS[Platform.WEB])
         feature_low  = test_output.feature.lower().replace(" ", "_")
 
         locators_context = sanitize(
@@ -82,8 +93,12 @@ class CodeGeneratorAgent:
         response = self.breaker.call(_call)
         files    = self._parse_files(response.content, feature_low)
 
-        # Validate generated steps against POM registry before writing
+        # Validate generated steps against POM/Screen registry before writing
         self._validate_pom_steps(test_output.feature, platforms=[platform.value])
+
+        # Ensure a platform-appropriate conftest exists when LLM did not generate one
+        if "conftest.py" not in files:
+            files["conftest.py"] = self._default_conftest(platform)
 
         # Save files
         saved = self._save_files(files, feature_low)
@@ -115,6 +130,14 @@ class CodeGeneratorAgent:
             lines.append("")
         return "\n".join(lines)
 
+    def _get_prompt_key(self, platform: Platform) -> str:
+        """Return the prompt registry key for the given platform group."""
+        if platform in _API_PLATFORMS:
+            return "code_gen_api"
+        if platform in _MOBILE_PLATFORMS:
+            return "code_gen_mobile"
+        return "code_gen"
+
     def _format_automation_evidence(self, automation_evidence: dict, platform: Platform) -> str:
         """Format explicit execution evidence for codegen prompts."""
         data = automation_evidence.get(platform.value) or {}
@@ -145,10 +168,6 @@ class CodeGeneratorAgent:
             # No markers — save as single steps file
             files[f"features/{feature_low}/steps/{feature_low}_steps.py"] = raw.strip()
 
-        # Always ensure conftest exists
-        if "conftest.py" not in files:
-            files["conftest.py"] = self._default_conftest()
-
         return files
 
     def _validate_pom_steps(self, feature: str, platforms: list[str]) -> None:
@@ -174,7 +193,43 @@ class CodeGeneratorAgent:
                         registered=screens,
                     )
 
-    def _default_conftest(self) -> str:
+    def _default_conftest(self, platform: Platform = Platform.WEB) -> str:
+        if platform in _API_PLATFORMS:
+            return '''import pytest
+import asyncio
+from platforms.api.httpx_client import HonoAPIClient
+from config.test_config import TestConfig
+
+@pytest.fixture(scope="session")
+def event_loop():
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+@pytest.fixture(scope="session")
+async def api_client():
+    async with HonoAPIClient(base_url=TestConfig.API_URL) as client:
+        yield client
+'''
+        if platform in _MOBILE_PLATFORMS:
+            return '''import pytest
+from appium import webdriver
+from appium.options import UiAutomator2Options
+from config.test_config import TestConfig
+
+@pytest.fixture(scope="session")
+def driver():
+    options = UiAutomator2Options()
+    options.app_package  = TestConfig.ANDROID_PACKAGE
+    options.app_activity = TestConfig.ANDROID_ACTIVITY
+    options.device_name  = TestConfig.ANDROID_DEVICE
+    options.platform_version = TestConfig.ANDROID_VERSION
+    drv = webdriver.Remote("http://localhost:4723", options=options)
+    drv.implicitly_wait(TestConfig.MOBILE_TIMEOUT)
+    yield drv
+    drv.quit()
+'''
+        # Default: web (Playwright)
         return '''import pytest
 from playwright.sync_api import Page
 from config.test_config import TestConfig
@@ -187,7 +242,6 @@ def base_url():
 
 @pytest.fixture(autouse=True)
 def navigate_to_base(page: Page, base_url: str):
-    """Navigate to base URL before each test."""
     page.goto(base_url)
 '''
 

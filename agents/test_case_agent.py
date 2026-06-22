@@ -133,24 +133,32 @@ class TestCaseAgent:
         if input_data.jira_story_key:
             try:
                 issue = jira_client.get_issue(input_data.jira_story_key)
-                logger.info("jira_issue_fetched", key=input_data.jira_story_key)
+                logger.info("jira_issue_fetched", key=input_data.jira_story_key,
+                            source_context_provided=input_data.source_context_provided)
 
-                # Merge acceptance criteria from Jira description if not supplied
+                # Merge AC from Jira only if not already supplied by pipeline
                 if not clean_ac and issue.get("acceptance_criteria"):
                     clean_ac = [
                         input_sanitizer.sanitize(ac, source="jira_ac").content
                         for ac in issue["acceptance_criteria"]
                     ]
 
-                # Build Jira context block
-                jira_ctx_lines = [
-                    f"JIRA STORY: {issue['key']} — {input_sanitizer.sanitize(issue['summary'], source='jira_summary').content}",
-                    f"Status: {issue.get('status', '')}  Priority: {issue.get('priority', '')}",
-                ]
-                if issue.get("description"):
-                    jira_ctx_lines.append(f"Description:\n{input_sanitizer.sanitize(issue['description'][:600], source='jira_description').content}")
+                jira_ctx_lines: list[str] = []
 
-                # Include existing QA subtasks to avoid duplicating already-generated cases
+                if not input_data.source_context_provided:
+                    # Full context: description already merged into source_bundle when
+                    # source_context_provided=True — avoid sending duplicate content to LLM
+                    jira_ctx_lines = [
+                        f"JIRA STORY: {issue['key']} — {input_sanitizer.sanitize(issue['summary'], source='jira_summary').content}",
+                        f"Status: {issue.get('status', '')}  Priority: {issue.get('priority', '')}",
+                    ]
+                    if issue.get("description"):
+                        jira_ctx_lines.append(
+                            f"Description:\n{input_sanitizer.sanitize(issue['description'][:600], source='jira_description').content}"
+                        )
+
+                # Always include existing QA subtasks regardless of source_context_provided
+                # — this prevents generating duplicate test cases for already-covered AC
                 existing_subtasks = [
                     st for st in issue.get("subtasks", [])
                     if "QA" in st.get("summary", "").upper() or "qa-automation" in st.get("summary", "").lower()
@@ -169,8 +177,10 @@ class TestCaseAgent:
             except Exception as e:
                 logger.warning("jira_fetch_failed", key=input_data.jira_story_key, error=str(e))
 
-        # ── Step 1c: Fetch PRD from Confluence (if URL provided) ─
-        if input_data.confluence_page_url:
+        # ── Step 1c: Fetch PRD from Confluence (if URL provided and not already fetched) ─
+        # confluence_page_url is set to None by pipeline when prd_source.fetched=True,
+        # so this block only runs when source_intake did not successfully retrieve the PRD.
+        if input_data.confluence_page_url and not input_data.source_context_provided:
             try:
                 confluence = ConfluenceClient()
                 prd_text = confluence.fetch_page(input_data.confluence_page_url)
@@ -201,6 +211,20 @@ class TestCaseAgent:
         )
         if enriched_context:
             past_context = f"{enriched_context}\n\n---\n{past_context}" if past_context else enriched_context
+
+        # ── Step 2b: Inject test plan techniques ─────────────
+        # Prepend selected techniques from TestPlanAgent so the LLM generates
+        # scenarios aligned with the planned approach (decision_table, pairwise, etc.)
+        if input_data.test_plan:
+            techniques = input_data.test_plan.get("techniques_used") or []
+            rationale  = input_data.test_plan.get("technique_rationale") or {}
+            if techniques:
+                plan_lines = ["TESTING APPROACH (pre-selected by Test Plan):"]
+                for t in techniques:
+                    reason = rationale.get(t, "")
+                    plan_lines.append(f"- {t}: {reason}" if reason else f"- {t}")
+                plan_hint  = "\n".join(plan_lines)
+                past_context = f"{plan_hint}\n\n{past_context}" if past_context else plan_hint
 
         # ── Step 3: Format prompt ─────────────────────────────
         if len(clean_ac) > MAX_AC_PER_BATCH:
@@ -430,10 +454,11 @@ class TestCaseAgent:
             for raw_platform in raw_platforms:
                 value = str(raw_platform).strip().lower()
                 platform_map = {
-                    "mobile": input_data.platforms[0].value if input_data.platforms else "android",
-                    "flutter_android": "flutter-android",
-                    "flutter-ios": "flutter-ios",
-                    "flutter_ios": "flutter-ios",
+                    "mobile":           input_data.platforms[0].value if input_data.platforms else "android",
+                    "flutter_android":  "flutter-android",
+                    "flutter-android":  "flutter-android",  # handle both underscore and dash forms
+                    "flutter-ios":      "flutter-ios",
+                    "flutter_ios":      "flutter-ios",
                 }
                 value = platform_map.get(value, value)
                 if value in Platform._value2member_map_:

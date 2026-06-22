@@ -128,9 +128,15 @@ class TestCaseAgentInput(BaseModel):
     description:     str
     acceptance_criteria: list[str] = Field(default_factory=list)
     platforms:       list[Platform]
-    jira_story_key:      Optional[str] = None
-    confluence_page_url: Optional[str] = None
-    context:             Optional[str] = None  # Extra context for the agent
+    jira_story_key:          Optional[str]  = None
+    confluence_page_url:     Optional[str]  = None
+    context:                 Optional[str]  = None
+    # When True, description already contains merged Jira+PRD content from source_intake.
+    # Agent skips re-fetching Jira description and Confluence page but still checks
+    # existing QA subtasks to avoid duplication.
+    source_context_provided: bool           = False
+    # TestPlanOutput as dict — agent injects selected techniques into the prompt.
+    test_plan:               Optional[dict] = None
 
 
 class TestCaseAgentOutput(BaseModel):

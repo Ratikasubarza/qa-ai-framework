@@ -27,6 +27,28 @@ PLATFORM_SUBTASK_MARKERS = {
         " appium ",
         " flutter ",
     ),
+    "flutter-android": (
+        "[mobile]",
+        " mobile ",
+        " android ",
+        " appium ",
+        " flutter ",
+    ),
+    "flutter-ios": (
+        "[mobile]",
+        " mobile ",
+        " ios ",
+        " appium ",
+        " flutter ",
+    ),
+    "database": (
+        "[db]",
+        " database ",
+        " db ",
+        " sql ",
+        " query ",
+        " migration ",
+    ),
     "web": (
         "[fe]",
         " frontend ",

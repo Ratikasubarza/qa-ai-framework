@@ -184,6 +184,8 @@ def node_requirements(state: AgentState) -> AgentState:
         # subtask details are merged in when include_subtasks=True
         source_text = source_bundle.get("prd_content") or state.get("story_text", "")
 
+        platforms = state.get("platforms") or ["web"]
+
         if source_bundle.get("jira_source", {}).get("fetched") or source_bundle.get("prd_source", {}).get("fetched"):
             logger.info(
                 "requirements_source",
@@ -195,14 +197,16 @@ def node_requirements(state: AgentState) -> AgentState:
                 feature=state.get("feature", ""),
                 story_text=source_text,
                 parent_key=state.get("ticket_id", ""),
+                platforms=platforms,
             )
         elif state.get("ticket_id"):
-            result = requirements_agent.run_from_jira(state["ticket_id"])
+            result = requirements_agent.run_from_jira(state["ticket_id"], platforms=platforms)
         else:
             result = requirements_agent.run_from_text(
                 feature=state.get("feature", ""),
                 story_text=source_text,
                 parent_key="",
+                platforms=platforms,
             )
 
         criteria_details = (
@@ -275,13 +279,22 @@ async def node_testcase(state: AgentState) -> AgentState:
 
     try:
         platforms = [Platform(p) for p in (state.get("platforms") or ["web"])]
+        source_bundle  = state.get("source_bundle") or {}
+        jira_fetched   = bool(source_bundle.get("jira_source", {}).get("fetched"))
+        prd_fetched    = bool(source_bundle.get("prd_source", {}).get("fetched"))
+
         inp = TestCaseAgentInput(
             feature=state.get("feature", ""),
             description=state.get("story_text", state.get("feature", "")),
             platforms=platforms,
             acceptance_criteria=state.get("acceptance_criteria", []),
+            # Keep jira_story_key so agent can check existing QA subtasks for deduplication,
+            # but set source_context_provided=True to skip re-fetching Jira description
+            # and Confluence PRD (already merged into description via source_intake).
             jira_story_key=state.get("ticket_id") or None,
-            confluence_page_url=state.get("prd_url") or None,
+            confluence_page_url=None if prd_fetched else (state.get("prd_url") or None),
+            source_context_provided=jira_fetched,
+            test_plan=state.get("test_plan"),
         )
         output = await test_case_agent.run(inp, require_approval=False)
         if not output.scenarios:
@@ -690,14 +703,24 @@ def node_codegen(state: AgentState) -> AgentState:
 def node_execute(state: AgentState) -> AgentState:
     """Run generated test files via pytest, collect results."""
     logger.info("node_start", node="execute")
-    files = _generated_file_paths(state.get("generated_files") or {})
+    generated_files_map = state.get("generated_files") or {}
+    files = _generated_file_paths(generated_files_map)
     results: dict[str, dict] = {}
     failures: list[dict] = []
 
     project_root = Path(__file__).resolve().parent.parent
+    default_platform = (state.get("platforms") or ["web"])[0]
+
+    # Build absolute-path → platform lookup from generated_files keys.
+    # Keys are "{platform}:{filename}" for multi-platform runs, or just "{filename}" otherwise.
+    file_to_platform: dict[str, str] = {}
+    for key, abs_path in generated_files_map.items():
+        plat = key.split(":", 1)[0] if ":" in key else default_platform
+        file_to_platform[abs_path] = plat
 
     for fpath in files:
-        path = Path(fpath).resolve()
+        path     = Path(fpath).resolve()
+        platform = file_to_platform.get(str(path), file_to_platform.get(fpath, default_platform))
 
         # Security: reject paths outside the project root (path traversal guard)
         try:
@@ -707,7 +730,7 @@ def node_execute(state: AgentState) -> AgentState:
             failures.append({
                 "test_file": fpath,
                 "error_message": f"Blocked: path '{fpath}' is outside project root.",
-                "platform": (state.get("platforms") or ["web"])[0],
+                "platform": platform,
                 "test_name": Path(fpath).stem,
                 "location": fpath,
             })
@@ -717,7 +740,7 @@ def node_execute(state: AgentState) -> AgentState:
             failures.append({
                 "test_file": str(path),
                 "error_message": "Generated test file does not exist.",
-                "platform": (state.get("platforms") or ["web"])[0],
+                "platform": platform,
                 "test_name": path.stem,
                 "location": str(path),
             })
@@ -752,7 +775,7 @@ def node_execute(state: AgentState) -> AgentState:
             failures.append({
                 "test_file": str(path),
                 "error_message": (run.stdout + "\n" + run.stderr)[-1000:],
-                "platform": (state.get("platforms") or ["web"])[0],
+                "platform": platform,
                 "test_name": path.stem,
                 "location": str(path),
                 "json_report": str(report_path),
@@ -957,7 +980,7 @@ def node_jira_update(state: AgentState) -> AgentState:
     failures = state.get("failures") or []
 
     try:
-        from integrations.jira_client.jira_client import jira_client
+        from mcp_tools.jira_client.jira_client import jira_client
 
         if not failures:
             ok = jira_client.transition_issue(ticket_id, "DONE")

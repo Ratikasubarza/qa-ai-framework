@@ -23,8 +23,22 @@ prompts:
   code_gen:
     version: "1.0.0"
     model_tier: standard
-    changelog: "Initial version — Playwright Python code generation"
+    changelog: "Initial version — Playwright Python + POM code generation (web/database)"
     template_ref: "prompts/code_gen_v1.0.0.txt"
+    eval_threshold: 0.85
+
+  code_gen_api:
+    version: "1.0.0"
+    model_tier: standard
+    changelog: "Initial version — httpx + SchemaValidator API test generation"
+    template_ref: "prompts/code_gen_api_v1.0.0.txt"
+    eval_threshold: 0.85
+
+  code_gen_mobile:
+    version: "1.0.0"
+    model_tier: standard
+    changelog: "Initial version — Appium + Screen Object mobile test generation"
+    template_ref: "prompts/code_gen_mobile_v1.0.0.txt"
     eval_threshold: 0.85
 
   qa_ticket_generation:

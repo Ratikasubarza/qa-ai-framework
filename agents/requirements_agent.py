@@ -13,7 +13,7 @@ from core.circuit_breaker import get_breaker
 from core import input_sanitizer
 from core.prompt_manager import prompt_manager
 from knowledge_base.rag_engine import rag_engine
-from skills.reporting.jira_connector import jira_connector
+from mcp_tools.jira_client.jira_client import jira_client
 
 logger = structlog.get_logger(__name__)
 
@@ -26,14 +26,20 @@ class RequirementsAgent:
     def __init__(self):
         self.breaker = get_breaker(AGENT_NAME)
 
-    def run_from_jira(self, story_key: str) -> dict:
+    def run_from_jira(self, story_key: str, platforms: list[str] | None = None) -> dict:
         logger.info("requirements_agent_start", story_key=story_key)
-        story_text   = jira_connector.get_story_text(story_key, include_attachments=False)
-        issue        = jira_connector.get_issue(story_key)
-        fields       = issue.get("fields", {})
-        summary      = fields.get("summary", story_key)
-        priority     = fields.get("priority", {}).get("name", "Medium")
+        issue    = jira_client.get_issue(story_key)
+        summary  = issue.get("summary", story_key)
+        priority = issue.get("priority", "Medium")
         logger.info("story_fetched", key=story_key, summary=summary[:60])
+
+        description = issue.get("description", "")
+        ac_items    = issue.get("acceptance_criteria", [])
+        story_text  = f"Story: {summary}\n\nDescription:\n{description}"
+        if ac_items:
+            story_text += "\n\nAcceptance Criteria:\n" + "\n".join(f"- {ac}" for ac in ac_items)
+        if platforms:
+            story_text = f"Target Platforms: {', '.join(platforms)}\n\n" + story_text
 
         clean        = input_sanitizer.sanitize(story_text, source=f"jira/{story_key}")
         past_context = rag_engine.retrieve(query=clean.content[:300], top_k=5)
@@ -61,7 +67,9 @@ class RequirementsAgent:
             "missing_data":    ac_output.missing_data,
         }
 
-    def run_from_text(self, feature: str, story_text: str, parent_key: str = "") -> dict:
+    def run_from_text(self, feature: str, story_text: str, parent_key: str = "", platforms: list[str] | None = None) -> dict:
+        if platforms:
+            story_text = f"Target Platforms: {', '.join(platforms)}\n\n" + story_text
         clean        = input_sanitizer.sanitize(story_text, source="manual_input")
         past_context = rag_engine.retrieve(query=clean.content[:300], top_k=5)
         ac_output    = self._extract_ac(clean.content, feature, past_context)

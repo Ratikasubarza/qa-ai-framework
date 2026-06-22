@@ -25,8 +25,14 @@ class ReviewItem:
         self.feedback = feedback
         self._event.set()
 
-    async def wait(self, timeout: float = 300.0) -> AgentFeedback:
-        """Block until a reviewer approves/rejects. Timeout = 5 min."""
+    async def wait(self, timeout: float | None = None) -> AgentFeedback:
+        """Block until a reviewer approves/rejects. Timeout from settings.approval_timeout_hours."""
+        if timeout is None:
+            try:
+                from config.settings import settings
+                timeout = settings.approval_timeout_hours * 3600.0
+            except Exception:
+                timeout = 86400.0  # 24h safe fallback
         try:
             await asyncio.wait_for(self._event.wait(), timeout=timeout)
         except asyncio.TimeoutError:
