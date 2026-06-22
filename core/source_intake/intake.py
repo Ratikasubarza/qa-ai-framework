@@ -47,6 +47,10 @@ def format_jira_issue_context(
             ])
             if subtask.get("description"):
                 lines.append(f"  Details: {subtask['description']}")
+            subtask_ac = subtask.get("acceptance_criteria") or []
+            if subtask_ac:
+                lines.append("  Acceptance Criteria:")
+                lines.extend(f"    • {ac}" for ac in subtask_ac)
 
     return "\n".join(str(line) for line in lines if line is not None).strip()
 

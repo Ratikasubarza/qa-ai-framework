@@ -2,11 +2,14 @@
 Excel & CSV Writer Skill — exports test cases and test plans to both formats.
 Naming conventions:
   test_cases:  test_plan_<feature>_<YYYYMMDD>.csv/xlsx
+              test_plan_<feature>_<platform>_<YYYYMMDD>.csv  (per-platform)
   test_plans:  <feature>_test_plan_<YYYYMMDD>.csv/xlsx
+              <feature>_test_plan_<platform>_<YYYYMMDD>.csv  (per-platform)
 """
 import csv
 import json as _json
 import structlog
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from openpyxl import Workbook
@@ -32,8 +35,28 @@ PRIORITY_COLORS = {
     "P2": "CCFFCC",  # Green — low
 }
 
-HEADER_COLOR  = "1E293B"
-HEADER_FONT   = "FFFFFF"
+HEADER_COLOR = "1E293B"
+HEADER_FONT  = "FFFFFF"
+
+_THIN_BORDER = Border(
+    left=Side(style="thin"), right=Side(style="thin"),
+    top=Side(style="thin"),  bottom=Side(style="thin"),
+)
+
+
+def _write_ws_header(ws, columns: list[str]) -> None:
+    """Shared helper — writes a styled header row to any worksheet."""
+    header_fill = PatternFill("solid", fgColor=HEADER_COLOR)
+    header_font = Font(bold=True, color=HEADER_FONT, size=11)
+    center      = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    for ci, col in enumerate(columns, 1):
+        cell = ws.cell(row=1, column=ci, value=col)
+        cell.fill      = header_fill
+        cell.font      = header_font
+        cell.alignment = center
+        cell.border    = _THIN_BORDER
+    ws.row_dimensions[1].height = 25
+    ws.freeze_panes = "A2"
 
 
 class ExcelWriter:
@@ -97,6 +120,49 @@ class ExcelWriter:
         logger.info("csv_written", path=str(path), rows=len(rows))
         return path
 
+    def write_per_platform_csv(self, output: TestCaseAgentOutput) -> dict[str, Path]:
+        """Write one CSV per platform. Returns {platform_value: Path}.
+
+        Scenarios tagged with multiple platforms appear in each relevant file.
+        Scenarios with no platform tag fall back to the first available platform.
+        """
+        by_platform: dict[str, list] = defaultdict(list)
+        for s in output.scenarios:
+            if s.platforms:
+                for p in s.platforms:
+                    by_platform[p.value].append(s)
+            else:
+                by_platform["web"].append(s)
+
+        if not by_platform:
+            return {}
+
+        feature_slug = output.feature.lower().replace(" ", "_").replace("/", "_")
+        date_str     = datetime.now().strftime("%Y%m%d")
+        paths: dict[str, Path] = {}
+
+        for platform, scenarios in by_platform.items():
+            subset = TestCaseAgentOutput(
+                feature=output.feature,
+                scenarios=scenarios,
+                coverage_summary=output.coverage_summary,
+                total_scenarios=len(scenarios),
+                prompt_version=output.prompt_version,
+                model_used=output.model_used,
+                generated_at=output.generated_at,
+                tokens_used=output.tokens_used,
+            )
+            path = self.output_dir / f"test_plan_{feature_slug}_{platform}_{date_str}.csv"
+            rows = self._build_rows(subset)
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(COLUMNS)
+                writer.writerows(rows)
+            logger.info("csv_per_platform_written", path=str(path), platform=platform, rows=len(rows))
+            paths[platform] = path
+
+        return paths
+
     def write_excel(self, output: TestCaseAgentOutput) -> Path:
         """Write test cases to formatted Excel file."""
         path = self._get_filename(output.feature, "xlsx")
@@ -106,46 +172,25 @@ class ExcelWriter:
         ws = wb.active
         ws.title = "Test Cases"
 
-        # ── Header styling ──────────────────────────────────
-        header_fill = PatternFill("solid", fgColor=HEADER_COLOR)
-        header_font = Font(bold=True, color=HEADER_FONT, size=11)
-        header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        thin_border = Border(
-            left=Side(style="thin"), right=Side(style="thin"),
-            top=Side(style="thin"), bottom=Side(style="thin"),
-        )
-
-        for col_idx, col_name in enumerate(COLUMNS, 1):
-            cell = ws.cell(row=1, column=col_idx, value=col_name)
-            cell.fill    = header_fill
-            cell.font    = header_font
-            cell.alignment = header_align
-            cell.border  = thin_border
+        _write_ws_header(ws, COLUMNS)
+        ws.row_dimensions[1].height = 30  # test-case header is slightly taller
 
         # ── Data rows ────────────────────────────────────────
         for row_idx, row in enumerate(rows, 2):
-            priority = row[5]  # Priority column
-            row_color = PRIORITY_COLORS.get(priority, "FFFFFF")
-            row_fill  = PatternFill("solid", fgColor=row_color)
-
+            priority  = row[5]  # Priority column
+            row_fill  = PatternFill("solid", fgColor=PRIORITY_COLORS.get(priority, "FFFFFF"))
             for col_idx, value in enumerate(row, 1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=str(value))
                 cell.fill      = row_fill
-                cell.border    = thin_border
+                cell.border    = _THIN_BORDER
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
 
         # ── Column widths ────────────────────────────────────
         col_widths = [10, 35, 25, 50, 35, 10, 20, 12, 14, 20, 35]
         for i, width in enumerate(col_widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = width
-
-        # ── Row heights ──────────────────────────────────────
-        ws.row_dimensions[1].height = 30
         for row_idx in range(2, len(rows) + 2):
             ws.row_dimensions[row_idx].height = 60
-
-        # ── Freeze header row ────────────────────────────────
-        ws.freeze_panes = "A2"
 
         # ── Add metadata sheet ───────────────────────────────
         meta = wb.create_sheet("Metadata")
@@ -238,41 +283,65 @@ class TestPlanExcelWriter:
         logger.info("test_plan_csv_written", path=str(path), rows=len(rows))
         return path
 
+    def write_per_platform_csv(self, output: TestPlanOutput) -> dict[str, Path]:
+        """Write one CSV per platform from test plan scenarios. Returns {platform: Path}.
+
+        Scenarios tagged with multiple platforms appear in each relevant file.
+        """
+        by_platform: dict[str, list] = defaultdict(list)
+        for s in output.scenarios:
+            if s.platforms:
+                for p in s.platforms:
+                    by_platform[p].append(s)
+            else:
+                by_platform["web"].append(s)
+
+        if not by_platform:
+            return {}
+
+        date_str = datetime.now().strftime("%Y%m%d")
+        paths: dict[str, Path] = {}
+
+        for platform, scenarios in by_platform.items():
+            path = self.output_dir / f"{self._slug(output.feature_name)}_test_plan_{platform}_{date_str}.csv"
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(TP_SCENARIO_COLUMNS)
+                for s in scenarios:
+                    writer.writerow([
+                        s.scenario_id,
+                        s.scenario_name,
+                        s.technique,
+                        s.type,
+                        s.priority,
+                        platform,
+                        "\n".join(s.preconditions),
+                        _json.dumps(s.inputs, ensure_ascii=False) if s.inputs else "",
+                        s.expected_outcome,
+                        s.risk_level,
+                        ", ".join(s.tags),
+                    ])
+            logger.info("test_plan_csv_per_platform_written", path=str(path), platform=platform, rows=len(scenarios))
+            paths[platform] = path
+
+        return paths
+
     def write_excel(self, output: TestPlanOutput) -> Path:
         """Write test plan to formatted multi-sheet Excel."""
         path = self._get_path(output.feature_name, "xlsx")
         wb   = Workbook()
 
-        thin = Border(
-            left=Side(style="thin"), right=Side(style="thin"),
-            top=Side(style="thin"),  bottom=Side(style="thin"),
-        )
-        header_fill = PatternFill("solid", fgColor=HEADER_COLOR)
-        header_font = Font(bold=True, color=HEADER_FONT, size=11)
-        center      = Alignment(horizontal="center", vertical="center", wrap_text=True)
-
-        def _write_header(ws, columns):
-            for ci, col in enumerate(columns, 1):
-                cell = ws.cell(row=1, column=ci, value=col)
-                cell.fill      = header_fill
-                cell.font      = header_font
-                cell.alignment = center
-                cell.border    = thin
-            ws.row_dimensions[1].height = 25
-            ws.freeze_panes = "A2"
-
         # ── Sheet 1: Test Scenarios ───────────────────────────────────────────
         ws = wb.active
         ws.title = "Test Scenarios"
-        _write_header(ws, TP_SCENARIO_COLUMNS)
+        _write_ws_header(ws, TP_SCENARIO_COLUMNS)
         for ri, row in enumerate(self._scenario_rows(output), 2):
             technique = output.scenarios[ri - 2].technique
-            row_color = TECHNIQUE_COLORS.get(technique, "FFFFFF")
-            fill      = PatternFill("solid", fgColor=row_color)
+            fill      = PatternFill("solid", fgColor=TECHNIQUE_COLORS.get(technique, "FFFFFF"))
             for ci, val in enumerate(row, 1):
                 cell = ws.cell(row=ri, column=ci, value=str(val))
                 cell.fill      = fill
-                cell.border    = thin
+                cell.border    = _THIN_BORDER
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
             ws.row_dimensions[ri].height = 55
         for i, w in enumerate([10, 38, 22, 14, 10, 14, 28, 32, 38, 12, 22], 1):
@@ -282,8 +351,7 @@ class TestPlanExcelWriter:
         if output.decision_table:
             wsd = wb.create_sheet("Decision Table")
             max_rules = max((len(r.rules) for r in output.decision_table), default=0)
-            dt_cols = ["Condition"] + [f"R{i+1}" for i in range(max_rules)]
-            _write_header(wsd, dt_cols)
+            _write_ws_header(wsd, ["Condition"] + [f"R{i+1}" for i in range(max_rules)])
             rule_fills = [
                 PatternFill("solid", fgColor=c) for c in
                 ["E8F5E9", "FFF9C4", "E3F2FD", "FCE4EC",
@@ -291,13 +359,13 @@ class TestPlanExcelWriter:
             ]
             for ri, row in enumerate(output.decision_table, 2):
                 cond_cell = wsd.cell(row=ri, column=1, value=row.condition)
-                cond_cell.font   = Font(bold=True)
-                cond_cell.border = thin
+                cond_cell.font      = Font(bold=True)
+                cond_cell.border    = _THIN_BORDER
                 cond_cell.alignment = Alignment(vertical="center", wrap_text=True)
                 for ci, rule in enumerate(row.rules, 2):
                     cell = wsd.cell(row=ri, column=ci, value=rule)
                     cell.fill      = rule_fills[(ci - 2) % len(rule_fills)]
-                    cell.border    = thin
+                    cell.border    = _THIN_BORDER
                     cell.alignment = Alignment(horizontal="center", vertical="center")
             wsd.column_dimensions["A"].width = 30
             for i in range(2, max_rules + 2):
@@ -307,24 +375,26 @@ class TestPlanExcelWriter:
         sd = output.state_diagram
         if sd:
             wss = wb.create_sheet("State Diagram")
-            _write_header(wss, ["Type", "From State", "Event / Condition", "To State", "Expected HTTP"])
+            _write_ws_header(wss, ["Type", "From State", "Event / Condition", "To State", "Expected HTTP"])
             ri = 2
             valid_fill   = PatternFill("solid", fgColor="E2EFDA")
             invalid_fill = PatternFill("solid", fgColor="FFCCCC")
             for t in sd.get("transitions", []):
                 for ci, val in enumerate([
-                    "VALID", t.get("from",""), t.get("event",""), t.get("to",""), "200"
+                    "VALID", t.get("from", ""), t.get("event", ""), t.get("to", ""), "200"
                 ], 1):
                     cell = wss.cell(row=ri, column=ci, value=val)
-                    cell.fill = valid_fill; cell.border = thin
+                    cell.fill      = valid_fill
+                    cell.border    = _THIN_BORDER
                     cell.alignment = Alignment(vertical="center", wrap_text=True)
                 ri += 1
             for t in sd.get("invalid_transitions", []):
                 for ci, val in enumerate([
-                    "INVALID", t.get("from",""), "—", t.get("to",""), t.get("expected","409")
+                    "INVALID", t.get("from", ""), "—", t.get("to", ""), t.get("expected", "409")
                 ], 1):
                     cell = wss.cell(row=ri, column=ci, value=val)
-                    cell.fill = invalid_fill; cell.border = thin
+                    cell.fill      = invalid_fill
+                    cell.border    = _THIN_BORDER
                     cell.alignment = Alignment(vertical="center")
                 ri += 1
             for i, w in enumerate([10, 16, 42, 16, 16], 1):

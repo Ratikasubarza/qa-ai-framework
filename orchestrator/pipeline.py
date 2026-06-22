@@ -591,6 +591,11 @@ def node_testcase_export(state: AgentState) -> AgentState:
         paths  = writer.write_both(output)
         exports = {name: str(path) for name, path in paths.items()}
 
+        # Per-platform CSVs — one file per platform (web/api/android/etc.)
+        platform_csvs = writer.write_per_platform_csv(output)
+        for platform, path in platform_csvs.items():
+            exports[f"csv_{platform}"] = str(path)
+
         # Write canonical JSON artifact
         tc_json = tc_dir / "test_cases.json"
         write_json(tc_json, {
