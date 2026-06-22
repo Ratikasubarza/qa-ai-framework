@@ -1,0 +1,38 @@
+# Test Objective,"Verify that the CMS approval workflow enforces role-based access control, correct account state transitions, document verification requirements, and password boundary constraints for newly approved users."
+# Black Box Techniques,"equivalence_partitioning, error_guessing, decision_table, boundary_value_analysis, state_transition"
+# Grey Box Techniques,"api_contract_testing, db_state_validation, side_effect_verification"
+
+TC ID,Name,Technique,Type,Priority,Platforms,Preconditions,Inputs,Expected Outcome,Risk Level,Tags
+TC-001,Admin approves account — all conditions met (DT Rule 1: Y/Y/Y → APPROVE),decision_table,happy_path,P1,api,"CMS admin is authenticated
+Target account status is PENDING
+All required documents are VERIFIED","{""role"": ""admin"", ""account_status"": ""pending"", ""documents_verified"": true}","HTTP 200 — account transitions to APPROVED, welcome email sent",high,"smoke, regression, decision_table"
+TC-002,Admin rejects — documents missing (DT Rule 2: Y/Y/N → REJECT),decision_table,negative,P1,api,"CMS admin is authenticated
+Account status PENDING
+Documents NOT uploaded","{""role"": ""admin"", ""account_status"": ""pending"", ""documents_verified"": false}","HTTP 400 — rejection reason required, status transitions to REJECTED",high,"regression, decision_table"
+TC-003,Viewer role gets 403 — regardless of account/docs state (DT Rules 5–8),decision_table,negative,P1,api,"Viewer-role user authenticated
+Target account PENDING","{""role"": ""viewer"", ""account_status"": ""pending"", ""documents_verified"": true}",HTTP 403 Forbidden — account status unchanged,high,"regression, security"
+TC-004,State: PENDING → APPROVED (valid transition),state_transition,state_transition,P1,api,"Admin authenticated
+Account PENDING
+Docs verified","{""from_state"": ""PENDING"", ""action"": ""approve""}",Status = APPROVED — HTTP 200,high,"regression, state_transition"
+TC-005,State: PENDING → REJECTED (valid transition),state_transition,state_transition,P1,api,"Admin authenticated
+Account PENDING","{""from_state"": ""PENDING"", ""action"": ""reject"", ""reason"": ""Missing ID""}",Status = REJECTED — HTTP 200,high,"regression, state_transition"
+TC-006,State: APPROVED → PENDING (invalid — must return 409),state_transition,negative,P1,api,"Admin authenticated
+Account is APPROVED","{""from_state"": ""APPROVED"", ""action"": ""reset""}",HTTP 409 Conflict — reverse transition blocked,high,"regression, state_transition"
+TC-007,State: REJECTED → APPROVED (invalid — must return 409),state_transition,negative,P2,api,"Admin authenticated
+Account is REJECTED","{""from_state"": ""REJECTED"", ""action"": ""approve""}",HTTP 409 Conflict — cannot approve a rejected account,medium,"regression, state_transition"
+TC-008,BVA: password 7 chars (min−1) — rejected,boundary_value_analysis,boundary,P1,api,Account just approved,"{""password"": ""Short1!"", ""length"": 7}",HTTP 400 — minimum 8 characters required,high,"boundary, regression"
+TC-009,BVA: password 8 chars (min exact) — accepted,boundary_value_analysis,boundary,P1,api,Account just approved,"{""password"": ""Valid12!"", ""length"": 8}",HTTP 200 — password set successfully,high,"boundary, smoke"
+TC-010,BVA: password 9 chars (min+1) — accepted,boundary_value_analysis,boundary,P2,api,Account just approved,"{""password"": ""Valid123!"", ""length"": 9}",HTTP 200 — password accepted,medium,"boundary, regression"
+TC-011,BVA: password 32 chars (max exact) — accepted,boundary_value_analysis,boundary,P2,api,Account just approved,"{""password"": ""AAAAAAAAAAAAAAAAAAAAAAAAAAAAA1a!"", ""length"": 32}",HTTP 200 — password accepted,medium,"boundary, regression"
+TC-012,BVA: password 33 chars (max+1) — rejected,boundary_value_analysis,boundary,P2,api,Account just approved,"{""password"": ""AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1a!"", ""length"": 33}",HTTP 400 — maximum 32 characters allowed,medium,"boundary, regression"
+TC-013,EP valid: pending account with all conditions met → approved,equivalence_partitioning,happy_path,P1,api,"Admin authenticated
+Account PENDING
+Docs verified","{""partition"": ""valid_all_conditions""}",HTTP 200 — status = APPROVED,high,"regression, ep"
+TC-014,EP invalid: non-pending status cannot be approved,equivalence_partitioning,negative,P2,api,"Admin authenticated
+Account is ACTIVE (not pending)","{""partition"": ""invalid_status"", ""current_status"": ""active""}",HTTP 409 — account not in approvable state,medium,"regression, ep"
+TC-015,Error guessing: concurrent approve + reject same account (race),error_guessing,edge_case,P2,api,"Two admin sessions
+Account PENDING","{""concurrent"": [""approve"", ""reject""], ""race_ms"": 50}",Exactly one succeeds; second returns 409 or is idempotent,high,"edge_case, concurrency"
+TC-016,Error guessing: null user_id,error_guessing,negative,P2,api,Admin authenticated,"{""user_id"": null}",HTTP 400 — user_id is required,medium,"negative, validation"
+TC-017,Error guessing: XSS in rejection_reason field,error_guessing,edge_case,P2,api,"Admin authenticated
+Account PENDING
+Docs missing","{""rejection_reason"": ""<script>alert(1)</script>""}",HTTP 400 or sanitized — no JS executed,high,"security, edge_case"

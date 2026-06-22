@@ -1,12 +1,92 @@
 {
   "feature_name": "cms_approve",
   "ticket_id": "TEST-001",
+  "test_objective": "Verify that the CMS approval workflow enforces role-based access control, correct account state transitions, document verification requirements, and password boundary constraints for newly approved users.",
+  "ac_technique_mapping": [
+    {
+      "ac_id": "AC-1",
+      "ac_summary": "Admin + pending + docs_verified → approve",
+      "primary_technique": "decision_table",
+      "secondary_techniques": [
+        "equivalence_partitioning"
+      ],
+      "grey_box_techniques": [
+        "api_contract_testing",
+        "db_state_validation"
+      ],
+      "why": "Three interacting boolean conditions (role, status, docs) yield 8 rule columns — classic decision table.",
+      "estimated_test_count": 5,
+      "risk_level": "high"
+    },
+    {
+      "ac_id": "AC-2",
+      "ac_summary": "Viewer role gets 403 Forbidden",
+      "primary_technique": "equivalence_partitioning",
+      "secondary_techniques": [
+        "error_guessing"
+      ],
+      "grey_box_techniques": [
+        "api_contract_testing"
+      ],
+      "why": "Single-condition rule — viewer role always blocked. EP covers valid/invalid role partitions.",
+      "estimated_test_count": 2,
+      "risk_level": "high"
+    },
+    {
+      "ac_id": "AC-3",
+      "ac_summary": "Documents missing → reject with reason",
+      "primary_technique": "decision_table",
+      "secondary_techniques": [
+        "error_guessing"
+      ],
+      "grey_box_techniques": [
+        "db_state_validation"
+      ],
+      "why": "Part of the same 3-condition decision table as AC-1; also needs error guessing for missing/null reason.",
+      "estimated_test_count": 3,
+      "risk_level": "high"
+    },
+    {
+      "ac_id": "AC-4",
+      "ac_summary": "Account status: pending → approved or pending → rejected",
+      "primary_technique": "state_transition",
+      "secondary_techniques": [
+        "equivalence_partitioning"
+      ],
+      "grey_box_techniques": [
+        "db_state_validation",
+        "side_effect_verification"
+      ],
+      "why": "Named state machine with explicit valid/invalid transitions — state_transition is exact fit.",
+      "estimated_test_count": 4,
+      "risk_level": "high"
+    },
+    {
+      "ac_id": "AC-5",
+      "ac_summary": "Approved password min 8 max 32 characters",
+      "primary_technique": "boundary_value_analysis",
+      "secondary_techniques": [
+        "equivalence_partitioning"
+      ],
+      "grey_box_techniques": [
+        "api_contract_testing"
+      ],
+      "why": "Explicit numeric range with min/max stated — BVA generates 7 test cases at min-1, min, min+1, mid, max-1, max, max+1.",
+      "estimated_test_count": 7,
+      "risk_level": "medium"
+    }
+  ],
   "techniques_used": [
     "equivalence_partitioning",
     "error_guessing",
     "decision_table",
     "boundary_value_analysis",
     "state_transition"
+  ],
+  "grey_box_techniques": [
+    "api_contract_testing",
+    "db_state_validation",
+    "side_effect_verification"
   ],
   "technique_rationale": {
     "equivalence_partitioning": "Always included as baseline. Partitions: role (admin/viewer/other), account status (pending/active/rejected), documents (verified/missing). One test case per partition.",
@@ -551,6 +631,36 @@
       }
     ]
   },
+  "risk_matrix": [
+    {
+      "risk_area": "Role bypass via token manipulation",
+      "probability": "medium",
+      "impact": "high",
+      "severity": "high",
+      "mitigation": "Validate role from server-side JWT; never trust client-sent role header."
+    },
+    {
+      "risk_area": "Race condition on concurrent approve/reject",
+      "probability": "low",
+      "impact": "high",
+      "severity": "medium",
+      "mitigation": "Use DB-level optimistic locking or row-level lock on account status update."
+    },
+    {
+      "risk_area": "State rollback not prevented",
+      "probability": "medium",
+      "impact": "high",
+      "severity": "high",
+      "mitigation": "Enforce state machine in service layer; invalid transitions return 409."
+    },
+    {
+      "risk_area": "Password not hashed before storage",
+      "probability": "low",
+      "impact": "high",
+      "severity": "medium",
+      "mitigation": "Verify bcrypt hash in DB after set-password API call."
+    }
+  ],
   "coverage_per_ac": {
     "AC1-admin-approve": 100.0,
     "AC2-viewer-403": 100.0,
@@ -588,7 +698,7 @@
   ],
   "estimated_execution_time_minutes": 50,
   "model_used": "mock/gpt-demo",
-  "generated_at": "2026-05-19T21:34:11.523105",
+  "generated_at": "2026-06-22T20:43:28.616156",
   "tokens_used": 3842,
-  "prompt_version": "1.0.0"
+  "prompt_version": "2.0.0"
 }
