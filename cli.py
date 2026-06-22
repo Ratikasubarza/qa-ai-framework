@@ -515,6 +515,37 @@ async def cmd_bot_start(args):
 
 
 
+async def cmd_pipeline_batch(args):
+    """Run pipeline for each ticket in --tickets and print a combined summary."""
+    tickets = [t.strip() for t in args.tickets.split(",") if t.strip()]
+    console.print(f"\n[bold cyan]Batch Pipeline — {len(tickets)} stories[/]")
+    console.print(f"  PRD: {args.prd_url or 'N/A'}\n")
+
+    results = []
+    for i, ticket in enumerate(tickets, 1):
+        console.rule(f"[bold cyan][{i}/{len(tickets)}] {ticket}[/]")
+        # Reuse cmd_pipeline by temporarily setting args.ticket
+        args.ticket  = ticket
+        args.feature = None   # force re-derive from Jira each iteration
+        try:
+            await cmd_pipeline(args)
+            results.append({"ticket": ticket, "status": "ok"})
+        except SystemExit:
+            results.append({"ticket": ticket, "status": "error"})
+        except Exception as exc:
+            console.print(f"[red]✗ {ticket} failed:[/] {exc}")
+            results.append({"ticket": ticket, "status": "error", "error": str(exc)})
+
+    console.rule("[bold]Batch Summary[/]")
+    ok  = [r for r in results if r["status"] == "ok"]
+    err = [r for r in results if r["status"] != "ok"]
+    console.print(f"  [green]✓ Success:[/] {len(ok)}/{len(tickets)}")
+    if err:
+        console.print(f"  [red]✗ Failed:[/]  {len(err)}/{len(tickets)}")
+        for r in err:
+            console.print(f"    • {r['ticket']}: {r.get('error','')[:80]}")
+
+
 async def cmd_pipeline(args):
     from core.automation_readiness import load_automation_evidence
     from orchestrator.pipeline import run_pipeline
@@ -701,7 +732,8 @@ def build_parser():
     pip = sub.add_parser("pipeline", help="Run full Phase 9 orchestrated pipeline")
     pip.add_argument("--feature",  default=None, help="Feature name (auto-derived from --ticket if omitted)")
     pip.add_argument("--platform", default="web")
-    pip.add_argument("--ticket",   default=None, help="Jira ticket ID")
+    pip.add_argument("--ticket",   default=None, help="Single Jira story ID")
+    pip.add_argument("--tickets",  default=None, help="Comma-separated Jira story IDs — runs pipeline per story")
     pip.add_argument("--story",    default=None, help="Raw story text")
     pip.add_argument("--prd-url",  default=None, help="Confluence PRD URL")
     pip.add_argument("--include-subtasks", action="store_true", help="Include Jira subtasks/developer details in source intake")
@@ -945,7 +977,10 @@ def main():
         else:
             parser.print_help()
     elif args.command == "pipeline":
-        asyncio.run(cmd_pipeline(args))
+        if getattr(args, "tickets", None):
+            asyncio.run(cmd_pipeline_batch(args))
+        else:
+            asyncio.run(cmd_pipeline(args))
     elif args.command == "smoke":
         asyncio.run(cmd_smoke(args))
     else:
