@@ -454,11 +454,13 @@ class TestCaseAgent:
             for raw_platform in raw_platforms:
                 value = str(raw_platform).strip().lower()
                 platform_map = {
-                    "mobile":           input_data.platforms[0].value if input_data.platforms else "android",
-                    "flutter_android":  "flutter-android",
-                    "flutter-android":  "flutter-android",  # handle both underscore and dash forms
-                    "flutter-ios":      "flutter-ios",
-                    "flutter_ios":      "flutter-ios",
+                    "mobile":           "mobile",
+                    "android":          "mobile",
+                    "ios":              "mobile",
+                    "flutter_android":  "mobile",
+                    "flutter-android":  "mobile",
+                    "flutter_ios":      "mobile",
+                    "flutter-ios":      "mobile",
                 }
                 value = platform_map.get(value, value)
                 if value in Platform._value2member_map_:

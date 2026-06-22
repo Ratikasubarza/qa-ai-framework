@@ -19,16 +19,17 @@ AGENT_NAME    = "code_gen_agent"
 PROMPT_VERSION = "1.0.0"
 
 # Platform group → prompt registry key
-_MOBILE_PLATFORMS = {Platform.ANDROID, Platform.IOS, Platform.FLUTTER_ANDROID, Platform.FLUTTER_IOS}
+_MOBILE_PLATFORMS = {Platform.MOBILE, Platform.ANDROID, Platform.IOS, Platform.FLUTTER_ANDROID, Platform.FLUTTER_IOS}
 _API_PLATFORMS    = {Platform.API}
 
 # Base URL / connection target per platform
 BASE_URLS = {
     Platform.WEB:             TestConfig.WEB_APP_URL,
     Platform.API:             TestConfig.API_URL,
+    Platform.MOBILE:          TestConfig.ANDROID_PACKAGE,
     Platform.ANDROID:         TestConfig.ANDROID_PACKAGE,
     Platform.FLUTTER_ANDROID: TestConfig.ANDROID_PACKAGE,
-    Platform.IOS:             "",  # Appium iOS uses bundle ID — injected via evidence
+    Platform.IOS:             "",
     Platform.FLUTTER_IOS:     "",
     Platform.DATABASE:        TestConfig.API_URL,
 }

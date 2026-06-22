@@ -69,6 +69,7 @@ class TestPlanOutput(BaseModel):
 class Platform(str, Enum):
     WEB              = "web"
     API              = "api"
+    MOBILE           = "mobile"       # unified label for all mobile platforms
     ANDROID          = "android"
     IOS              = "ios"
     FLUTTER_ANDROID  = "flutter-android"

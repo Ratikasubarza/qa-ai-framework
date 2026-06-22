@@ -15,9 +15,9 @@ _SUBTASK_PLATFORM_LABELS: dict[str, str] = {
     "[backend]": "api",
     "[fe]":      "web",
     "[frontend]": "web",
-    "[mobile]":  "flutter-android",
-    "[android]": "flutter-android",
-    "[ios]":     "flutter-ios",
+    "[mobile]":  "mobile",
+    "[android]": "mobile",
+    "[ios]":     "mobile",
 }
 
 

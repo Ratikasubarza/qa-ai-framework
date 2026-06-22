@@ -4,6 +4,14 @@ from __future__ import annotations
 
 
 PLATFORM_SUBTASK_MARKERS = {
+    "mobile": (
+        "[mobile]",
+        " mobile ",
+        " android ",
+        " ios ",
+        " appium ",
+        " flutter ",
+    ),
     "api": (
         "[be]",
         " backend ",
