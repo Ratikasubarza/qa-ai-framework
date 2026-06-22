@@ -443,24 +443,19 @@ class TestPlanAgent:
         json_path.parent.mkdir(parents=True, exist_ok=True)
         json_path.write_text(output.model_dump_json(indent=2))
 
-        # Excel + CSV (combined) + per-platform CSVs
-        sheet_paths   = test_plan_excel_writer.write_both(output)
-        platform_csvs = test_plan_excel_writer.write_per_platform_csv(output)
+        # Excel + CSV
+        sheet_paths = test_plan_excel_writer.write_both(output)
 
-        paths: dict[str, str] = {
+        paths = {
             "json":  str(json_path),
             "excel": str(sheet_paths["excel"]),
             "csv":   str(sheet_paths["csv"]),
         }
-        for platform, path in platform_csvs.items():
-            paths[f"csv_{platform}"] = str(path)
-
         logger.info(
             "test_plan_saved",
             path=paths["json"],
             excel=paths["excel"],
             csv=paths["csv"],
-            platform_csvs=list(platform_csvs.keys()),
             scenarios=output.total_scenarios,
             techniques=output.techniques_used,
         )

@@ -2,14 +2,13 @@
 Excel & CSV Writer Skill — exports test cases and test plans to both formats.
 Naming conventions:
   test_cases:  test_plan_<feature>_<YYYYMMDD>.csv/xlsx
-              test_plan_<feature>_<platform>_<YYYYMMDD>.csv  (per-platform)
   test_plans:  <feature>_test_plan_<YYYYMMDD>.csv/xlsx
-              <feature>_test_plan_<platform>_<YYYYMMDD>.csv  (per-platform)
+Platform differentiation is captured in the Platform column of each row,
+not by splitting into separate files.
 """
 import csv
 import json as _json
 import structlog
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from openpyxl import Workbook
@@ -119,49 +118,6 @@ class ExcelWriter:
 
         logger.info("csv_written", path=str(path), rows=len(rows))
         return path
-
-    def write_per_platform_csv(self, output: TestCaseAgentOutput) -> dict[str, Path]:
-        """Write one CSV per platform. Returns {platform_value: Path}.
-
-        Scenarios tagged with multiple platforms appear in each relevant file.
-        Scenarios with no platform tag fall back to the first available platform.
-        """
-        by_platform: dict[str, list] = defaultdict(list)
-        for s in output.scenarios:
-            if s.platforms:
-                for p in s.platforms:
-                    by_platform[p.value].append(s)
-            else:
-                by_platform["web"].append(s)
-
-        if not by_platform:
-            return {}
-
-        feature_slug = output.feature.lower().replace(" ", "_").replace("/", "_")
-        date_str     = datetime.now().strftime("%Y%m%d")
-        paths: dict[str, Path] = {}
-
-        for platform, scenarios in by_platform.items():
-            subset = TestCaseAgentOutput(
-                feature=output.feature,
-                scenarios=scenarios,
-                coverage_summary=output.coverage_summary,
-                total_scenarios=len(scenarios),
-                prompt_version=output.prompt_version,
-                model_used=output.model_used,
-                generated_at=output.generated_at,
-                tokens_used=output.tokens_used,
-            )
-            path = self.output_dir / f"test_plan_{feature_slug}_{platform}_{date_str}.csv"
-            rows = self._build_rows(subset)
-            with open(path, "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow(COLUMNS)
-                writer.writerows(rows)
-            logger.info("csv_per_platform_written", path=str(path), platform=platform, rows=len(rows))
-            paths[platform] = path
-
-        return paths
 
     def write_excel(self, output: TestCaseAgentOutput) -> Path:
         """Write test cases to formatted Excel file."""
@@ -282,49 +238,6 @@ class TestPlanExcelWriter:
             writer.writerows(rows)
         logger.info("test_plan_csv_written", path=str(path), rows=len(rows))
         return path
-
-    def write_per_platform_csv(self, output: TestPlanOutput) -> dict[str, Path]:
-        """Write one CSV per platform from test plan scenarios. Returns {platform: Path}.
-
-        Scenarios tagged with multiple platforms appear in each relevant file.
-        """
-        by_platform: dict[str, list] = defaultdict(list)
-        for s in output.scenarios:
-            if s.platforms:
-                for p in s.platforms:
-                    by_platform[p].append(s)
-            else:
-                by_platform["web"].append(s)
-
-        if not by_platform:
-            return {}
-
-        date_str = datetime.now().strftime("%Y%m%d")
-        paths: dict[str, Path] = {}
-
-        for platform, scenarios in by_platform.items():
-            path = self.output_dir / f"{self._slug(output.feature_name)}_test_plan_{platform}_{date_str}.csv"
-            with open(path, "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow(TP_SCENARIO_COLUMNS)
-                for s in scenarios:
-                    writer.writerow([
-                        s.scenario_id,
-                        s.scenario_name,
-                        s.technique,
-                        s.type,
-                        s.priority,
-                        platform,
-                        "\n".join(s.preconditions),
-                        _json.dumps(s.inputs, ensure_ascii=False) if s.inputs else "",
-                        s.expected_outcome,
-                        s.risk_level,
-                        ", ".join(s.tags),
-                    ])
-            logger.info("test_plan_csv_per_platform_written", path=str(path), platform=platform, rows=len(scenarios))
-            paths[platform] = path
-
-        return paths
 
     def write_excel(self, output: TestPlanOutput) -> Path:
         """Write test plan to formatted multi-sheet Excel."""

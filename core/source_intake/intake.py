@@ -8,6 +8,30 @@ from core.agent_state import AgentState
 from core.source_intake.security import redact_internal_text
 from core.source_intake.subtask_filter import filter_subtasks_for_platforms
 
+# Maps subtask summary label → platform value.
+# Checked as lowercase substring of subtask summary.
+_SUBTASK_PLATFORM_LABELS: dict[str, str] = {
+    "[be]":      "api",
+    "[backend]": "api",
+    "[fe]":      "web",
+    "[frontend]": "web",
+    "[mobile]":  "flutter-android",
+    "[android]": "flutter-android",
+    "[ios]":     "flutter-ios",
+}
+
+
+def _detect_platforms_from_subtasks(subtasks: list[dict]) -> list[str]:
+    """Infer target platforms by scanning subtask summary labels ([BE]/[FE]/[Mobile])."""
+    detected: set[str] = set()
+    for st in subtasks:
+        summary_lower = st.get("summary", "").lower()
+        for label, platform in _SUBTASK_PLATFORM_LABELS.items():
+            if label in summary_lower:
+                detected.add(platform)
+                break
+    return sorted(detected)
+
 
 def is_placeholder_url(value: str) -> bool:
     normalized = value.strip().lower()
@@ -77,10 +101,16 @@ def _source_refs(
 def build_source_intake_state(state: AgentState, logger: Any) -> AgentState:
     story_text = state.get("story_text") or state.get("feature", "")
     ticket_id = state.get("ticket_id") or ""
-    platforms = state.get("platforms") or ["web"]
+    platforms: list[str] = list(state.get("platforms") or [])
     feature_url = state.get("feature_url") or ""
     prd_url = state.get("prd_url") or ""
-    include_subtasks = bool(state.get("include_subtasks"))
+    # Auto-enable subtask reading whenever a Jira ticket is provided.
+    # Explicit False from caller overrides this default.
+    include_subtasks = state.get("include_subtasks")
+    if include_subtasks is None:
+        include_subtasks = bool(ticket_id)
+    else:
+        include_subtasks = bool(include_subtasks)
     prd_source: dict[str, Any] = {}
     jira_source: dict[str, Any] = {}
     intake_error: dict[str, Any] | None = None
@@ -108,6 +138,15 @@ def build_source_intake_state(state: AgentState, logger: Any) -> AgentState:
             if jira_text:
                 context_parts.append(f"=== JIRA STORY / TICKET ===\n{jira_text}")
             raw_subtasks = issue.get("subtasks") or []
+
+            # Auto-detect platforms from [BE]/[FE]/[Mobile] subtask labels.
+            # Merges with any platforms the caller already specified.
+            auto_platforms = _detect_platforms_from_subtasks(raw_subtasks)
+            if auto_platforms:
+                merged = set(platforms) | set(auto_platforms)
+                platforms = sorted(merged)
+                logger.info("platforms_auto_detected", auto=auto_platforms, merged=platforms)
+
             included_subtasks = (
                 filter_subtasks_for_platforms(raw_subtasks, platforms)
                 if include_subtasks
@@ -221,6 +260,7 @@ def build_source_intake_state(state: AgentState, logger: Any) -> AgentState:
     return {
         **state,
         "current_phase": "source_intake",
+        "platforms": platforms,          # propagate auto-detected / merged platforms
         "source_bundle": source_bundle,
         "story_text": story_text,
         "error": intake_error,
