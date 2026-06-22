@@ -38,30 +38,59 @@ class PairwiseRow(BaseModel):
     test_case_id: str            = ""
 
 
+class ACTechniqueMapping(BaseModel):
+    """Per-AC technique assignment produced by TestPlanAgent reasoning."""
+    ac_id:                str
+    ac_summary:           str            = ""
+    primary_technique:    str            = "equivalence_partitioning"
+    secondary_techniques: list[str]      = Field(default_factory=list)
+    grey_box_techniques:  list[str]      = Field(default_factory=list)
+    why:                  str            = ""
+    estimated_test_count: int            = 0
+    risk_level:           str            = "medium"   # high/medium/low
+
+
+class RiskItem(BaseModel):
+    """One item in the risk matrix."""
+    risk_area:   str
+    probability: str = "medium"   # high/medium/low
+    impact:      str = "medium"   # high/medium/low
+    severity:    str = "medium"   # high/medium/low  (= probability × impact)
+    mitigation:  str = ""
+
+
 class TestPlanOutput(BaseModel):
     """Full output of TestPlanAgent — techniques used, all scenarios, coverage metadata."""
     model_config = ConfigDict(protected_namespaces=())
 
     feature_name:                     str
-    ticket_id:                        str                      = ""
-    techniques_used:                  list[str]                = Field(default_factory=list)
-    technique_rationale:              dict[str, str]           = Field(default_factory=dict)
-    scenarios:                        list[TestScenario]       = Field(default_factory=list)
-    decision_table:                   list[DecisionTableRow]   = Field(default_factory=list)
-    pairwise_matrix:                  list[PairwiseRow]        = Field(default_factory=list)
-    state_diagram:                    dict                     = Field(default_factory=dict)
-    coverage_per_ac:                  dict[str, float]         = Field(default_factory=dict)
-    total_scenarios:                  int                      = 0
-    estimated_coverage_percent:       float                    = 0.0
-    test_data_requirements:           list[str]                = Field(default_factory=list)
-    environment_prerequisites:        list[str]                = Field(default_factory=list)
-    entry_criteria:                   list[str]                = Field(default_factory=list)
-    exit_criteria:                    list[str]                = Field(default_factory=list)
-    estimated_execution_time_minutes: int                      = 0
-    model_used:                       str                      = ""
-    generated_at:                     datetime                 = Field(default_factory=datetime.now)
-    tokens_used:                      int                      = 0
-    prompt_version:                   str                      = "1.0.0"
+    ticket_id:                        str                        = ""
+    test_objective:                   str                        = ""
+    # Per-AC technique reasoning
+    ac_technique_mapping:             list[ACTechniqueMapping]   = Field(default_factory=list)
+    # Aggregated technique lists
+    techniques_used:                  list[str]                  = Field(default_factory=list)
+    grey_box_techniques:              list[str]                  = Field(default_factory=list)
+    technique_rationale:              dict[str, str]             = Field(default_factory=dict)
+    # Scenario outputs
+    scenarios:                        list[TestScenario]         = Field(default_factory=list)
+    decision_table:                   list[DecisionTableRow]     = Field(default_factory=list)
+    pairwise_matrix:                  list[PairwiseRow]          = Field(default_factory=list)
+    state_diagram:                    dict                       = Field(default_factory=dict)
+    risk_matrix:                      list[RiskItem]             = Field(default_factory=list)
+    # Coverage & planning
+    coverage_per_ac:                  dict[str, float]           = Field(default_factory=dict)
+    total_scenarios:                  int                        = 0
+    estimated_coverage_percent:       float                      = 0.0
+    test_data_requirements:           list[str]                  = Field(default_factory=list)
+    environment_prerequisites:        list[str]                  = Field(default_factory=list)
+    entry_criteria:                   list[str]                  = Field(default_factory=list)
+    exit_criteria:                    list[str]                  = Field(default_factory=list)
+    estimated_execution_time_minutes: int                        = 0
+    model_used:                       str                        = ""
+    generated_at:                     datetime                   = Field(default_factory=datetime.now)
+    tokens_used:                      int                        = 0
+    prompt_version:                   str                        = "1.0.0"
 
 
 # ── Enums ──────────────────────────────────────────────────────────────────

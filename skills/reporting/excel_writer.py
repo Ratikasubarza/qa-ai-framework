@@ -189,13 +189,23 @@ TP_SCENARIO_COLUMNS = [
 ]
 
 TECHNIQUE_COLORS = {
+    # Black box
     "decision_table":             "D6E4FF",  # blue
     "boundary_value_analysis":    "FFF2CC",  # yellow
     "state_transition":           "E2EFDA",  # green
     "equivalence_partitioning":   "FCE4EC",  # pink
     "error_guessing":             "F3E5F5",  # purple
-    "pairwise":                   "E0F7FA",  # teal
+    "pairwise_testing":           "E0F7FA",  # teal
+    "use_case_testing":           "FFF3E0",  # orange-light
+    # Grey box
+    "api_contract_testing":       "E8EAF6",  # indigo-light
+    "db_state_validation":        "E0F2F1",  # teal-green
+    "rule_engine_validation":     "FBE9E7",  # deep-orange-light
+    "integration_testing":        "F3E5F5",  # purple-light
+    "side_effect_verification":   "FFFDE7",  # amber-light
 }
+
+RISK_COLORS = {"high": "FFCCCC", "medium": "FFF2CC", "low": "CCFFCC"}
 
 
 class TestPlanExcelWriter:
@@ -229,11 +239,19 @@ class TestPlanExcelWriter:
         return rows
 
     def write_csv(self, output: TestPlanOutput) -> Path:
-        """Write test plan scenarios to CSV."""
+        """Write test plan scenarios to CSV with objective header and technique info."""
         path = self._get_path(output.feature_name, "csv")
         rows = self._scenario_rows(output)
         with open(path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
+            # Objective block at the top — makes the CSV self-contained
+            if output.test_objective:
+                writer.writerow(["# Test Objective", output.test_objective])
+            bb = ", ".join(output.techniques_used) or "-"
+            gb = ", ".join(output.grey_box_techniques) or "-"
+            writer.writerow(["# Black Box Techniques", bb])
+            writer.writerow(["# Grey Box Techniques", gb])
+            writer.writerow([])  # blank separator
             writer.writerow(TP_SCENARIO_COLUMNS)
             writer.writerows(rows)
         logger.info("test_plan_csv_written", path=str(path), rows=len(rows))
@@ -313,16 +331,61 @@ class TestPlanExcelWriter:
             for i, w in enumerate([10, 16, 42, 16, 16], 1):
                 wss.column_dimensions[get_column_letter(i)].width = w
 
-        # ── Sheet 4: Summary ──────────────────────────────────────────────────
+        # ── Sheet 4: AC Technique Mapping ────────────────────────────────────
+        if output.ac_technique_mapping:
+            wsac = wb.create_sheet("AC Technique Mapping")
+            ac_cols = ["AC ID", "AC Summary", "Primary Technique", "Secondary (Black Box)",
+                       "Grey Box Techniques", "Why", "Est. Tests", "Risk Level"]
+            _write_ws_header(wsac, ac_cols)
+            for ri, ac in enumerate(output.ac_technique_mapping, 2):
+                risk_fill = PatternFill("solid", fgColor=RISK_COLORS.get(ac.risk_level, "FFFFFF"))
+                row_vals = [
+                    ac.ac_id,
+                    ac.ac_summary,
+                    ac.primary_technique,
+                    ", ".join(ac.secondary_techniques),
+                    ", ".join(ac.grey_box_techniques),
+                    ac.why,
+                    ac.estimated_test_count,
+                    ac.risk_level.upper(),
+                ]
+                for ci, val in enumerate(row_vals, 1):
+                    cell = wsac.cell(row=ri, column=ci, value=str(val) if not isinstance(val, int) else val)
+                    cell.fill      = risk_fill
+                    cell.border    = _THIN_BORDER
+                    cell.alignment = Alignment(vertical="top", wrap_text=True)
+            for i, w in enumerate([10, 36, 24, 32, 32, 50, 10, 12], 1):
+                wsac.column_dimensions[get_column_letter(i)].width = w
+
+        # ── Sheet 5: Risk Matrix ──────────────────────────────────────────────
+        if output.risk_matrix:
+            wsr = wb.create_sheet("Risk Matrix")
+            _write_ws_header(wsr, ["Risk Area", "Probability", "Impact", "Severity", "Mitigation"])
+            for ri, item in enumerate(output.risk_matrix, 2):
+                sev_fill = PatternFill("solid", fgColor=RISK_COLORS.get(item.severity, "FFFFFF"))
+                for ci, val in enumerate([
+                    item.risk_area, item.probability.upper(),
+                    item.impact.upper(), item.severity.upper(), item.mitigation
+                ], 1):
+                    cell = wsr.cell(row=ri, column=ci, value=val)
+                    cell.fill      = sev_fill
+                    cell.border    = _THIN_BORDER
+                    cell.alignment = Alignment(vertical="top", wrap_text=True)
+            for i, w in enumerate([36, 14, 14, 14, 55], 1):
+                wsr.column_dimensions[get_column_letter(i)].width = w
+
+        # ── Sheet 6: Summary ──────────────────────────────────────────────────
         wsm = wb.create_sheet("Summary")
         bold = Font(bold=True)
         summary_rows = [
             ("Feature",                  output.feature_name),
             ("Ticket ID",                output.ticket_id),
+            ("Test Objective",           output.test_objective),
             ("Generated At",             output.generated_at.strftime("%Y-%m-%d %H:%M")),
             ("Model Used",               output.model_used),
             ("Prompt Version",           output.prompt_version),
-            ("Techniques Used",          ", ".join(output.techniques_used)),
+            ("Black Box Techniques",     ", ".join(output.techniques_used)),
+            ("Grey Box Techniques",      ", ".join(output.grey_box_techniques)),
             ("Total Scenarios",          output.total_scenarios),
             ("Estimated Coverage",       f"{output.estimated_coverage_percent:.1f}%"),
             ("Est. Execution Time",      f"{output.estimated_execution_time_minutes} min"),
@@ -331,10 +394,7 @@ class TestPlanExcelWriter:
         ]
         for ac, pct in output.coverage_per_ac.items():
             summary_rows.append((f"  {ac}", f"{pct:.1f}%"))
-        summary_rows += [
-            ("", ""),
-            ("Test Data Requirements", ""),
-        ]
+        summary_rows += [("", ""), ("Test Data Requirements", "")]
         for item in output.test_data_requirements:
             summary_rows.append((f"  • {item}", ""))
         summary_rows += [("", ""), ("Environment Prerequisites", "")]
@@ -349,11 +409,11 @@ class TestPlanExcelWriter:
 
         for ri, (key, val) in enumerate(summary_rows, 1):
             ka = wsm.cell(row=ri, column=1, value=key)
-            va = wsm.cell(row=ri, column=2, value=val)
+            wsm.cell(row=ri, column=2, value=val)
             if key and not key.startswith(" ") and key != "":
                 ka.font = bold
         wsm.column_dimensions["A"].width = 32
-        wsm.column_dimensions["B"].width = 55
+        wsm.column_dimensions["B"].width = 60
 
         wb.save(path)
         logger.info("test_plan_excel_written", path=str(path), scenarios=output.total_scenarios)

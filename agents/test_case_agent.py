@@ -212,18 +212,57 @@ class TestCaseAgent:
         if enriched_context:
             past_context = f"{enriched_context}\n\n---\n{past_context}" if past_context else enriched_context
 
-        # ── Step 2b: Inject test plan techniques ─────────────
-        # Prepend selected techniques from TestPlanAgent so the LLM generates
-        # scenarios aligned with the planned approach (decision_table, pairwise, etc.)
+        # ── Step 2b: Inject test plan techniques (per-AC mapping) ────────────
+        # TestPlanAgent now provides per-AC technique assignments.
+        # Pass this as rich context so the LLM generates scenarios that
+        # match each technique's specific approach (BVA values, DT combinations, etc.)
         if input_data.test_plan:
-            techniques = input_data.test_plan.get("techniques_used") or []
-            rationale  = input_data.test_plan.get("technique_rationale") or {}
-            if techniques:
-                plan_lines = ["TESTING APPROACH (pre-selected by Test Plan):"]
-                for t in techniques:
-                    reason = rationale.get(t, "")
-                    plan_lines.append(f"- {t}: {reason}" if reason else f"- {t}")
-                plan_hint  = "\n".join(plan_lines)
+            plan_lines: list[str] = []
+
+            objective = input_data.test_plan.get("test_objective", "")
+            if objective:
+                plan_lines.append(f"TEST OBJECTIVE: {objective}")
+
+            # Per-AC technique mapping — most valuable context for test case generation
+            ac_mapping = input_data.test_plan.get("ac_technique_mapping") or []
+            if ac_mapping:
+                plan_lines.append("\nPER-AC TECHNIQUE ASSIGNMENTS (follow these exactly):")
+                for ac in ac_mapping:
+                    ac_id      = ac.get("ac_id", "")
+                    primary    = ac.get("primary_technique", "")
+                    secondary  = ac.get("secondary_techniques") or []
+                    grey_box   = ac.get("grey_box_techniques") or []
+                    why        = ac.get("why", "")
+                    est_count  = ac.get("estimated_test_count", 0)
+                    risk       = ac.get("risk_level", "medium")
+                    summary    = ac.get("ac_summary", "")
+                    techniques_str = primary
+                    if secondary:
+                        techniques_str += f" + {', '.join(secondary)}"
+                    if grey_box:
+                        techniques_str += f" | grey box: {', '.join(grey_box)}"
+                    plan_lines.append(
+                        f"  {ac_id} [{risk} risk, ~{est_count} tests]: {techniques_str}"
+                    )
+                    if summary:
+                        plan_lines.append(f"    AC: {summary}")
+                    if why:
+                        plan_lines.append(f"    Why: {why}")
+            else:
+                # Fallback to flat technique list if per-AC mapping not available
+                techniques = input_data.test_plan.get("techniques_used") or []
+                grey_box   = input_data.test_plan.get("grey_box_techniques") or []
+                rationale  = input_data.test_plan.get("technique_rationale") or {}
+                if techniques:
+                    plan_lines.append("\nTESTING APPROACH (pre-selected by Test Plan):")
+                    for t in techniques:
+                        reason = rationale.get(t, "")
+                        plan_lines.append(f"- {t}: {reason}" if reason else f"- {t}")
+                if grey_box:
+                    plan_lines.append("Grey box techniques: " + ", ".join(grey_box))
+
+            if plan_lines:
+                plan_hint    = "\n".join(plan_lines)
                 past_context = f"{plan_hint}\n\n{past_context}" if past_context else plan_hint
 
         # ── Step 3: Format prompt ─────────────────────────────
