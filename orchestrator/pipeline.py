@@ -1139,6 +1139,26 @@ def route_after_source_intake(state: AgentState) -> Literal["requirements", "rep
     return "requirements"
 
 
+def route_after_requirements(state: AgentState) -> Literal["test_plan", "report"]:
+    """Short-circuit to report when requirements agent failed hard (exception path).
+    Empty AC is allowed — test_plan and test_case_agent can still work from description.
+    """
+    error = state.get("error") or {}
+    if error.get("phase") == "requirements":
+        return "report"
+    return "test_plan"
+
+
+def route_after_testcase(state: AgentState) -> Literal["case_review_gate", "report"]:
+    """Short-circuit to report when node_testcase generated 0 scenarios.
+    Avoids a confusing secondary error in case_review_gate.
+    """
+    error = state.get("error") or {}
+    if not state.get("test_cases") or error.get("phase") == "testcase":
+        return "report"
+    return "case_review_gate"
+
+
 def route_after_case_review(state: AgentState) -> Literal["approval_gate", "report"]:
     review = state.get("case_review") or {}
     if review.get("status") == "passed" and not state.get("error"):
@@ -1210,10 +1230,10 @@ def build_pipeline():
     graph.add_node("jira_update", node_jira_update)
 
     graph.set_entry_point("source_intake")
-    graph.add_conditional_edges("source_intake", route_after_source_intake)
-    graph.add_edge("requirements", "test_plan")
+    graph.add_conditional_edges("source_intake",    route_after_source_intake)
+    graph.add_conditional_edges("requirements",     route_after_requirements)
     graph.add_edge("test_plan", "testcase")
-    graph.add_edge("testcase", "case_review_gate")
+    graph.add_conditional_edges("testcase",         route_after_testcase)
     graph.add_conditional_edges("case_review_gate", route_after_case_review)
     graph.add_conditional_edges("approval_gate", route_after_approval)
     graph.add_conditional_edges("testcase_export", route_after_testcase_export)
